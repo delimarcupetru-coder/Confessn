@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import './App.css'
+import { ChessBoard } from './components/ChessBoard'
+import { LichessEmbed } from './components/LichessEmbed'
+import { ChessAI } from './components/ChessAI'
 
 function App() {
   const [email, setEmail] = useState('')
+  const [selectedGame, setSelectedGame] = useState('board')
 
   const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,6 +22,7 @@ function App() {
           <h1 className="logo">♟️ Confessn</h1>
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
+            <li><a href="#games">Games</a></li>
             <li><a href="#about">About</a></li>
             <li><a href="#signup">Join Now</a></li>
           </ul>
@@ -86,6 +91,37 @@ function App() {
         </div>
       </section>
 
+      {/* Games Section */}
+      <section id="games" className="games">
+        <h2>Play Chess Now</h2>
+        <div className="game-tabs">
+          <button 
+            className={`game-tab ${selectedGame === 'board' ? 'active' : ''}`}
+            onClick={() => setSelectedGame('board')}
+          >
+            🎮 Interactive Board
+          </button>
+          <button 
+            className={`game-tab ${selectedGame === 'ai' ? 'active' : ''}`}
+            onClick={() => setSelectedGame('ai')}
+          >
+            🤖 Play vs AI
+          </button>
+          <button 
+            className={`game-tab ${selectedGame === 'lichess' ? 'active' : ''}`}
+            onClick={() => setSelectedGame('lichess')}
+          >
+            ♟️ Lichess
+          </button>
+        </div>
+        
+        <div className="game-content">
+          {selectedGame === 'board' && <ChessBoard />}
+          {selectedGame === 'ai' && <ChessAI />}
+          {selectedGame === 'lichess' && <LichessEmbed />}
+        </div>
+      </section>
+
       {/* Sign Up Section */}
       <section id="signup" className="signup">
         <h2>Ready to Play?</h2>
@@ -113,6 +149,7 @@ function App() {
             <h4>Quick Links</h4>
             <ul>
               <li><a href="#features">Features</a></li>
+              <li><a href="#games">Games</a></li>
               <li><a href="#about">About</a></li>
               <li><a href="#signup">Sign Up</a></li>
             </ul>

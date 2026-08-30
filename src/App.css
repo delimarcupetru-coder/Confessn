@@ -238,6 +238,60 @@ body {
   color: var(--text);
 }
 
+/* Games Section */
+.games {
+  background: white;
+  padding: 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.games h2 {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  color: var(--dark);
+}
+
+.game-tabs {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.game-tab {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--border);
+  background: white;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-size: 0.95rem;
+}
+
+.game-tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.game-tab.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.game-content {
+  background: var(--light);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-height: 700px;
+}
+
 /* Sign Up Section */
 .signup {
   background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary) 100%);
