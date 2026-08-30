@@ -249,10 +249,82 @@ body {
 .games h2 {
   text-align: center;
   font-size: 2.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   color: var(--dark);
 }
 
+.games-intro {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.game-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 1000px) {
+  .game-links {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.game-link-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+  text-align: center;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-link-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+
+.game-link-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.game-link-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.8rem;
+  color: var(--dark);
+}
+
+.game-link-card p {
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.play-now {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.game-link-card:hover .play-now {
+  color: var(--primary-dark);
+  transform: translateX(5px);
+}
+
+/* Games Tabs (old) */
 .game-tabs {
   display: flex;
   gap: 1rem;
