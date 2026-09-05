@@ -22,7 +22,7 @@ export function Login() {
         </section>
         <section className="auth-form-panel">
           <div className="auth-switch"><button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Log in</button><button className={mode === 'create' ? 'active' : ''} onClick={() => setMode('create')}>Create account</button></div>
-          <form onSubmit={(event) => { event.preventDefault(); navigate('/sketch') }}>
+          <form onSubmit={(event) => { event.preventDefault(); navigate('/account') }}>
             <label>Email<input type="email" placeholder="you@company.com" required /></label>
             <label>Password<input type="password" placeholder="Enter your password" required /></label>
             <button className="primary-action" type="submit">{mode === 'login' ? 'Log in' : 'Create account'} <span>↗</span></button>

@@ -9,17 +9,27 @@ export function SketchStudio() {
   const [status, setStatus] = useState('Ready for direction')
   const [isDrawing, setIsDrawing] = useState(false)
 
+  function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const bounds = canvas.getBoundingClientRect()
+    return {
+      x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+      y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
+    }
+  }
+
   function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     if (!canvas) return
-    const bounds = canvas.getBoundingClientRect()
     const context = canvas.getContext('2d')
     if (!context) return
     context.strokeStyle = '#161616'
     context.lineWidth = 2
     context.lineCap = 'round'
     context.beginPath()
-    context.moveTo(event.clientX - bounds.left, event.clientY - bounds.top)
+    const point = canvasPoint(event)
+    context.moveTo(point.x, point.y)
     setIsDrawing(true)
   }
 
@@ -27,10 +37,10 @@ export function SketchStudio() {
     if (!isDrawing) return
     const canvas = canvasRef.current
     if (!canvas) return
-    const bounds = canvas.getBoundingClientRect()
     const context = canvas.getContext('2d')
     if (!context) return
-    context.lineTo(event.clientX - bounds.left, event.clientY - bounds.top)
+    const point = canvasPoint(event)
+    context.lineTo(point.x, point.y)
     context.stroke()
   }
 
@@ -39,6 +49,17 @@ export function SketchStudio() {
     const context = canvas?.getContext('2d')
     if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height)
     setStatus('Canvas cleared')
+  }
+
+  function saveProject() {
+    const project = {
+      id: '001',
+      name: '001_Rev C01_SINGER DESK LAMP',
+      brief: prompt || 'New product concept',
+      status: 'Saved draft',
+    }
+    window.localStorage.setItem('confessn-projects', JSON.stringify([project]))
+    setStatus('Project saved')
   }
 
   function assistSketch() {
@@ -66,6 +87,7 @@ export function SketchStudio() {
           <p className="sketch-copy">Describe the object, part, or system in your head. We&apos;ll turn the direction into a high-level visual starting point.</p>
           <label className="prompt-label">YOUR IDEA<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={5} /></label>
           <button className="primary-action" onClick={assistSketch}>Generate concept <span>✦</span></button>
+          <button className="save-project" onClick={saveProject}>Save project <span>⌄</span></button>
           <button className="secondary-action" onClick={clearCanvas}>Clear canvas</button>
           <p className="sketch-status">● {status}</p>
           <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
