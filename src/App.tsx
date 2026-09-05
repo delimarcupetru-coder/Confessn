@@ -1,16 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Home } from './pages/Home'
-import { ChessGame } from './pages/ChessGame'
-import { SelfPlay } from './pages/SelfPlay'
-import './App.css'
+import { Login } from './pages/Login'
+import { SketchStudio } from './pages/SketchStudio'
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/play" element={<ChessGame />} />
-        <Route path="/selfplay" element={<SelfPlay />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/sketch" element={<SketchStudio />} />
       </Routes>
     </Router>
   )
