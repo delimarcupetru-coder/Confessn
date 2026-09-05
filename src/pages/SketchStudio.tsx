@@ -26,6 +26,8 @@ export function SketchStudio() {
   function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     if (!canvas) return
+    event.preventDefault()
+    canvas.setPointerCapture(event.pointerId)
     const context = canvas.getContext('2d')
     if (!context) return
     context.strokeStyle = '#161616'
@@ -39,6 +41,7 @@ export function SketchStudio() {
 
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!isDrawing) return
+    event.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const context = canvas.getContext('2d')
@@ -46,6 +49,12 @@ export function SketchStudio() {
     const point = canvasPoint(event)
     context.lineTo(point.x, point.y)
     context.stroke()
+  }
+
+  function stopDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    if (canvas?.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+    setIsDrawing(false)
   }
 
   function clearCanvas() {
@@ -99,7 +108,7 @@ export function SketchStudio() {
           <p className="sketch-status">● {status}</p>
           <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
         </aside>
-        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><span>01 — 01</span></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={() => setIsDrawing(false)} onPointerLeave={() => setIsDrawing(false)} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
+        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><span>01 — 01</span></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
       </main>
       {isSaveDialogOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsSaveDialogOpen(false) }}>
