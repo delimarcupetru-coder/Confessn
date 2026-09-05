@@ -8,6 +8,10 @@ export function SketchStudio() {
   const [prompt, setPrompt] = useState('Compact modular desk lamp with an adjustable arm')
   const [status, setStatus] = useState('Ready for direction')
   const [isDrawing, setIsDrawing] = useState(false)
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [projectNumber, setProjectNumber] = useState('001')
+  const [projectRevision, setProjectRevision] = useState('Rev C01')
+  const [projectName, setProjectName] = useState('SINGER DESK LAMP')
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
@@ -52,13 +56,16 @@ export function SketchStudio() {
   }
 
   function saveProject() {
+    const savedProjects = window.localStorage.getItem('confessn-projects')
+    const projects = savedProjects ? JSON.parse(savedProjects) : []
     const project = {
-      id: '001',
-      name: '001_Rev C01_SINGER DESK LAMP',
+      id: projectNumber.trim(),
+      name: `${projectNumber.trim()}_${projectRevision.trim()}_${projectName.trim()}`,
       brief: prompt || 'New product concept',
       status: 'Saved draft',
     }
-    window.localStorage.setItem('confessn-projects', JSON.stringify([project]))
+    window.localStorage.setItem('confessn-projects', JSON.stringify([...projects, project]))
+    setIsSaveDialogOpen(false)
     setStatus('Project saved')
   }
 
@@ -87,13 +94,28 @@ export function SketchStudio() {
           <p className="sketch-copy">Describe the object, part, or system in your head. We&apos;ll turn the direction into a high-level visual starting point.</p>
           <label className="prompt-label">YOUR IDEA<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={5} /></label>
           <button className="primary-action" onClick={assistSketch}>Generate concept <span>✦</span></button>
-          <button className="save-project" onClick={saveProject}>Save project <span>⌄</span></button>
+          <button className="save-project" onClick={() => setIsSaveDialogOpen(true)}>Save project <span>⌄</span></button>
           <button className="secondary-action" onClick={clearCanvas}>Clear canvas</button>
           <p className="sketch-status">● {status}</p>
           <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
         </aside>
         <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><span>01 — 01</span></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={() => setIsDrawing(false)} onPointerLeave={() => setIsDrawing(false)} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
       </main>
+      {isSaveDialogOpen && (
+        <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsSaveDialogOpen(false) }}>
+          <section className="save-dialog" role="dialog" aria-modal="true" aria-labelledby="save-project-title">
+            <div className="dialog-heading"><p className="eyebrow">PROJECT DETAILS</p><button className="dialog-close" onClick={() => setIsSaveDialogOpen(false)} aria-label="Close save dialog">×</button></div>
+            <h2 id="save-project-title">Save project.</h2>
+            <p className="dialog-copy">Give this concept its working identifiers before adding it to your saved projects.</p>
+            <form onSubmit={(event) => { event.preventDefault(); saveProject() }}>
+              <label className="dialog-field">PROJECT NUMBER<input value={projectNumber} onChange={(event) => setProjectNumber(event.target.value)} placeholder="001" required /></label>
+              <label className="dialog-field">PROJECT REVISION<input value={projectRevision} onChange={(event) => setProjectRevision(event.target.value)} placeholder="Rev C01" required /></label>
+              <label className="dialog-field">PROJECT NAME<input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="SINGER DESK LAMP" required /></label>
+              <button className="primary-action dialog-save" type="submit">Save project <span>↗</span></button>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
