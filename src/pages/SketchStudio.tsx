@@ -12,6 +12,10 @@ export function SketchStudio() {
   const [projectNumber, setProjectNumber] = useState('001')
   const [projectRevision, setProjectRevision] = useState('Rev C01')
   const [projectName, setProjectName] = useState('SINGER DESK LAMP')
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const gestureStart = useRef<{ distance: number; zoom: number; x: number; y: number } | null>(null)
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
@@ -21,6 +25,48 @@ export function SketchStudio() {
       x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
       y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
     }
+  }
+
+  function resetView() {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+    setStatus('Canvas view reset')
+  }
+
+  function startPointer(event: React.PointerEvent<HTMLCanvasElement>) {
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pointers.current.size === 2) {
+      const points = [...pointers.current.values()]
+      const distance = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y)
+      gestureStart.current = { distance, zoom, x: pan.x, y: pan.y }
+      setIsDrawing(false)
+      event.preventDefault()
+      return
+    }
+    startDrawing(event)
+  }
+
+  function movePointer(event: React.PointerEvent<HTMLCanvasElement>) {
+    const previous = pointers.current.get(event.pointerId)
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pointers.current.size === 2 && gestureStart.current && previous) {
+      const points = [...pointers.current.values()]
+      const distance = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y)
+      const midpoint = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 }
+      const previousMidpoint = { x: (points[0].x + previous.x) / 2, y: (points[0].y + previous.y) / 2 }
+      const nextZoom = Math.min(4, Math.max(.5, gestureStart.current.zoom * (distance / gestureStart.current.distance)))
+      setZoom(nextZoom)
+      setPan({ x: gestureStart.current.x + midpoint.x - previousMidpoint.x, y: gestureStart.current.y + midpoint.y - previousMidpoint.y })
+      event.preventDefault()
+      return
+    }
+    draw(event)
+  }
+
+  function endPointer(event: React.PointerEvent<HTMLCanvasElement>) {
+    pointers.current.delete(event.pointerId)
+    gestureStart.current = null
+    stopDrawing(event)
   }
 
   function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -107,7 +153,7 @@ export function SketchStudio() {
           <p className="sketch-status">● {status}</p>
           <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
         </aside>
-        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>01 — 01</span><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
+        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>{Math.round(zoom * 100)}%</span><button className="view-button" onClick={resetView}>RESET VIEW</button><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onPointerLeave={endPointer} /><span className="canvas-hint">Draw with one finger · pinch to zoom · two fingers to pan</span></div></section>
       </main>
       {isSaveDialogOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsSaveDialogOpen(false) }}>
