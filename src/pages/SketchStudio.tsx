@@ -104,11 +104,10 @@ export function SketchStudio() {
           <label className="prompt-label">YOUR IDEA<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={5} /></label>
           <button className="primary-action" onClick={assistSketch}>Generate concept <span>✦</span></button>
           <button className="save-project" onClick={() => setIsSaveDialogOpen(true)}>Save project <span>⌄</span></button>
-          <button className="secondary-action" onClick={clearCanvas}>Clear canvas</button>
           <p className="sketch-status">● {status}</p>
           <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
         </aside>
-        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><span>01 — 01</span></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
+        <section className="canvas-panel"><div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>01 — 01</span><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div><div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing} /><span className="canvas-hint">Draw freely or generate a starting point</span></div></section>
       </main>
       {isSaveDialogOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsSaveDialogOpen(false) }}>
