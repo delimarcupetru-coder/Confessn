@@ -226,6 +226,29 @@ function drawHandles(context: CanvasRenderingContext2D, shape: Shape) {
   })
 }
 
+function drawGrid(context: CanvasRenderingContext2D, width: number, height: number) {
+  context.save()
+  context.strokeStyle = 'rgba(23, 23, 23, 0.12)'
+  context.lineWidth = 1
+  context.font = '10px "DM Mono", monospace'
+  context.fillStyle = 'rgba(23, 23, 23, 0.4)'
+  for (let x = 0; x <= width; x += SMOOT_PX) {
+    context.beginPath()
+    context.moveTo(x + 0.5, 0)
+    context.lineTo(x + 0.5, height)
+    context.stroke()
+    context.fillText(`${x / SMOOT_PX}`, x + 3, 11)
+  }
+  for (let y = 0; y <= height; y += SMOOT_PX) {
+    context.beginPath()
+    context.moveTo(0, y + 0.5)
+    context.lineTo(width, y + 0.5)
+    context.stroke()
+    context.fillText(`${y / SMOOT_PX}`, 3, y + 11)
+  }
+  context.restore()
+}
+
 function ToolIcon({ tool }: { tool: ToolId }) {
   const stroke = '#171717'
   switch (tool) {
@@ -313,6 +336,10 @@ export function SketchStudio() {
   const [tool, setTool] = useState<ToolId>('pen')
   const [shapes, setShapes] = useState<Shape[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [past, setPast] = useState<Shape[][]>([])
+  const [future, setFuture] = useState<Shape[][]>([])
+  const [isDimensionDialogOpen, setIsDimensionDialogOpen] = useState(false)
+  const [dimensionValues, setDimensionValues] = useState<{ L?: string; l?: string; R?: string; d?: string; D?: string }>({})
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gestureStart = useRef<{ distance: number; zoom: number; x: number; y: number } | null>(null)
   const nextId = useRef(1)
@@ -324,6 +351,7 @@ export function SketchStudio() {
     const context = canvas?.getContext('2d')
     if (!canvas || !context) return
     context.clearRect(0, 0, canvas.width, canvas.height)
+    drawGrid(context, canvas.width, canvas.height)
     shapes.forEach((shape) => drawShape(context, shape))
     const selected = shapes.find((shape) => shape.id === selectedId)
     if (selected) drawHandles(context, selected)
@@ -366,12 +394,38 @@ export function SketchStudio() {
     setStatus('Canvas view reset')
   }
 
+  function snapshot() {
+    setPast((current) => [...current, shapes])
+    setFuture([])
+  }
+
+  function undo() {
+    if (past.length === 0) return
+    const previous = past[past.length - 1]
+    setPast(past.slice(0, -1))
+    setFuture([shapes, ...future])
+    setShapes(previous)
+    setSelectedId(null)
+    setStatus('Step back')
+  }
+
+  function redo() {
+    if (future.length === 0) return
+    const next = future[0]
+    setFuture(future.slice(1))
+    setPast([...past, shapes])
+    setShapes(next)
+    setSelectedId(null)
+    setStatus('Step forward')
+  }
+
   function beginInteraction(event: React.PointerEvent<HTMLCanvasElement>) {
     const point = canvasPoint(event)
     const selected = shapes.find((shape) => shape.id === selectedId)
     if (selected) {
       const handleKey = findHandleAt(selected, point)
       if (handleKey) {
+        snapshot()
         dragState.current = { mode: 'handle', shapeId: selected.id, handle: handleKey }
         return
       }
@@ -382,6 +436,7 @@ export function SketchStudio() {
       dragState.current = null
       return
     }
+    snapshot()
     const id = nextId.current++
     let shape: Shape
     if (tool === 'pen') {
@@ -463,6 +518,7 @@ export function SketchStudio() {
   }
 
   function clearCanvas() {
+    snapshot()
     setShapes([])
     setSelectedId(null)
     setStatus('Canvas cleared')
@@ -495,7 +551,81 @@ export function SketchStudio() {
     setStatus('Project saved to device')
   }
 
+  function openDimensions() {
+    if (!selectedShape || selectedShape.type === 'pen') return
+    if (selectedShape.type === 'line' || selectedShape.type === 'arrow' || selectedShape.type === 'doubleArrow') {
+      const length = Math.hypot(selectedShape.x2 - selectedShape.x1, selectedShape.y2 - selectedShape.y1)
+      setDimensionValues({ L: (length / SMOOT_PX).toFixed(3) })
+    } else if (selectedShape.type === 'rectangle' || selectedShape.type === 'parallelogram') {
+      const width = Math.abs(selectedShape.x2 - selectedShape.x1)
+      const height = Math.abs(selectedShape.y2 - selectedShape.y1)
+      setDimensionValues({ l: (Math.min(width, height) / SMOOT_PX).toFixed(3), L: (Math.max(width, height) / SMOOT_PX).toFixed(3) })
+    } else if (selectedShape.type === 'circle') {
+      setDimensionValues({ R: (selectedShape.r / SMOOT_PX).toFixed(3), D: ((selectedShape.r * 2) / SMOOT_PX).toFixed(3) })
+    } else {
+      const polygonShape = selectedShape as RadialShape
+      const sides = polygonShape.type === 'pentagon' ? 5 : polygonShape.type === 'hexagon' ? 6 : 8
+      const inscribed = 2 * polygonShape.r * Math.cos(Math.PI / sides)
+      setDimensionValues({
+        R: (polygonShape.r / SMOOT_PX).toFixed(3),
+        D: ((polygonShape.r * 2) / SMOOT_PX).toFixed(3),
+        d: (inscribed / SMOOT_PX).toFixed(3),
+      })
+    }
+    setIsDimensionDialogOpen(true)
+  }
+
+  function updateDimension(field: 'L' | 'l' | 'R' | 'D' | 'd', value: string) {
+    if (!selectedShape) return
+    setDimensionValues((current) => {
+      const next = { ...current, [field]: value }
+      const num = Number(value)
+      if (Number.isNaN(num)) return next
+      if (selectedShape.type === 'circle') {
+        if (field === 'R') next.D = (num * 2).toFixed(3)
+        if (field === 'D') next.R = (num / 2).toFixed(3)
+      } else if (selectedShape.type === 'pentagon' || selectedShape.type === 'hexagon' || selectedShape.type === 'octagon') {
+        const sides = selectedShape.type === 'pentagon' ? 5 : selectedShape.type === 'hexagon' ? 6 : 8
+        const k = Math.cos(Math.PI / sides)
+        if (field === 'R') { next.D = (num * 2).toFixed(3); next.d = (num * 2 * k).toFixed(3) }
+        if (field === 'D') { const r = num / 2; next.R = r.toFixed(3); next.d = (r * 2 * k).toFixed(3) }
+        if (field === 'd') { const r = num / (2 * k); next.R = r.toFixed(3); next.D = (r * 2).toFixed(3) }
+      }
+      return next
+    })
+  }
+
+  function applyDimensions(event: React.FormEvent) {
+    event.preventDefault()
+    if (!selectedShape) return
+    snapshot()
+    const targetId = selectedShape.id
+    setShapes((current) => current.map((shape) => {
+      if (shape.id !== targetId) return shape
+      if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'doubleArrow') {
+        const lengthPx = Number(dimensionValues.L ?? '0') * SMOOT_PX
+        const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1)
+        return { ...shape, x2: shape.x1 + lengthPx * Math.cos(angle), y2: shape.y1 + lengthPx * Math.sin(angle) }
+      }
+      if (shape.type === 'rectangle' || shape.type === 'parallelogram') {
+        const width = shape.x2 - shape.x1
+        const height = shape.y2 - shape.y1
+        const shortPx = Number(dimensionValues.l ?? '0') * SMOOT_PX
+        const longPx = Number(dimensionValues.L ?? '0') * SMOOT_PX
+        const widthIsShort = Math.abs(width) <= Math.abs(height)
+        const newWidth = (widthIsShort ? shortPx : longPx) * (width < 0 ? -1 : 1)
+        const newHeight = (widthIsShort ? longPx : shortPx) * (height < 0 ? -1 : 1)
+        return { ...shape, x2: shape.x1 + newWidth, y2: shape.y1 + newHeight }
+      }
+      const radiusPx = Number(dimensionValues.R ?? '0') * SMOOT_PX
+      return { ...shape, r: radiusPx }
+    }))
+    setIsDimensionDialogOpen(false)
+    setStatus('Dimensions updated')
+  }
+
   function assistSketch() {
+    snapshot()
     const id = nextId.current
     nextId.current = id + 4
     const generated: Shape[] = [
@@ -536,7 +666,7 @@ export function SketchStudio() {
               </pattern>
             </defs>
           </svg>
-          <div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>{Math.round(zoom * 100)}%</span><button className="view-button" onClick={resetView}>RESET VIEW</button><button className="save-canvas" onClick={() => setIsSaveDialogOpen(true)}>SAVE</button><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div>
+          <div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>{Math.round(zoom * 100)}%</span><button className="view-button" onClick={undo} disabled={past.length === 0}>UNDO ↺</button><button className="view-button" onClick={redo} disabled={future.length === 0}>REDO ↻</button><button className="view-button" onClick={resetView}>RESET VIEW</button><button className="view-button" onClick={openDimensions} disabled={!selectedShape || selectedShape.type === 'pen'}>DIMENSIONS</button><button className="save-canvas" onClick={() => setIsSaveDialogOpen(true)}>SAVE</button><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div>
           <div className="canvas-body">
             <div className="tool-rail">
               {TOOLS.map((toolItem) => (
@@ -560,6 +690,40 @@ export function SketchStudio() {
               <label className="dialog-field">PROJECT REVISION<input value={projectRevision} onChange={(event) => setProjectRevision(event.target.value)} placeholder="Rev C01" required /></label>
               <label className="dialog-field">PROJECT NAME<input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="SINGER DESK LAMP" required /></label>
               <button className="primary-action dialog-save" type="submit">Save project <span>↗</span></button>
+            </form>
+          </section>
+        </div>
+      )}
+      {isDimensionDialogOpen && selectedShape && (
+        <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsDimensionDialogOpen(false) }}>
+          <section className="save-dialog" role="dialog" aria-modal="true" aria-labelledby="dimension-title">
+            <div className="dialog-heading"><p className="eyebrow">EDIT DIMENSIONS</p><button className="dialog-close" onClick={() => setIsDimensionDialogOpen(false)} aria-label="Close dimensions dialog">×</button></div>
+            <h2 id="dimension-title">Set exact size.</h2>
+            <p className="dialog-copy">Values are in Smoots (Sm). Editing one field updates the related dimensions automatically.</p>
+            <form onSubmit={applyDimensions}>
+              {(selectedShape.type === 'line' || selectedShape.type === 'arrow' || selectedShape.type === 'doubleArrow') && (
+                <label className="dialog-field">LENGTH (L)<input type="number" step="0.001" value={dimensionValues.L ?? ''} onChange={(event) => updateDimension('L', event.target.value)} /></label>
+              )}
+              {(selectedShape.type === 'rectangle' || selectedShape.type === 'parallelogram') && (
+                <>
+                  <label className="dialog-field">SHORT SIDE (l)<input type="number" step="0.001" value={dimensionValues.l ?? ''} onChange={(event) => updateDimension('l', event.target.value)} /></label>
+                  <label className="dialog-field">LONG SIDE (L)<input type="number" step="0.001" value={dimensionValues.L ?? ''} onChange={(event) => updateDimension('L', event.target.value)} /></label>
+                </>
+              )}
+              {selectedShape.type === 'circle' && (
+                <>
+                  <label className="dialog-field">RADIUS (R)<input type="number" step="0.001" value={dimensionValues.R ?? ''} onChange={(event) => updateDimension('R', event.target.value)} /></label>
+                  <label className="dialog-field">DIAMETER (D)<input type="number" step="0.001" value={dimensionValues.D ?? ''} onChange={(event) => updateDimension('D', event.target.value)} /></label>
+                </>
+              )}
+              {(selectedShape.type === 'pentagon' || selectedShape.type === 'hexagon' || selectedShape.type === 'octagon') && (
+                <>
+                  <label className="dialog-field">RADIUS (R)<input type="number" step="0.001" value={dimensionValues.R ?? ''} onChange={(event) => updateDimension('R', event.target.value)} /></label>
+                  <label className="dialog-field">INSIDE DIAMETER (d)<input type="number" step="0.001" value={dimensionValues.d ?? ''} onChange={(event) => updateDimension('d', event.target.value)} /></label>
+                  <label className="dialog-field">OUTSIDE DIAMETER (D)<input type="number" step="0.001" value={dimensionValues.D ?? ''} onChange={(event) => updateDimension('D', event.target.value)} /></label>
+                </>
+              )}
+              <button className="primary-action dialog-save" type="submit">Apply dimensions <span>↗</span></button>
             </form>
           </section>
         </div>
