@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Studio.css'
 
-type ToolId = 'pen' | 'line' | 'arrow' | 'doubleArrow' | 'circle' | 'rectangle' | 'parallelogram' | 'pentagram' | 'hexagram' | 'octagram'
+type ToolId = 'pen' | 'line' | 'arrow' | 'doubleArrow' | 'circle' | 'rectangle' | 'parallelogram' | 'pentagon' | 'hexagon' | 'octagon'
 type Point = { x: number; y: number }
 type PenShape = { id: number; type: 'pen'; points: Point[] }
 type LineShape = { id: number; type: 'line' | 'arrow' | 'doubleArrow'; x1: number; y1: number; x2: number; y2: number }
 type BoxShape = { id: number; type: 'rectangle' | 'parallelogram'; x1: number; y1: number; x2: number; y2: number }
-type RadialShape = { id: number; type: 'circle' | 'pentagram' | 'hexagram' | 'octagram'; cx: number; cy: number; r: number }
+type RadialShape = { id: number; type: 'circle' | 'pentagon' | 'hexagon' | 'octagon'; cx: number; cy: number; r: number }
 type Shape = PenShape | LineShape | BoxShape | RadialShape
 type Handle = { key: 'start' | 'end' | 'radius'; x: number; y: number }
 
@@ -19,23 +19,22 @@ const TOOLS: { id: ToolId; label: string }[] = [
   { id: 'circle', label: 'Circle' },
   { id: 'rectangle', label: 'Square' },
   { id: 'parallelogram', label: 'Parallelogram' },
-  { id: 'pentagram', label: 'Pentagram' },
-  { id: 'hexagram', label: 'Hexagram' },
-  { id: 'octagram', label: 'Octagram' },
+  { id: 'pentagon', label: 'Pentagon' },
+  { id: 'hexagon', label: 'Hexagon' },
+  { id: 'octagon', label: 'Octagon' },
 ]
 
-function starPoints(cx: number, cy: number, outerR: number, innerR: number, points: number) {
+function polygonPoints(cx: number, cy: number, r: number, sides: number) {
   const coords: Point[] = []
-  for (let i = 0; i < points * 2; i++) {
-    const radius = i % 2 === 0 ? outerR : innerR
-    const angle = (Math.PI / points) * i - Math.PI / 2
-    coords.push({ x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) })
+  for (let i = 0; i < sides; i++) {
+    const angle = ((Math.PI * 2) / sides) * i - Math.PI / 2
+    coords.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) })
   }
   return coords
 }
 
-function starPathD(cx: number, cy: number, outerR: number, innerR: number, points: number) {
-  return starPoints(cx, cy, outerR, innerR, points)
+function polygonPathD(cx: number, cy: number, r: number, sides: number) {
+  return polygonPoints(cx, cy, r, sides)
     .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`)
     .join(' ') + 'Z'
 }
@@ -45,9 +44,9 @@ function getHandlePoints(shape: Shape): Handle[] {
     case 'pen':
       return []
     case 'circle':
-    case 'pentagram':
-    case 'hexagram':
-    case 'octagram':
+    case 'pentagon':
+    case 'hexagon':
+    case 'octagon':
       return [{ key: 'radius', x: shape.cx + shape.r, y: shape.cy }]
     default:
       return [{ key: 'start', x: shape.x1, y: shape.y1 }, { key: 'end', x: shape.x2, y: shape.y2 }]
@@ -113,10 +112,9 @@ function drawShape(context: CanvasRenderingContext2D, shape: Shape) {
     context.stroke()
     return
   }
-  const starShape = shape as RadialShape
-  const pointsCount = starShape.type === 'pentagram' ? 5 : starShape.type === 'hexagram' ? 6 : 8
-  const outerR = Math.max(starShape.r, 4)
-  const path = starPoints(starShape.cx, starShape.cy, outerR, outerR * 0.42, pointsCount)
+  const polygonShape = shape as RadialShape
+  const sides = polygonShape.type === 'pentagon' ? 5 : polygonShape.type === 'hexagon' ? 6 : 8
+  const path = polygonPoints(polygonShape.cx, polygonShape.cy, Math.max(polygonShape.r, 4), sides)
   context.beginPath()
   path.forEach((point, index) => (index === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)))
   context.closePath()
@@ -187,22 +185,22 @@ function ToolIcon({ tool }: { tool: ToolId }) {
           <path d="M8 5h13l-5 14H3z" fill="url(#hatch45)" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       )
-    case 'pentagram':
+    case 'pentagon':
       return (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d={starPathD(12, 12, 9, 3.6, 5)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
+          <path d={polygonPathD(12, 12, 9, 5)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
       )
-    case 'hexagram':
+    case 'hexagon':
       return (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d={starPathD(12, 12, 9, 4.6, 6)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
+          <path d={polygonPathD(12, 12, 9, 6)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
       )
-    case 'octagram':
+    case 'octagon':
       return (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d={starPathD(12, 12, 9, 5.6, 8)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
+          <path d={polygonPathD(12, 12, 9, 8)} fill="url(#hatch45)" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
       )
   }
@@ -289,7 +287,7 @@ export function SketchStudio() {
         if (mode !== 'draw') return shape
         return { ...shape, points: [...shape.points, point] }
       }
-      if (shape.type === 'circle' || shape.type === 'pentagram' || shape.type === 'hexagram' || shape.type === 'octagram') {
+      if (shape.type === 'circle' || shape.type === 'pentagon' || shape.type === 'hexagon' || shape.type === 'octagon') {
         return { ...shape, r: Math.hypot(point.x - shape.cx, point.y - shape.cy) }
       }
       if (mode === 'handle' && handle === 'start') return { ...shape, x1: point.x, y1: point.y }
