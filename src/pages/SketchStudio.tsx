@@ -39,6 +39,99 @@ function polygonPathD(cx: number, cy: number, r: number, sides: number) {
     .join(' ') + 'Z'
 }
 
+const SMOOT_PX = 100
+
+function formatSmoots(px: number) {
+  const smoots = px / SMOOT_PX
+  const magnitude = Math.abs(smoots)
+  if (magnitude === 0) return '0 Sm'
+  if (magnitude >= 1000) return `${(smoots / 1000).toFixed(3)} MSm`
+  if (magnitude < 0.00001) return `${(smoots * 100000).toFixed(3)} µSm`
+  return `${smoots.toFixed(3)} Sm`
+}
+
+function distanceToSegment(point: Point, a: Point, b: Point) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSq = dx * dx + dy * dy
+  if (lengthSq === 0) return Math.hypot(point.x - a.x, point.y - a.y)
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq))
+  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
+}
+
+function polygonEdgesHit(corners: Point[], point: Point, tolerance: number) {
+  return corners.some((corner, index) => distanceToSegment(point, corner, corners[(index + 1) % corners.length]) <= tolerance)
+}
+
+function hitTestShape(shape: Shape, point: Point, tolerance = 10): boolean {
+  switch (shape.type) {
+    case 'pen':
+      for (let i = 1; i < shape.points.length; i++) {
+        if (distanceToSegment(point, shape.points[i - 1], shape.points[i]) <= tolerance) return true
+      }
+      return false
+    case 'line':
+    case 'arrow':
+    case 'doubleArrow':
+      return distanceToSegment(point, { x: shape.x1, y: shape.y1 }, { x: shape.x2, y: shape.y2 }) <= tolerance
+    case 'rectangle': {
+      const x1 = Math.min(shape.x1, shape.x2)
+      const x2 = Math.max(shape.x1, shape.x2)
+      const y1 = Math.min(shape.y1, shape.y2)
+      const y2 = Math.max(shape.y1, shape.y2)
+      return polygonEdgesHit([{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }], point, tolerance)
+    }
+    case 'parallelogram': {
+      const shift = (shape.y2 - shape.y1) * 0.35
+      return polygonEdgesHit([
+        { x: shape.x1 + shift, y: shape.y1 },
+        { x: shape.x2 + shift, y: shape.y1 },
+        { x: shape.x2, y: shape.y2 },
+        { x: shape.x1, y: shape.y2 },
+      ], point, tolerance)
+    }
+    case 'circle':
+      return Math.abs(Math.hypot(point.x - shape.cx, point.y - shape.cy) - shape.r) <= tolerance
+    default: {
+      const sides = shape.type === 'pentagon' ? 5 : shape.type === 'hexagon' ? 6 : 8
+      return polygonEdgesHit(polygonPoints(shape.cx, shape.cy, shape.r, sides), point, tolerance)
+    }
+  }
+}
+
+function getMeasurements(shape: Shape): { label: string; value: string }[] {
+  switch (shape.type) {
+    case 'pen': {
+      if (shape.points.length < 2) return []
+      let total = 0
+      for (let i = 1; i < shape.points.length; i++) total += Math.hypot(shape.points[i].x - shape.points[i - 1].x, shape.points[i].y - shape.points[i - 1].y)
+      const last = shape.points.length >= 2
+        ? Math.hypot(shape.points[shape.points.length - 1].x - shape.points[shape.points.length - 2].x, shape.points[shape.points.length - 1].y - shape.points[shape.points.length - 2].y)
+        : 0
+      return [{ label: 'l =', value: formatSmoots(last) }, { label: 'L =', value: formatSmoots(total) }]
+    }
+    case 'line':
+    case 'arrow':
+    case 'doubleArrow': {
+      const length = Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1)
+      return [{ label: 'l =', value: formatSmoots(length) }, { label: 'L =', value: formatSmoots(length) }]
+    }
+    case 'rectangle':
+    case 'parallelogram': {
+      const width = Math.abs(shape.x2 - shape.x1)
+      const height = Math.abs(shape.y2 - shape.y1)
+      return [{ label: 'l =', value: formatSmoots(Math.min(width, height)) }, { label: 'L =', value: formatSmoots(Math.max(width, height)) }]
+    }
+    case 'circle':
+      return [{ label: 'r =', value: formatSmoots(shape.r) }, { label: 'd =', value: formatSmoots(shape.r * 2) }, { label: 'D =', value: formatSmoots(shape.r * 2) }]
+    default: {
+      const sides = shape.type === 'pentagon' ? 5 : shape.type === 'hexagon' ? 6 : 8
+      const inscribed = 2 * shape.r * Math.cos(Math.PI / sides)
+      return [{ label: 'r =', value: formatSmoots(shape.r) }, { label: 'd =', value: formatSmoots(inscribed) }, { label: 'D =', value: formatSmoots(shape.r * 2) }]
+    }
+  }
+}
+
 function getHandlePoints(shape: Shape): Handle[] {
   switch (shape.type) {
     case 'pen':
@@ -224,6 +317,7 @@ export function SketchStudio() {
   const gestureStart = useRef<{ distance: number; zoom: number; x: number; y: number } | null>(null)
   const nextId = useRef(1)
   const dragState = useRef<{ mode: 'draw' | 'handle'; shapeId: number; handle?: Handle['key'] } | null>(null)
+  const selectedShape = shapes.find((shape) => shape.id === selectedId) ?? null
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -234,6 +328,27 @@ export function SketchStudio() {
     const selected = shapes.find((shape) => shape.id === selectedId)
     if (selected) drawHandles(context, selected)
   }, [shapes, selectedId])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    function handleWheel(event: WheelEvent) {
+      event.preventDefault()
+      const bounds = canvas!.getBoundingClientRect()
+      const cursor = { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
+      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1
+      setZoom((current) => {
+        const next = Math.min(4, Math.max(.5, current * factor))
+        setPan((currentPan) => ({
+          x: cursor.x - (cursor.x - currentPan.x) * (next / current),
+          y: cursor.y - (cursor.y - currentPan.y) * (next / current),
+        }))
+        return next
+      })
+    }
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleWheel)
+  }, [])
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
@@ -260,6 +375,12 @@ export function SketchStudio() {
         dragState.current = { mode: 'handle', shapeId: selected.id, handle: handleKey }
         return
       }
+    }
+    const reselected = [...shapes].reverse().find((shape) => shape.id !== selectedId && hitTestShape(shape, point))
+    if (reselected) {
+      setSelectedId(reselected.id)
+      dragState.current = null
+      return
     }
     const id = nextId.current++
     let shape: Shape
@@ -347,18 +468,31 @@ export function SketchStudio() {
     setStatus('Canvas cleared')
   }
 
+  function downloadCanvasImage(filename: string) {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const link = document.createElement('a')
+    link.href = canvas.toDataURL('image/png')
+    link.download = `${filename}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   function saveProject() {
     const savedProjects = window.localStorage.getItem('confessn-projects')
     const projects = savedProjects ? JSON.parse(savedProjects) : []
+    const projectFileName = `${projectNumber.trim()}_${projectRevision.trim()}_${projectName.trim()}`
     const project = {
       id: projectNumber.trim(),
-      name: `${projectNumber.trim()}_${projectRevision.trim()}_${projectName.trim()}`,
+      name: projectFileName,
       brief: prompt || 'New product concept',
       status: 'Saved draft',
     }
     window.localStorage.setItem('confessn-projects', JSON.stringify([...projects, project]))
+    downloadCanvasImage(projectFileName)
     setIsSaveDialogOpen(false)
-    setStatus('Project saved')
+    setStatus('Project saved to device')
   }
 
   function assistSketch() {
@@ -385,9 +519,14 @@ export function SketchStudio() {
           <p className="sketch-copy">Describe the object, part, or system in your head. We&apos;ll turn the direction into a high-level visual starting point.</p>
           <label className="prompt-label">YOUR IDEA<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={5} /></label>
           <button className="primary-action" onClick={assistSketch}>Generate concept <span>✦</span></button>
-          <button className="save-project" onClick={() => setIsSaveDialogOpen(true)}>Save project <span>⌄</span></button>
           <p className="sketch-status">● {status}</p>
-          <div className="sketch-meta"><span>MODE</span><strong>High-level / loose</strong><span>OUTPUT</span><strong>Form + proportion</strong></div>
+          <div className="sketch-meta">
+            {(selectedShape ? getMeasurements(selectedShape) : [{ label: 'MODE', value: 'High-level / loose' }, { label: 'OUTPUT', value: 'Form + proportion' }]).flatMap((item) => [
+              <span key={`${item.label}-label`}>{item.label}</span>,
+              <strong key={`${item.label}-value`}>{item.value}</strong>,
+            ])}
+          </div>
+          {selectedShape && <p className="smoot-note">1 Sm ≈ 100px · beyond 1000 Sm → megasmoot (MSm) · below .00001 Sm → microsmoot (µSm)</p>}
         </aside>
         <section className="canvas-panel">
           <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
@@ -397,7 +536,7 @@ export function SketchStudio() {
               </pattern>
             </defs>
           </svg>
-          <div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>{Math.round(zoom * 100)}%</span><button className="view-button" onClick={resetView}>RESET VIEW</button><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div>
+          <div className="canvas-toolbar"><span>SKETCHBOOK / UNTITLED</span><div className="canvas-toolbar-actions"><span>{Math.round(zoom * 100)}%</span><button className="view-button" onClick={resetView}>RESET VIEW</button><button className="save-canvas" onClick={() => setIsSaveDialogOpen(true)}>SAVE</button><button className="clear-canvas" onClick={clearCanvas}>CLEAR CANVAS</button></div></div>
           <div className="canvas-body">
             <div className="tool-rail">
               {TOOLS.map((toolItem) => (
@@ -406,7 +545,7 @@ export function SketchStudio() {
                 </button>
               ))}
             </div>
-            <div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onPointerLeave={endPointer} /><span className="canvas-hint">Draw with one finger · pinch to zoom · two fingers to pan</span></div>
+            <div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onPointerLeave={endPointer} /><span className="canvas-hint">One finger draws · scroll or pinch to zoom · two fingers to pan · click a shape anytime to adjust it</span></div>
           </div>
         </section>
       </main>
