@@ -343,7 +343,7 @@ export function SketchStudio() {
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gestureStart = useRef<{ distance: number; zoom: number; x: number; y: number } | null>(null)
   const nextId = useRef(1)
-  const dragState = useRef<{ mode: 'draw' | 'handle'; shapeId: number; handle?: Handle['key'] } | null>(null)
+  const dragState = useRef<{ mode: 'draw' | 'handle'; shapeId: number; handle?: Handle['key']; tool?: ToolId } | null>(null)
   const selectedShape = shapes.find((shape) => shape.id === selectedId) ?? null
 
   useEffect(() => {
@@ -377,6 +377,22 @@ export function SketchStudio() {
     canvas.addEventListener('wheel', handleWheel, { passive: false })
     return () => canvas.removeEventListener('wheel', handleWheel)
   }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return
+      const target = event.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+      if (selectedId === null) return
+      event.preventDefault()
+      snapshot()
+      setShapes((current) => current.filter((shape) => shape.id !== selectedId))
+      setSelectedId(null)
+      setStatus('Shape deleted')
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedId, shapes])
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
@@ -450,7 +466,7 @@ export function SketchStudio() {
     }
     setShapes((current) => [...current, shape])
     setSelectedId(id)
-    dragState.current = { mode: 'draw', shapeId: id }
+    dragState.current = { mode: 'draw', shapeId: id, tool }
   }
 
   function continueInteraction(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -472,6 +488,10 @@ export function SketchStudio() {
   }
 
   function endInteraction() {
+    const finished = dragState.current
+    if (finished?.mode === 'draw' && finished.tool && finished.tool !== 'pen') {
+      setTool('pen')
+    }
     dragState.current = null
   }
 
@@ -675,7 +695,7 @@ export function SketchStudio() {
                 </button>
               ))}
             </div>
-            <div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onPointerLeave={endPointer} /><span className="canvas-hint">One finger draws · scroll or pinch to zoom · two fingers to pan · click a shape anytime to adjust it</span></div>
+            <div className="canvas-wrap"><canvas ref={canvasRef} width={800} height={620} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onPointerLeave={endPointer} /><span className="canvas-hint">One finger draws · scroll or pinch to zoom · two fingers to pan · click a shape anytime to adjust it · Delete key removes it</span></div>
           </div>
         </section>
       </main>
