@@ -496,6 +496,13 @@ const colorOptions: ColorOption[] = [
   { id: 'rust', name: 'Rust', hex: '#b8583a' },
 ]
 
+const matColorOptions: ColorOption[] = [
+  { id: 'mat-ivory', name: 'Mat ivory', hex: '#eee7d8' },
+  { id: 'mat-white', name: 'Mat white', hex: '#faf8f2' },
+  { id: 'mat-sage', name: 'Mat sage', hex: '#dce4d8' },
+  { id: 'mat-blush', name: 'Mat blush', hex: '#ead8d2' },
+]
+
 const galleryItems = [
   {
     title: 'Monochrome Morning',
@@ -531,6 +538,9 @@ function App() {
   const [selectedStyle, setSelectedStyle] = useState(frameOptions[1].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[2])
+  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
+  const [selectedStripColor, setSelectedStripColor] = useState(colorOptions[2])
+  const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(null)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
@@ -656,16 +666,18 @@ function App() {
 
     context.fillStyle = selectedColor.hex
     context.fillRect(0, 0, canvas.width, canvas.height)
-    context.fillStyle = '#eee7d8'
+    context.fillStyle = selectedMatColor.hex
     context.fillRect(matInset, matInset, canvas.width - matInset * 2, canvas.height - matInset * 2)
-    context.strokeStyle = selectedColor.hex
-    context.lineWidth = cutEdge
-    context.strokeRect(
-      matInset + matPadding,
-      matInset + matPadding,
-      canvas.width - (matInset + matPadding) * 2,
-      canvas.height - (matInset + matPadding) * 2,
-    )
+    if (stripEnabled) {
+      context.strokeStyle = selectedStripColor.hex
+      context.lineWidth = cutEdge
+      context.strokeRect(
+        matInset + matPadding,
+        matInset + matPadding,
+        canvas.width - (matInset + matPadding) * 2,
+        canvas.height - (matInset + matPadding) * 2,
+      )
+    }
 
     const imageInset = matInset + matPadding + cutEdge
     const imageWidth = canvas.width - imageInset * 2
@@ -876,6 +888,22 @@ function App() {
               </button>
             </div>
 
+            <div className="menu-group compact-group">
+              <span>Mat color</span>
+              <button
+                type="button"
+                className="swatch-button"
+                aria-label="Change mat color"
+                title="Change mat color"
+                onClick={() => {
+                  const currentIndex = matColorOptions.findIndex((color) => color.id === selectedMatColor.id)
+                  setSelectedMatColor(matColorOptions[(currentIndex + 1) % matColorOptions.length])
+                }}
+              >
+                <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
+              </button>
+            </div>
+
             <div className="menu-actions">
               <button type="button" className="menu-action" onClick={openArtworkPicker}>
                 Upload
@@ -903,6 +931,27 @@ function App() {
                 }}
               >
                 ↕
+              </button>
+              <button
+                type="button"
+                className={stripEnabled ? 'menu-action active' : 'menu-action'}
+                aria-label="Toggle mat strip"
+                title="Toggle mat strip"
+                onClick={() => setStripEnabled((current) => !current)}
+              >
+                Strip
+              </button>
+              <button
+                type="button"
+                className="swatch-button"
+                aria-label="Change strip color"
+                title="Change strip color"
+                onClick={() => {
+                  const currentIndex = colorOptions.findIndex((color) => color.id === selectedStripColor.id)
+                  setSelectedStripColor(colorOptions[(currentIndex + 1) % colorOptions.length])
+                }}
+              >
+                <span className="swatch-mini" style={{ background: selectedStripColor.hex }}></span>
               </button>
               <button
                 type="button"
@@ -936,8 +985,14 @@ function App() {
                 aspectRatio: artworkRatio,
               }}
             >
-              <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px` }}>
-                <div className="mat-cut-edge" style={{ borderColor: selectedColor.hex }}>
+              <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px`, background: selectedMatColor.hex }}>
+                <div
+                  className="mat-cut-edge"
+                  style={{
+                    borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
+                    borderWidth: stripEnabled ? '2px' : 0,
+                  }}
+                >
                   {artwork ? (
                     <img
                       key={artwork}
