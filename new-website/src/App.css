@@ -425,33 +425,33 @@
 }
 
 .resize-frame-handle {
-  position: fixed !important;
-  right: 28px;
-  top: 46%;
+  position: absolute !important;
+  right: -30px;
+  top: 12px;
 }
 
 .resize-mat-handle {
-  position: fixed !important;
-  right: 28px;
-  top: calc(46% + 32px);
+  position: absolute !important;
+  right: -30px;
+  top: 44px;
 }
 
 .resize-strip-handle {
-  position: fixed !important;
-  right: 28px;
-  top: calc(46% + 64px);
+  position: absolute !important;
+  right: -30px;
+  top: 76px;
 }
 
 .zoom-minus-handle {
-  position: fixed !important;
-  right: 92px;
-  top: calc(46% + 32px);
+  position: absolute !important;
+  right: 34px;
+  top: 44px;
 }
 
 .zoom-plus-handle {
-  position: fixed !important;
-  right: 60px;
-  top: calc(46% + 32px);
+  position: absolute !important;
+  right: 2px;
+  top: 44px;
 }
 
 .workspace-save-button {
