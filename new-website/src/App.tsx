@@ -562,6 +562,12 @@ function App() {
   const [frameThickness, setFrameThickness] = useState(18)
   const [matMargin, setMatMargin] = useState(14)
   const [stripThickness, setStripThickness] = useState(2)
+  const [artWidthInches, setArtWidthInches] = useState(12)
+  const [artHeightInches, setArtHeightInches] = useState(15)
+  const [frameWidthInches, setFrameWidthInches] = useState(16)
+  const [frameHeightInches, setFrameHeightInches] = useState(20)
+  const [showDimensions, setShowDimensions] = useState(false)
+  const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -582,8 +588,6 @@ function App() {
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
-  const frameWidthInches = 16
-  const frameHeightInches = frameWidthInches / artworkRatio
 
   useEffect(() => {
     setFrameThickness(defaultFrameThickness)
@@ -658,6 +662,23 @@ function App() {
     if (!fileInputRef.current) return
     fileInputRef.current.value = ''
     fileInputRef.current.click()
+  }
+
+  const applyArtworkDimensions = () => {
+    const safeWidth = Math.max(1, artWidthInches)
+    const safeHeight = Math.max(1, artHeightInches)
+    setArtWidthInches(safeWidth)
+    setArtHeightInches(safeHeight)
+    setArtworkRatio(safeWidth / safeHeight)
+    setFrameOrientation(safeWidth >= safeHeight ? 'horizontal' : 'vertical')
+    setShowDimensionsDialog(false)
+  }
+
+  const fitStandardFrameToArtwork = () => {
+    const borderInches = ((frameThickness + frameGap + matMargin + stripThickness) * 2) / 25.4
+    setSelectedFrameType('standard')
+    setFrameWidthInches(artWidthInches + borderInches)
+    setFrameHeightInches(artHeightInches + borderInches)
   }
 
   const saveProject = () => {
@@ -1063,6 +1084,7 @@ function App() {
                         if (image.naturalWidth && image.naturalHeight) {
                           const naturalRatio = image.naturalWidth / image.naturalHeight
                           setArtworkRatio(naturalRatio)
+                          setArtHeightInches(artWidthInches / naturalRatio)
                           setFrameOrientation(naturalRatio >= 1 ? 'horizontal' : 'vertical')
                         }
                       }}
@@ -1088,6 +1110,7 @@ function App() {
                   event.preventDefault()
                   setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                 }}
+                onClick={fitStandardFrameToArtwork}
               >
                 F
               </button>
@@ -1100,6 +1123,7 @@ function App() {
                   event.preventDefault()
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
+                onClick={() => setShowDimensionsDialog(true)}
               >
                 M
               </button>
@@ -1112,6 +1136,7 @@ function App() {
                   event.preventDefault()
                   setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
                 }}
+                onClick={() => setShowDimensions((current) => !current)}
               >
                 S
               </button>
@@ -1128,6 +1153,12 @@ function App() {
           <div className="workspace-scale" aria-label="Frame size">
             {frameWidthInches.toFixed(1)} in × {frameHeightInches.toFixed(1)} in
           </div>
+          {showDimensions && (
+            <div className="workspace-dimensions" aria-label="Artwork dimensions">
+              <span className="dimension-width">{artWidthInches.toFixed(1)} in</span>
+              <span className="dimension-height">{artHeightInches.toFixed(1)} in</span>
+            </div>
+          )}
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
@@ -1275,6 +1306,28 @@ function App() {
             <button type="button" className="primary-button full-width-button" onClick={() => void confirmSaveProject()}>
               Choose location and save
             </button>
+          </div>
+        </div>
+      )}
+
+      {showDimensionsDialog && (
+        <div className="dialog-overlay" onClick={() => setShowDimensionsDialog(false)}>
+          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+            <div className="dialog-header">
+              <h4>Artwork dimensions</h4>
+              <button type="button" onClick={() => setShowDimensionsDialog(false)}>×</button>
+            </div>
+            <div className="details-row">
+              <div className="field-group">
+                <label htmlFor="art-width">Width (in)</label>
+                <input id="art-width" type="number" min="1" step="0.1" value={artWidthInches} onChange={(event) => setArtWidthInches(Number(event.target.value) || 1)} />
+              </div>
+              <div className="field-group">
+                <label htmlFor="art-height">Height (in)</label>
+                <input id="art-height" type="number" min="1" step="0.1" value={artHeightInches} onChange={(event) => setArtHeightInches(Number(event.target.value) || 1)} />
+              </div>
+            </div>
+            <button type="button" className="primary-button full-width-button" onClick={applyArtworkDimensions}>Apply dimensions</button>
           </div>
         </div>
       )}
