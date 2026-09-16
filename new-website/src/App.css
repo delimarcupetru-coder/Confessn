@@ -1223,7 +1223,7 @@
   }
 
   .hero-stage {
-    min-height: calc(100svh - 18px);
+    min-height: calc(100svh - 150px);
     padding: 0;
   }
 
@@ -1243,7 +1243,7 @@
 
   .stage-shell {
     width: 100%;
-    min-height: calc(100svh - 18px);
+    min-height: calc(100svh - 150px);
     aspect-ratio: auto;
     border-radius: 0;
   }
@@ -1254,7 +1254,14 @@
   }
 
   .workspace-canvas {
-    inset: 180px 10px 96px;
+    inset: 180px 10px 92px;
+  }
+
+  .workspace-save-area {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    justify-content: flex-end;
   }
 
   .workspace-corner-tools {

@@ -564,7 +564,7 @@ function App() {
   const [selectedStyle, setSelectedStyle] = useState(materialOptions[0].id)
   const [selectedFrameType, setSelectedFrameType] = useState(frameTypeOptions[0].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
-  const [selectedColor] = useState(colorOptions[1])
+  const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
@@ -841,6 +841,22 @@ function App() {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
     setSelectedProjectId(null)
+  }
+
+  const loadProject = (project: ProjectRecord) => {
+    const [savedFrameType, savedMaterial] = project.style.split('-')
+    const matchingColor = colorOptions.find((color) => color.name === project.color)
+    setSelectedProjectId(project.id)
+    setSelectedFrameType(frameTypeOptions.some((option) => option.id === savedFrameType) ? savedFrameType : 'modern')
+    setSelectedStyle(materialOptions.some((option) => option.id === savedMaterial) ? savedMaterial : materialOptions[0].id)
+    setSelectedSize(project.size as typeof selectedSize)
+    if (matchingColor) setSelectedColor(matchingColor)
+    setFrameEnabled(true)
+    setMatEnabled(true)
+    setArtwork(project.artwork)
+    setArtPosition({ x: 0, y: 0 })
+    setZoom(1)
+    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const sendContactMessage = () => {
@@ -1218,7 +1234,7 @@ function App() {
                   <button
                     type="button"
                     className="project-select-button"
-                    onClick={() => setSelectedProjectId(project.id)}
+                    onClick={() => loadProject(project)}
                   >
                     <strong>{project.name}</strong>
                     <span>
