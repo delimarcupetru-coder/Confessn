@@ -588,9 +588,9 @@ function App() {
   const [artDrag, setArtDrag] = useState<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [artWidthInches, setArtWidthInches] = useState(12)
   const [artHeightInches, setArtHeightInches] = useState(15)
-  const [frameWidthInches, setFrameWidthInches] = useState(16)
-  const [frameHeightInches, setFrameHeightInches] = useState(20)
-  const [showDimensions, setShowDimensions] = useState(false)
+  const [frameWidthInches] = useState(16)
+  const [frameHeightInches] = useState(20)
+  const [showDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -715,13 +715,6 @@ function App() {
     setArtworkRatio(safeWidth / safeHeight)
     setFrameOrientation(safeWidth >= safeHeight ? 'horizontal' : 'vertical')
     setShowDimensionsDialog(false)
-  }
-
-  const fitStandardFrameToArtwork = () => {
-    const borderInches = ((frameThickness + frameGap + matMargin + stripThickness) * 2) / 25.4
-    setSelectedFrameType('modern')
-    setFrameWidthInches(artWidthInches + borderInches)
-    setFrameHeightInches(artHeightInches + borderInches)
   }
 
   const saveProject = () => {
@@ -1019,7 +1012,18 @@ function App() {
               data-screenshot-ignore
               style={{ right: `calc(50% - ${(previewWidth + 48) / 2}px)`, bottom: '-48px' }}
             >
-              <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust frame thickness"
+                title="Drag F to adjust frame thickness"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
+                }}
+              >
+                F
+              </button>
               <button
                 type="button"
                 className="menu-action"
@@ -1034,7 +1038,18 @@ function App() {
               </button>
               <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
               <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
-              <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust strip size"
+                title="Drag S to adjust strip thickness"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
+                }}
+              >
+                S
+              </button>
             </div>
             <div
               ref={captureRef}
