@@ -753,6 +753,14 @@ function App() {
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
     if (!captureRef.current) throw new Error('Frame capture area is unavailable')
+    const artworkImage = captureRef.current.querySelector<HTMLImageElement>('.uploaded-artwork')
+    if (artworkImage && !artworkImage.complete) {
+      await new Promise<void>((resolve) => {
+        artworkImage.addEventListener('load', () => resolve(), { once: true })
+        artworkImage.addEventListener('error', () => resolve(), { once: true })
+      })
+    }
+    if (artworkImage?.decode) await artworkImage.decode().catch(() => undefined)
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     const canvas = await html2canvas(captureRef.current, {
       backgroundColor: '#ffffff',
