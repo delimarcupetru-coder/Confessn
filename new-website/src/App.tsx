@@ -938,9 +938,8 @@ function App() {
 
           <div className="workspace-menu-bar">
             <div className="menu-group">
-              <span>Frame</span>
-              <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} onClick={() => setFrameEnabled((current) => !current)}>
-                {frameEnabled ? 'On' : 'Off'}
+              <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" onClick={() => setFrameEnabled((current) => !current)}>
+                Frame
               </button>
               <select className="menu-select" aria-label="Frame type" value={selectedFrameType} onChange={(event) => setSelectedFrameType(event.target.value as typeof selectedFrameType)}>
                 {frameTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -955,9 +954,8 @@ function App() {
             </div>
 
             <div className="menu-group">
-              <span>Mat</span>
-              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} onClick={() => setMatEnabled((current) => !current)}>
-                {matEnabled ? 'On' : 'Off'}
+              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle mat" onClick={() => setMatEnabled((current) => !current)}>
+                Mat
               </button>
               <select className="menu-select" aria-label="Mat size" value={selectedSize} onChange={(event) => setSelectedSize(event.target.value as typeof selectedSize)}>
                 {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
