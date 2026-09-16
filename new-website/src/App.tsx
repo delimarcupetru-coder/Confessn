@@ -570,6 +570,7 @@ function App() {
 
   const t = translations[language]
   const frameBorderWidth = selectedStyle === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
+  const frameGap = selectedStyle === 'floating' ? 6 : 0
   const matPadding = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
@@ -661,7 +662,7 @@ function App() {
     const scale = canvas.width / previewWidth
     const frameInset = 0
     const frameWidth = frameBorderWidth * scale
-    const matInset = frameInset + frameWidth
+    const matInset = frameInset + frameWidth + frameGap * scale
     const matPadding = (selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22) * scale
     const cutEdge = 2 * scale
 
@@ -988,7 +989,11 @@ function App() {
             >
               <div
                 className="art-mat"
-                style={{ inset: `${frameBorderWidth}px`, padding: `${matPadding}px`, background: selectedMatColor.hex }}
+                style={{
+                  inset: `${frameBorderWidth + frameGap}px`,
+                  padding: `${matPadding}px`,
+                  background: selectedMatColor.hex,
+                }}
               >
                 <div
                   className="mat-cut-edge"
