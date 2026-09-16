@@ -1345,7 +1345,7 @@
     position: relative;
     inset: auto;
     flex: 1 1 auto;
-    min-height: 430px;
+    min-height: 330px;
     padding: 18px 10px 58px;
     box-sizing: border-box;
   }
