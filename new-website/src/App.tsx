@@ -645,8 +645,17 @@ function App() {
       setIsLoggedIn(true)
       setAuthMessage('Account created. Your profile is saved on this device.')
     } else {
-      const auth = existing ? JSON.parse(existing) as LocalAuth : null
-      if (!auth || auth.email !== email || auth.passwordHash !== passwordHash) {
+      let auth: LocalAuth | null = null
+      try {
+        auth = existing ? JSON.parse(existing) as LocalAuth : null
+      } catch {
+        auth = null
+      }
+      if (!auth) {
+        setAuthMessage('No account exists on this device. Create an account first.')
+        return
+      }
+      if (auth.email !== email || auth.passwordHash !== passwordHash) {
         setAuthMessage('Email or password is incorrect.')
         return
       }
