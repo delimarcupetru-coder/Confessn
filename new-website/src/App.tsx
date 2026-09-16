@@ -650,9 +650,11 @@ function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         setAuthUserId(null)
+        setAuthReady(true)
         setIsLoggedIn(false)
         return
       }
+      setAuthReady(false)
       setAuthUserId(session.user.id)
       setAccount((current) => ({
         ...current,
@@ -663,6 +665,7 @@ function App() {
       window.setTimeout(() => {
         void supabase.from('user_profiles').select('account').eq('user_id', session.user.id).maybeSingle().then(({ data: profile }) => {
           if (profile?.account) setAccount(profile.account as Account)
+          setAuthReady(true)
         })
       }, 0)
     })
