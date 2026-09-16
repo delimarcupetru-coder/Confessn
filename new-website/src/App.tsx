@@ -1106,6 +1106,7 @@ function App() {
                       onPointerDown={(event) => {
                         event.preventDefault()
                         event.stopPropagation()
+                        setResizeDrag(null)
                         event.currentTarget.setPointerCapture(event.pointerId)
                         setArtDrag({
                           startX: event.clientX,
