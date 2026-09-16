@@ -563,7 +563,7 @@ function App() {
   const [selectedStyle, setSelectedStyle] = useState(materialOptions[0].id)
   const [selectedFrameType, setSelectedFrameType] = useState(frameTypeOptions[0].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
-  const [selectedColor, setSelectedColor] = useState(colorOptions[1])
+  const [selectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
