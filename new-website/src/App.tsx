@@ -554,6 +554,7 @@ function App() {
   })
 
   const t = translations[language]
+  const frameBorderWidth = selectedSize === 'narrow' ? 10 : selectedSize === 'medium' ? 18 : 26
 
   useEffect(() => {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
@@ -794,29 +795,32 @@ function App() {
               className="art-preview"
               style={{ borderColor: selectedColor.hex, aspectRatio: artworkRatio }}
             >
-              {artwork ? (
-                <img
-                  key={artwork}
-                  className="uploaded-artwork"
-                  src={artwork}
-                  alt="Uploaded artwork preview"
-                  onLoad={(event) => {
-                    const image = event.currentTarget
-                    if (image.naturalWidth && image.naturalHeight) {
-                      setArtworkRatio(image.naturalWidth / image.naturalHeight)
-                    }
-                  }}
-                />
-              ) : (
-                <div className="art-placeholder">Your artwork</div>
-              )}
+              <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px` }}>
+                <div className="mat-cut-edge">
+                  {artwork ? (
+                    <img
+                      key={artwork}
+                      className="uploaded-artwork"
+                      src={artwork}
+                      alt="Uploaded artwork preview"
+                      onLoad={(event) => {
+                        const image = event.currentTarget
+                        if (image.naturalWidth && image.naturalHeight) {
+                          setArtworkRatio(image.naturalWidth / image.naturalHeight)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="art-placeholder">Your artwork</div>
+                  )}
+                </div>
+              </div>
               <div
                 className="frame-shell"
                 style={{
                   borderColor: selectedColor.hex,
                   boxShadow: `inset 0 0 0 16px ${selectedColor.hex}`,
-                  borderWidth:
-                    selectedSize === 'narrow' ? '10px' : selectedSize === 'medium' ? '18px' : '26px',
+                  borderWidth: `${frameBorderWidth}px`,
                 }}
               ></div>
             </div>
