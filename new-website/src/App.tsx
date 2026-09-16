@@ -588,7 +588,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(window.localStorage.getItem('virtual-art-framing-studio-session')))
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
@@ -660,6 +660,7 @@ function App() {
       if (!mounted) return
       const user = data.session?.user
       if (!user) {
+        setAuthUserId(null)
         setAuthReady(true)
         return
       }
