@@ -320,11 +320,14 @@
 }
 
 .art-capture-area {
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   padding: 24px;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+  background: #f7f4ed;
 }
 
 .gallery-center-button {
