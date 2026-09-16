@@ -723,6 +723,8 @@
 .uploaded-artwork {
   position: relative;
   z-index: 1;
+  object-fit: contain !important;
+  background: #f7f4ed;
 }
 
 .art-placeholder {
