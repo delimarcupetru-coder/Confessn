@@ -555,6 +555,10 @@ const portfolioIcons = {
 }
 
 function App() {
+  useEffect(() => {
+    document.title = 'VAFS'
+  }, [])
+
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
