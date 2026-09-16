@@ -554,7 +554,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
-  const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('json')
+  const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('jpg')
   const [contactName, setContactName] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -817,11 +817,11 @@ function App() {
     if (nativePicker) {
       try {
         const fileHandle = await nativePicker({
-          suggestedName: safeFileName,
+          suggestedName: `${safeFileName}.jpg`,
           types: [
-            { description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } },
             { description: 'Framed artwork (JPG)', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } },
             { description: 'Framed artwork (PNG)', accept: { 'image/png': ['.png'] } },
+            { description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } },
           ],
         })
         const extension = fileHandle.name.toLowerCase().split('.').pop() ?? 'json'
