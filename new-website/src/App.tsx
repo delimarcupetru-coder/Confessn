@@ -817,19 +817,20 @@ function App() {
     if (nativePicker) {
       try {
         const fileHandle = await nativePicker({
-          suggestedName: `${safeFileName}.json`,
+          suggestedName: safeFileName,
           types: [
             { description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } },
             { description: 'Framed artwork (JPG)', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } },
             { description: 'Framed artwork (PNG)', accept: { 'image/png': ['.png'] } },
           ],
         })
-        const extension = fileHandle.name.toLowerCase().split('.').pop()
-        const fileToWrite = extension === 'jpg' || extension === 'jpeg'
-          ? await renderFramedImage('jpg')
-          : extension === 'png'
-            ? await renderFramedImage('png')
-            : projectFile
+        const extension = fileHandle.name.toLowerCase().split('.').pop() ?? 'json'
+        let fileToWrite: Blob = projectFile
+        if (extension === 'jpg' || extension === 'jpeg') {
+          fileToWrite = await renderFramedImage('jpg')
+        } else if (extension === 'png') {
+          fileToWrite = await renderFramedImage('png')
+        }
         const writable = await fileHandle.createWritable()
         await writable.write(fileToWrite)
         await writable.close()
