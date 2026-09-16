@@ -133,6 +133,18 @@
   min-height: 100%;
   object-fit: cover;
   object-position: center center;
+  transition: transform 0.18s ease;
+}
+
+.photo-zoom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: #d9d7e5;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .upload-dots {

@@ -583,6 +583,7 @@ function App() {
   const [profileEmail, setProfileEmail] = useState('')
   const [profilePassword, setProfilePassword] = useState('')
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>()
+  const [profileAvatarZoom, setProfileAvatarZoom] = useState(1)
   const [profileImageLoading, setProfileImageLoading] = useState(false)
   const [profileImageError, setProfileImageError] = useState('')
   const profileImageInputRef = useRef<HTMLInputElement | null>(null)
@@ -717,6 +718,7 @@ function App() {
     setProfileEmail(account.email)
     setProfilePassword('')
     setProfileAvatar(account.avatar)
+    setProfileAvatarZoom(1)
     setShowAccountDialog(true)
   }
 
@@ -1560,10 +1562,15 @@ function App() {
             </div>
             <div className="account-photo-editor">
               <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>
-                {profileImageLoading ? <span className="upload-dots" aria-label="Uploading photo">...</span> : profileAvatar ? <img src={profileAvatar} alt="Profile" /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}
+                {profileImageLoading ? <span className="upload-dots" aria-label="Uploading photo">...</span> : profileAvatar ? <img src={profileAvatar} alt="Profile" style={{ transform: `scale(${profileAvatarZoom})` }} /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}
               </button>
               <input ref={profileImageInputRef} type="file" accept="image/*" hidden onChange={handleProfileImage} />
               {profileImageError && <span className="dialog-hint" role="alert">{profileImageError}</span>}
+              <div className="photo-zoom-controls" aria-label="Profile photo zoom">
+                <button type="button" className="menu-action" onClick={() => setProfileAvatarZoom((current) => Math.max(0.8, Number((current - 0.1).toFixed(2))))}>−</button>
+                <span>{Math.round(profileAvatarZoom * 100)}%</span>
+                <button type="button" className="menu-action" onClick={() => setProfileAvatarZoom((current) => Math.min(2, Number((current + 0.1).toFixed(2))))}>+</button>
+              </div>
             </div>
             <div className="field-group">
               <label htmlFor="profile-username">Username</label>
