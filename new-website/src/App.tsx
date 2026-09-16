@@ -46,6 +46,7 @@ type SaveFilePicker = (options: {
   suggestedName: string
   types: Array<{ description: string; accept: Record<string, string[]> }>
 }) => Promise<{
+  name: string
   createWritable: () => Promise<{
     write: (data: Blob) => Promise<void>
     close: () => Promise<void>
@@ -611,6 +612,11 @@ function App() {
   }
 
   const saveProject = () => {
+    const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
+    if (picker) {
+      void confirmSaveProject(picker)
+      return
+    }
     setShowSaveDialog(true)
   }
 
@@ -623,10 +629,9 @@ function App() {
     URL.revokeObjectURL(downloadUrl)
   }
 
-  const exportFramedImage = async (safeFileName: string, format: 'jpg' | 'png') => {
+  const renderFramedImage = async (format: 'jpg' | 'png') => {
     if (!artwork) {
-      setSaveMessage('Upload artwork before exporting an image')
-      return
+      throw new Error('Upload artwork before exporting an image')
     }
 
     const image = new Image()
@@ -679,11 +684,10 @@ function App() {
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
     if (!blob) throw new Error('Image export failed')
-    downloadBlob(blob, `${safeFileName}.${format}`)
-    setSaveMessage(`Downloaded ${format.toUpperCase()} image`)
+    return blob
   }
 
-  const confirmSaveProject = async () => {
+  const confirmSaveProject = async (nativePicker?: SaveFilePicker) => {
     const safeFileName = projectFileName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'my-framing-project'
     const nextProject: ProjectRecord = {
       id: crypto.randomUUID(),
@@ -704,27 +708,38 @@ function App() {
 
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
-    if (saveFormat !== 'json') {
+    if (!nativePicker && saveFormat !== 'json') {
       try {
-        await exportFramedImage(safeFileName, saveFormat)
+        const imageBlob = await renderFramedImage(saveFormat)
+        downloadBlob(imageBlob, `${safeFileName}.${saveFormat}`)
+        setSaveMessage(`Downloaded ${saveFormat.toUpperCase()} image`)
       } catch {
-        setSaveMessage('Image export failed')
+        setSaveMessage('Image export failed. Upload artwork first.')
       }
       setShowSaveDialog(false)
       return
     }
 
     const projectFile = new Blob([JSON.stringify(nextProject, null, 2)], { type: 'application/json' })
-    const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
 
-    if (picker) {
+    if (nativePicker) {
       try {
-        const fileHandle = await picker({
+        const fileHandle = await nativePicker({
           suggestedName: `${safeFileName}.json`,
-          types: [{ description: 'Framing project', accept: { 'application/json': ['.json'] } }],
+          types: [
+            { description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } },
+            { description: 'Framed artwork (JPG)', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } },
+            { description: 'Framed artwork (PNG)', accept: { 'image/png': ['.png'] } },
+          ],
         })
+        const extension = fileHandle.name.toLowerCase().split('.').pop()
+        const fileToWrite = extension === 'jpg' || extension === 'jpeg'
+          ? await renderFramedImage('jpg')
+          : extension === 'png'
+            ? await renderFramedImage('png')
+            : projectFile
         const writable = await fileHandle.createWritable()
-        await writable.write(projectFile)
+        await writable.write(fileToWrite)
         await writable.close()
         setSaveMessage('Saved to your device')
       } catch {
@@ -1104,7 +1119,7 @@ function App() {
               </div>
             </div>
             <p className="dialog-hint">Choose where to save the project file on your device.</p>
-            <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
+            <button type="button" className="primary-button full-width-button" onClick={() => void confirmSaveProject()}>
               Choose location and save
             </button>
           </div>
