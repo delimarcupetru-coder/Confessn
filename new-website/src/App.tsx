@@ -839,7 +839,11 @@ function App() {
         <div className="carousel" aria-label="Completed projects carousel">
           {galleryItems.map((item) => (
             <article key={item.title} className="gallery-card">
-              <img src={item.image} alt={item.title} />
+              <div className="gallery-frame">
+                <div className="gallery-mat">
+                  <img src={item.image} alt={item.title} />
+                </div>
+              </div>
               <div className="gallery-info">
                 <strong>{item.title}</strong>
               </div>

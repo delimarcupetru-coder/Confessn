@@ -780,10 +780,25 @@
   overflow: hidden;
 }
 
-.gallery-card img {
+.gallery-frame {
+  margin: 18px 18px 0;
+  padding: 12px;
+  background: linear-gradient(135deg, #5a3928 0%, #b47a4d 50%, #3d2419 100%);
+  border: 1px solid rgba(255, 226, 184, 0.32);
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.28), inset 0 0 0 3px rgba(31, 17, 10, 0.42);
+}
+
+.gallery-mat {
+  padding: 10px;
+  background: #eee7d8;
+  box-shadow: inset 0 0 0 1px rgba(75, 55, 40, 0.18);
+}
+
+.gallery-mat img {
   display: block;
   width: 100%;
-  height: 280px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   object-fit: cover;
 }
 
