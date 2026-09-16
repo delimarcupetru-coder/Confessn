@@ -844,8 +844,9 @@ function App() {
     if (!nativePicker && saveFormat !== 'json') {
       try {
         const imageBlob = await renderFramedImage(saveFormat)
-        downloadBlob(imageBlob, `${safeFileName}.${saveFormat}`)
-        setSaveMessage(`Downloaded ${saveFormat.toUpperCase()} image`)
+        const exportName = `${safeFileName}-${new Date().toISOString().replace(/[.:]/g, '-')}.${saveFormat}`
+        downloadBlob(imageBlob, exportName)
+        setSaveMessage(`Downloaded ${exportName}`)
       } catch {
         setSaveMessage('Image export failed')
       }
