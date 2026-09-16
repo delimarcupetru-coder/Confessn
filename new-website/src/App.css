@@ -491,6 +491,13 @@
   font-weight: 600;
 }
 
+.save-download-link {
+  color: #2c2a35;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
 .studio-summary {
   display: flex;
   flex-direction: column;

@@ -573,6 +573,7 @@ function App() {
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
+  const [lastDownload, setLastDownload] = useState<{ url: string; name: string } | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
@@ -732,6 +733,7 @@ function App() {
 
   const downloadBlob = (blob: Blob, fileName: string) => {
     const downloadUrl = URL.createObjectURL(blob)
+    setLastDownload({ url: downloadUrl, name: fileName })
     const downloadLink = document.createElement('a')
     downloadLink.href = downloadUrl
     downloadLink.download = fileName
@@ -1155,6 +1157,11 @@ function App() {
           )}
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
+            {lastDownload && (
+              <a className="save-download-link" href={lastDownload.url} download={lastDownload.name}>
+                Download JPG
+              </a>
+            )}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
               Save Project
             </button>
