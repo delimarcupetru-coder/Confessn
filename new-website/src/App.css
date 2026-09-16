@@ -1307,6 +1307,16 @@
     min-height: calc(100svh - 150px);
     aspect-ratio: auto;
     border-radius: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-menu-bar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    flex: 0 0 150px;
   }
 
   .workspace-menu-bar .menu-group {
@@ -1315,7 +1325,12 @@
   }
 
   .workspace-canvas {
-    inset: 180px 10px 132px;
+    position: relative;
+    inset: auto;
+    flex: 1 1 auto;
+    min-height: 430px;
+    padding: 18px 10px 58px;
+    box-sizing: border-box;
   }
 
   .workspace-save-area {
@@ -1326,20 +1341,16 @@
   }
 
   .workspace-corner-tools {
-    left: 10px !important;
-    right: auto !important;
-    bottom: 0 !important;
-    transform: translateY(56px) scale(0.88);
+    left: auto !important;
+    right: 10px !important;
+    bottom: 8px !important;
+    transform: scale(0.88);
     transform-origin: bottom right;
   }
 
   .menu-actions {
     width: 100%;
     margin-left: 0;
-  }
-
-  .workspace-canvas {
-    inset: 142px 14px 82px;
   }
 
   .header-actions,
