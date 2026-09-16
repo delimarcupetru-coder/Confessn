@@ -1010,6 +1010,11 @@ function App() {
               >
                 Light
               </button>
+              <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
+              <button type="button" className="menu-action" aria-label="Adjust mat size" onClick={() => setShowDimensionsDialog(true)}>M</button>
+              <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
+              <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
             </div>
           </div>
 
@@ -1093,63 +1098,6 @@ function App() {
                     : undefined,
                 }}
               ></div>}
-              <button data-screenshot-ignore
-                type="button"
-                className="resize-handle resize-frame-handle"
-                aria-label="Adjust frame thickness"
-                title="Drag to adjust frame thickness"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
-                }}
-                onClick={fitStandardFrameToArtwork}
-              >
-                F
-              </button>
-              <button data-screenshot-ignore
-                type="button"
-                className="resize-handle resize-mat-handle"
-                aria-label="Adjust mat size"
-                title="Drag to adjust mat size"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
-                }}
-                onClick={() => setShowDimensionsDialog(true)}
-              >
-                M
-              </button>
-              <button data-screenshot-ignore
-                type="button"
-                className="resize-handle zoom-minus-handle"
-                aria-label="Zoom out artwork"
-                title="Zoom out artwork"
-                onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}
-              >
-                −
-              </button>
-              <button data-screenshot-ignore
-                type="button"
-                className="resize-handle zoom-plus-handle"
-                aria-label="Zoom in artwork"
-                title="Zoom in artwork"
-                onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}
-              >
-                +
-              </button>
-              <button data-screenshot-ignore
-                type="button"
-                className="resize-handle resize-strip-handle"
-                aria-label="Adjust strip size"
-                title="Drag to adjust strip size"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
-                }}
-                onClick={() => setShowDimensions((current) => !current)}
-              >
-                S
-              </button>
               </div>
             </div>
           </div>
