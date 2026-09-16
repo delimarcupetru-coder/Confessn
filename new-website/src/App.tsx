@@ -720,15 +720,6 @@ function App() {
   }
 
   const saveProject = () => {
-    if (saveFormat === 'jpg') {
-      void confirmSaveProject()
-      return
-    }
-    const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
-    if (picker) {
-      void confirmSaveProject(picker)
-      return
-    }
     setShowSaveDialog(true)
   }
 
@@ -747,8 +738,8 @@ function App() {
     }, 1500)
   }
 
-  const saveImageToPhone = async (blob: Blob, fileName: string) => {
-    const imageFile = new File([blob], fileName, { type: 'image/jpeg' })
+  const saveImageToPhone = async (blob: Blob, fileName: string, format: 'jpg' | 'png') => {
+    const imageFile = new File([blob], fileName, { type: format === 'jpg' ? 'image/jpeg' : 'image/png' })
     const shareData = { files: [imageFile], title: 'Framed artwork' }
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [imageFile] }))) {
       try {
@@ -821,7 +812,7 @@ function App() {
       try {
         const imageBlob = await renderFramedImage(saveFormat)
         const exportName = `${safeFileName}-${new Date().toISOString().replace(/[.:]/g, '-')}.${saveFormat}`
-        await saveImageToPhone(imageBlob, exportName)
+        await saveImageToPhone(imageBlob, exportName, saveFormat)
       } catch {
         setSaveMessage('Image export failed')
       }
@@ -830,16 +821,41 @@ function App() {
     }
 
     const projectFile = new Blob([JSON.stringify(nextProject, null, 2)], { type: 'application/json' })
+    const picker = nativePicker ?? (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
 
-    if (nativePicker) {
+    if (saveFormat !== 'json') {
       try {
-        const fileHandle = await nativePicker({
-          suggestedName: `${safeFileName}.jpg`,
-          types: [{ description: 'Framed artwork (JPG)', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+        const imageBlob = await renderFramedImage(saveFormat)
+        const extension = saveFormat === 'jpg' ? 'jpg' : 'png'
+        const exportName = `${safeFileName}.${extension}`
+        if (isTouchDevice || !picker) {
+          await saveImageToPhone(imageBlob, exportName, saveFormat)
+        } else {
+          const fileHandle = await picker({
+            suggestedName: exportName,
+            types: [{ description: saveFormat === 'jpg' ? 'Framed artwork (JPG)' : 'Framed artwork (PNG)', accept: { [saveFormat === 'jpg' ? 'image/jpeg' : 'image/png']: [`.${extension}`] } }],
+          })
+          const writable = await fileHandle.createWritable()
+          await writable.write(await imageBlob.arrayBuffer())
+          await writable.close()
+          setSaveMessage('Saved to your device')
+        }
+      } catch {
+        setSaveMessage('Save cancelled')
+      }
+      setShowSaveDialog(false)
+      return
+    }
+
+    if (picker) {
+      try {
+        const fileHandle = await picker({
+          suggestedName: `${safeFileName}.json`,
+          types: [{ description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } }],
         })
-        const fileToWrite = await renderFramedImage('jpg')
         const writable = await fileHandle.createWritable()
-        await writable.write(await fileToWrite.arrayBuffer())
+        await writable.write(await projectFile.arrayBuffer())
         await writable.close()
         setSaveMessage('Saved to your device')
       } catch {
