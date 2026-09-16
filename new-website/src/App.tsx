@@ -479,7 +479,11 @@ const frameOptions: FrameOption[] = [
   { id: 'stainless', label: 'Stainless steel', description: 'Cool metallic finish', icon: '▤' },
   { id: 'darkwood', label: 'Dark wood', description: 'Deep natural grain', icon: '▥' },
   { id: 'lightwood', label: 'Light wood', description: 'Warm natural grain', icon: '▦' },
-  { id: 'floating', label: 'Floating frame', description: 'Shadowed gallery edge', icon: '□' },
+]
+
+const frameTypeOptions: FrameOption[] = [
+  { id: 'standard', label: 'Standard', description: 'Frame meets the mat', icon: '□' },
+  { id: 'floating', label: 'Floating', description: 'Open gap around the mat', icon: '▣' },
 ]
 
 const sizeOptions = [
@@ -536,6 +540,7 @@ const portfolioIcons = {
 function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [selectedStyle, setSelectedStyle] = useState(frameOptions[1].id)
+  const [selectedFrameType, setSelectedFrameType] = useState(frameTypeOptions[0].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
@@ -569,8 +574,8 @@ function App() {
   })
 
   const t = translations[language]
-  const frameBorderWidth = selectedStyle === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
-  const frameGap = selectedStyle === 'floating' ? 6 : 0
+  const frameBorderWidth = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
+  const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const matPadding = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
@@ -707,7 +712,7 @@ function App() {
       id: crypto.randomUUID(),
       name: safeFileName,
       size: selectedSize,
-      style: selectedStyle,
+      style: `${selectedFrameType}-${selectedStyle}`,
       color: selectedColor.name,
       notes: '',
       folderId: account.activeFolderId,
@@ -845,6 +850,22 @@ function App() {
           <div className="workspace-menu-bar">
             <div className="menu-group">
               <span>Frame</span>
+              <div className="menu-options">
+                {frameTypeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={selectedFrameType === option.id ? 'menu-chip active' : 'menu-chip'}
+                    onClick={() => setSelectedFrameType(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="menu-group">
+              <span>Material</span>
               <div className="menu-options">
                 {frameOptions.map((option) => (
                   <button
@@ -1024,7 +1045,7 @@ function App() {
                 </div>
               </div>
               <div
-                className={`frame-shell frame-${selectedStyle}`}
+                className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                 style={{
                   borderColor: selectedColor.hex,
                   borderWidth: `${frameBorderWidth}px`,
