@@ -965,20 +965,6 @@ function App() {
             </div>
 
             <div className="menu-group compact-group">
-              <span>Color</span>
-              <label className="color-picker">
-                <span className="swatch-mini" style={{ background: selectedColor.hex }}></span>
-                <select
-                  aria-label="Frame color"
-                  value={selectedColor.id}
-                  onChange={(event) => setSelectedColor(colorOptions.find((color) => color.id === event.target.value) ?? colorOptions[0])}
-                >
-                  {colorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
-                </select>
-              </label>
-            </div>
-
-            <div className="menu-group compact-group">
               <span>Mat color</span>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
