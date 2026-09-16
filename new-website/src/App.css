@@ -415,6 +415,16 @@
   bottom: -30px;
 }
 
+.zoom-minus-handle {
+  right: -62px;
+  bottom: -62px;
+}
+
+.zoom-plus-handle {
+  right: -94px;
+  bottom: -62px;
+}
+
 .workspace-save-button {
   border: 1px solid rgba(28, 29, 34, 0.12);
   border-radius: 14px;

@@ -1058,12 +1058,6 @@ function App() {
               >
                 Light
               </button>
-              <button type="button" className="menu-action" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>
-                −
-              </button>
-              <button type="button" className="menu-action" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>
-                +
-              </button>
             </div>
           </div>
 
@@ -1157,6 +1151,24 @@ function App() {
                 onClick={() => setShowDimensionsDialog(true)}
               >
                 M
+              </button>
+              <button
+                type="button"
+                className="resize-handle zoom-minus-handle"
+                aria-label="Zoom out artwork"
+                title="Zoom out artwork"
+                onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="resize-handle zoom-plus-handle"
+                aria-label="Zoom in artwork"
+                title="Zoom in artwork"
+                onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}
+              >
+                +
               </button>
               <button
                 type="button"
