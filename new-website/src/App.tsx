@@ -665,6 +665,7 @@ function App() {
       setAuthMessage('Logged in.')
     }
     setAuthPassword('')
+    setAuthMode(null)
   }
 
   const logOut = () => {
