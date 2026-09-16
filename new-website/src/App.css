@@ -1229,6 +1229,40 @@
 
   .topbar {
     padding: 3px 10px;
+    position: relative;
+  }
+
+  .header-actions {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: auto;
+    z-index: 2;
+  }
+
+  .header-actions .header-link-button,
+  .header-actions .primary-button {
+    display: none;
+  }
+
+  .header-actions .lang-select {
+    width: auto;
+    min-width: 48px;
+    padding: 0.28rem 0.38rem;
+    font-size: 0.72rem;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: flex-end;
+    padding-right: 56px;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  .nav a {
+    white-space: nowrap;
+    font-size: 0.76rem;
   }
 
   .workspace-menu-bar {
