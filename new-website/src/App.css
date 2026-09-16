@@ -926,7 +926,9 @@
 }
 
 .frame-engravedwood {
-  border-image: repeating-linear-gradient(135deg, #6a4128 0 6px, #9b6a43 6px 9px) 1;
+  border-image: none;
+  border-color: #6a4128;
+  box-shadow: inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b;
 }
 
 .frame-floating {
