@@ -1315,7 +1315,7 @@
   }
 
   .workspace-canvas {
-    inset: 180px 10px 92px;
+    inset: 180px 10px 132px;
   }
 
   .workspace-save-area {
@@ -1327,7 +1327,7 @@
 
   .workspace-corner-tools {
     right: 6px !important;
-    bottom: 6px !important;
+    bottom: -48px !important;
     transform: scale(0.88);
     transform-origin: bottom right;
   }
