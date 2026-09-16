@@ -291,6 +291,17 @@
   z-index: 2;
 }
 
+.upload-message {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  max-width: 220px;
+  color: #7f1d1d;
+  font-size: 0.76rem;
+  font-weight: 700;
+  z-index: 2;
+}
+
 .workspace-save-area {
   position: absolute;
   right: 18px;

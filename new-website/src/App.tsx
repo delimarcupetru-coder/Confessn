@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import heic2any from 'heic2any'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
@@ -531,6 +532,7 @@ function App() {
   const [selectedColor, setSelectedColor] = useState(colorOptions[2])
   const [artwork, setArtwork] = useState<string | null>(null)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
+  const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -567,17 +569,36 @@ function App() {
     })
   }, [account])
 
-  const handleArtworkUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArtworkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setArtwork(reader.result)
-      }
-    }
-    reader.readAsDataURL(file)
     event.currentTarget.value = ''
+    if (!file) return
+
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name)
+    if (!file.type.startsWith('image/') && !isHeic) {
+      setUploadMessage('Please choose an image file.')
+      return
+    }
+
+    try {
+      let imageBlob: Blob = file
+      if (isHeic) {
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 })
+        imageBlob = Array.isArray(converted) ? converted[0] : converted
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setArtwork(reader.result)
+          setUploadMessage('')
+        }
+      }
+      reader.onerror = () => setUploadMessage('This image could not be loaded.')
+      reader.readAsDataURL(imageBlob)
+    } catch {
+      setUploadMessage('This image format could not be converted.')
+    }
   }
 
   const openArtworkPicker = () => {
@@ -832,6 +853,7 @@ function App() {
           >
             {artwork ? 'Replace artwork' : 'Upload artwork'}
           </button>
+          {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
