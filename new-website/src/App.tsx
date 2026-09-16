@@ -559,6 +559,10 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
+  const [frameThickness, setFrameThickness] = useState(18)
+  const [matMargin, setMatMargin] = useState(14)
+  const [stripThickness, setStripThickness] = useState(2)
+  const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [account, setAccount] = useState<Account>(() => {
@@ -574,10 +578,37 @@ function App() {
   })
 
   const t = translations[language]
-  const frameBorderWidth = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
+  const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
-  const matPadding = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
+  const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
+  const frameWidthInches = 16
+  const frameHeightInches = frameWidthInches / artworkRatio
+
+  useEffect(() => {
+    setFrameThickness(defaultFrameThickness)
+  }, [defaultFrameThickness])
+
+  useEffect(() => {
+    setMatMargin(defaultMatMargin)
+  }, [defaultMatMargin])
+
+  useEffect(() => {
+    if (!resizeDrag) return
+    const handlePointerMove = (event: PointerEvent) => {
+      const nextValue = resizeDrag.startValue - (event.clientY - resizeDrag.startY) / 4
+      if (resizeDrag.kind === 'frame') setFrameThickness(Math.min(42, Math.max(6, nextValue)))
+      if (resizeDrag.kind === 'mat') setMatMargin(Math.min(42, Math.max(4, nextValue)))
+      if (resizeDrag.kind === 'strip') setStripThickness(Math.min(8, Math.max(0, nextValue)))
+    }
+    const stopResize = () => setResizeDrag(null)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopResize)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopResize)
+    }
+  }, [resizeDrag])
 
   useEffect(() => {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
@@ -612,6 +643,7 @@ function App() {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           setArtwork(reader.result)
+          setZoom(1)
           setUploadMessage('')
         }
       }
@@ -666,10 +698,10 @@ function App() {
 
     const scale = canvas.width / previewWidth
     const frameInset = 0
-    const frameWidth = frameBorderWidth * scale
+    const frameWidth = frameThickness * scale
     const matInset = frameInset + frameWidth + frameGap * scale
-    const matPadding = (selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22) * scale
-    const cutEdge = 2 * scale
+    const matPadding = matMargin * scale
+    const cutEdge = stripThickness * scale
 
     context.fillStyle = selectedColor.hex
     context.fillRect(0, 0, canvas.width, canvas.height)
@@ -690,8 +722,8 @@ function App() {
     const imageWidth = canvas.width - imageInset * 2
     const imageHeight = canvas.height - imageInset * 2
     const imageScale = Math.min(imageWidth / image.naturalWidth, imageHeight / image.naturalHeight)
-    const drawnWidth = image.naturalWidth * imageScale
-    const drawnHeight = image.naturalHeight * imageScale
+    const drawnWidth = image.naturalWidth * imageScale * zoom
+    const drawnHeight = image.naturalHeight * imageScale * zoom
     context.drawImage(
       image,
       imageInset + (imageWidth - drawnWidth) / 2,
@@ -999,7 +1031,7 @@ function App() {
             </div>
           </div>
 
-          <div className="workspace-canvas" style={{ transform: `scale(${zoom})` }}>
+          <div className="workspace-canvas">
             <div
               className="art-preview"
               style={{
@@ -1011,8 +1043,8 @@ function App() {
               <div
                 className="art-mat"
                 style={{
-                  inset: `${frameBorderWidth + frameGap}px`,
-                  padding: `${matPadding}px`,
+                  inset: `${frameThickness + frameGap}px`,
+                  padding: `${matMargin}px`,
                   background: selectedMatColor.hex,
                 }}
               >
@@ -1020,7 +1052,7 @@ function App() {
                   className="mat-cut-edge"
                   style={{
                     borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
-                    borderWidth: stripEnabled ? '2px' : 0,
+                    borderWidth: stripEnabled ? `${stripThickness}px` : 0,
                     boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
                   }}
                 >
@@ -1030,6 +1062,7 @@ function App() {
                       className="uploaded-artwork"
                       src={artwork}
                       alt="Uploaded artwork preview"
+                      style={{ transform: `scale(${zoom})` }}
                       onLoad={(event) => {
                         const image = event.currentTarget
                         if (image.naturalWidth && image.naturalHeight) {
@@ -1048,9 +1081,45 @@ function App() {
                 className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                 style={{
                   borderColor: selectedColor.hex,
-                  borderWidth: `${frameBorderWidth}px`,
+                  borderWidth: `${frameThickness}px`,
                 }}
               ></div>
+              <button
+                type="button"
+                className="resize-handle resize-frame-handle"
+                aria-label="Adjust frame thickness"
+                title="Drag to adjust frame thickness"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
+                }}
+              >
+                F
+              </button>
+              <button
+                type="button"
+                className="resize-handle resize-mat-handle"
+                aria-label="Adjust mat size"
+                title="Drag to adjust mat size"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                }}
+              >
+                M
+              </button>
+              <button
+                type="button"
+                className="resize-handle resize-strip-handle"
+                aria-label="Adjust strip size"
+                title="Drag to adjust strip size"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
+                }}
+              >
+                S
+              </button>
             </div>
           </div>
           <button
@@ -1061,6 +1130,9 @@ function App() {
             {artwork ? 'Replace artwork' : 'Upload artwork'}
           </button>
           {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
+          <div className="workspace-scale" aria-label="Frame size">
+            {frameWidthInches.toFixed(1)} in × {frameHeightInches.toFixed(1)} in
+          </div>
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
