@@ -625,9 +625,9 @@ function App() {
   useEffect(() => {
     if (!resizeDrag) return
     const handlePointerMove = (event: PointerEvent) => {
-      const nextValue = resizeDrag.startValue - (event.clientY - resizeDrag.startY) / 4
+      const nextValue = resizeDrag.startValue - (event.clientY - resizeDrag.startY) / 2
       if (resizeDrag.kind === 'frame') setFrameThickness(Math.min(42, Math.max(6, nextValue)))
-      if (resizeDrag.kind === 'mat') setMatMargin(Math.min(42, Math.max(4, nextValue)))
+      if (resizeDrag.kind === 'mat') setMatMargin(Math.min(80, Math.max(0, nextValue)))
       if (resizeDrag.kind === 'strip') setStripThickness(Math.min(8, Math.max(0, nextValue)))
     }
     const stopResize = () => setResizeDrag(null)
