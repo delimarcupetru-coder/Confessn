@@ -619,6 +619,8 @@ function App() {
   const [artHeightInches, setArtHeightInches] = useState(15)
   const [frameWidthInches] = useState(16)
   const [frameHeightInches] = useState(20)
+  const standardFrameSizes = [{ width: 16, height: 20 }, { width: 18, height: 24 }, { width: 24, height: 30 }]
+  const [standardFrameSizeIndex, setStandardFrameSizeIndex] = useState(0)
   const [showDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
@@ -1305,6 +1307,17 @@ function App() {
             onTouchMove={handlePinchMove}
             onTouchEnd={handlePinchEnd}
           >
+            <button
+              type="button"
+              className="standard-size-control"
+              data-screenshot-ignore
+              disabled={selectedFrameType === 'floating'}
+              aria-label="Change standard frame size"
+              title="Change standard frame size"
+              onClick={() => setStandardFrameSizeIndex((current) => (current + 1) % standardFrameSizes.length)}
+            >
+              ×
+            </button>
             <div
               className="workspace-corner-tools"
               data-screenshot-ignore
@@ -1463,7 +1476,7 @@ function App() {
           </button>
           {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
           <div className="workspace-scale" aria-label="Frame size">
-            {frameWidthInches.toFixed(1)} in × {frameHeightInches.toFixed(1)} in
+            {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(1)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(1)} in
           </div>
           {showDimensions && (
             <div className="workspace-dimensions" aria-label="Artwork dimensions">

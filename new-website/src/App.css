@@ -530,6 +530,26 @@
   box-shadow: 0 8px 18px rgba(12, 12, 22, 0.14);
 }
 
+.standard-size-control {
+  position: absolute;
+  left: calc(50% - min(190px, 45%));
+  bottom: -48px;
+  z-index: 6;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(17, 17, 24, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #25222a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.standard-size-control:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .resize-handle {
   position: absolute;
   z-index: 4;
