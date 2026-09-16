@@ -955,6 +955,36 @@
   width: 100%;
 }
 
+.field-label {
+  display: block;
+  color: #d9d7e5;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.format-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.format-option {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.55rem 0.4rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d9d7e5;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.format-option.active {
+  background: #f0e6ff;
+  border-color: #f0e6ff;
+  color: #27202f;
+}
+
 @media (max-width: 980px) {
   .topbar,
   .hero-stage,

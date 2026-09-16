@@ -538,6 +538,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
+  const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('json')
   const [contactName, setContactName] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -613,6 +614,75 @@ function App() {
     setShowSaveDialog(true)
   }
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const downloadUrl = URL.createObjectURL(blob)
+    const downloadLink = document.createElement('a')
+    downloadLink.href = downloadUrl
+    downloadLink.download = fileName
+    downloadLink.click()
+    URL.revokeObjectURL(downloadUrl)
+  }
+
+  const exportFramedImage = async (safeFileName: string, format: 'jpg' | 'png') => {
+    if (!artwork) {
+      setSaveMessage('Upload artwork before exporting an image')
+      return
+    }
+
+    const image = new Image()
+    image.src = artwork
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('Artwork could not be loaded'))
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 1200
+    canvas.height = Math.round(canvas.width / artworkRatio)
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas is unavailable')
+
+    const scale = canvas.width / previewWidth
+    const frameInset = 22 * scale
+    const frameWidth = frameBorderWidth * scale
+    const matInset = frameInset + frameWidth
+    const matPadding = 14 * scale
+    const cutEdge = 2 * scale
+
+    context.fillStyle = selectedColor.hex
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = '#eee7d8'
+    context.fillRect(matInset, matInset, canvas.width - matInset * 2, canvas.height - matInset * 2)
+    context.strokeStyle = selectedColor.hex
+    context.lineWidth = cutEdge
+    context.strokeRect(
+      matInset + matPadding,
+      matInset + matPadding,
+      canvas.width - (matInset + matPadding) * 2,
+      canvas.height - (matInset + matPadding) * 2,
+    )
+
+    const imageInset = matInset + matPadding + cutEdge
+    const imageWidth = canvas.width - imageInset * 2
+    const imageHeight = canvas.height - imageInset * 2
+    const imageScale = Math.min(imageWidth / image.naturalWidth, imageHeight / image.naturalHeight)
+    const drawnWidth = image.naturalWidth * imageScale
+    const drawnHeight = image.naturalHeight * imageScale
+    context.drawImage(
+      image,
+      imageInset + (imageWidth - drawnWidth) / 2,
+      imageInset + (imageHeight - drawnHeight) / 2,
+      drawnWidth,
+      drawnHeight,
+    )
+
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
+    if (!blob) throw new Error('Image export failed')
+    downloadBlob(blob, `${safeFileName}.${format}`)
+    setSaveMessage(`Downloaded ${format.toUpperCase()} image`)
+  }
+
   const confirmSaveProject = async () => {
     const safeFileName = projectFileName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'my-framing-project'
     const nextProject: ProjectRecord = {
@@ -634,6 +704,16 @@ function App() {
 
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
+    if (saveFormat !== 'json') {
+      try {
+        await exportFramedImage(safeFileName, saveFormat)
+      } catch {
+        setSaveMessage('Image export failed')
+      }
+      setShowSaveDialog(false)
+      return
+    }
+
     const projectFile = new Blob([JSON.stringify(nextProject, null, 2)], { type: 'application/json' })
     const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
 
@@ -651,12 +731,7 @@ function App() {
         setSaveMessage('Save cancelled')
       }
     } else {
-      const downloadUrl = URL.createObjectURL(projectFile)
-      const downloadLink = document.createElement('a')
-      downloadLink.href = downloadUrl
-      downloadLink.download = `${safeFileName}.json`
-      downloadLink.click()
-      URL.revokeObjectURL(downloadUrl)
+      downloadBlob(projectFile, `${safeFileName}.json`)
       setSaveMessage('Downloaded to your device')
     }
     setShowSaveDialog(false)
@@ -847,7 +922,7 @@ function App() {
               }}
             >
               <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px` }}>
-                <div className="mat-cut-edge">
+                <div className="mat-cut-edge" style={{ borderColor: selectedColor.hex }}>
                   {artwork ? (
                     <img
                       key={artwork}
@@ -872,7 +947,6 @@ function App() {
                 className="frame-shell"
                 style={{
                   borderColor: selectedColor.hex,
-                  boxShadow: `inset 0 0 0 16px ${selectedColor.hex}`,
                   borderWidth: `${frameBorderWidth}px`,
                 }}
               ></div>
@@ -1013,6 +1087,21 @@ function App() {
                 onChange={(event) => setProjectFileName(event.target.value)}
                 placeholder="my-framing-project"
               />
+            </div>
+            <div className="field-group">
+              <span className="field-label">File format</span>
+              <div className="format-options" role="group" aria-label="File format">
+                {(['json', 'jpg', 'png'] as const).map((format) => (
+                  <button
+                    key={format}
+                    type="button"
+                    className={saveFormat === format ? 'format-option active' : 'format-option'}
+                    onClick={() => setSaveFormat(format)}
+                  >
+                    {format.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
             <p className="dialog-hint">Choose where to save the project file on your device.</p>
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
