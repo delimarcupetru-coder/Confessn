@@ -842,7 +842,14 @@ function App() {
           setSaveMessage('Saved to your device')
         }
       } catch {
-        setSaveMessage('Save cancelled')
+        try {
+          const fallbackBlob = await renderFramedImage(saveFormat)
+          const fallbackName = `${safeFileName}.${saveFormat}`
+          downloadBlob(fallbackBlob, fallbackName)
+          setSaveMessage(`Downloaded ${fallbackName}`)
+        } catch {
+          setSaveMessage('Save cancelled')
+        }
       }
       setShowSaveDialog(false)
       return
@@ -859,7 +866,8 @@ function App() {
         await writable.close()
         setSaveMessage('Saved to your device')
       } catch {
-        setSaveMessage('Save cancelled')
+        downloadBlob(projectFile, `${safeFileName}.json`)
+        setSaveMessage(`Downloaded ${safeFileName}.json`)
       }
     } else {
       downloadBlob(projectFile, `${safeFileName}.json`)
