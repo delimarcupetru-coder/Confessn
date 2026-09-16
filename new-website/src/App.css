@@ -1298,7 +1298,12 @@
     right: 10px;
     gap: 5px;
     max-height: 150px;
-    overflow-y: auto;
+    height: 150px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     align-content: flex-start;
   }
 
