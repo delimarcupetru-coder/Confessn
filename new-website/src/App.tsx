@@ -577,6 +577,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
   const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('jpg')
   const [contactName, setContactName] = useState('')
@@ -884,6 +885,7 @@ function App() {
     const nextAccount = { ...account, folders: [...account.folders, folder], activeFolderId: folder.id }
     setAccount(nextAccount)
     setNewFolderName('')
+    setShowFolderDialog(false)
   }
 
   const renameActiveFolder = () => {
@@ -930,7 +932,7 @@ function App() {
     if (!event.ctrlKey) return
     event.preventDefault()
     const delta = event.deltaY < 0 ? 0.08 : -0.08
-    setZoom((current) => Math.min(2.2, Math.max(0.7, Number((current + delta).toFixed(2)))))
+    setZoom((current) => Math.min(1.25, Math.max(0.8, Number((current + delta).toFixed(2)))))
   }
 
   const handlePinchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -946,7 +948,7 @@ function App() {
     const [first, second] = Array.from(event.touches)
     const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
     const delta = (distance - pinchDistanceRef.current) / 180
-    setZoom((current) => Number(Math.min(2.2, Math.max(0.7, current + delta)).toFixed(2)))
+    setZoom((current) => Number(Math.min(1.25, Math.max(0.8, current + delta)).toFixed(2)))
     pinchDistanceRef.current = distance
   }
 
@@ -1169,7 +1171,7 @@ function App() {
                 M
               </button>
               <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
-              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(1.25, current + 0.1).toFixed(2)))}>+</button>
               <button
                 type="button"
                 className="menu-action"
@@ -1339,13 +1341,14 @@ function App() {
 
       <section id="about" className="bottom-grid">
         <div className="project-list panel-block">
-          <h3>{t.savedProjects}</h3>
+          <div className="saved-projects-heading">
+            <h3>{t.savedProjects}</h3>
+            <button type="button" className="folder-plus-button" aria-label="Create folder" title="Create folder" onClick={() => setShowFolderDialog(true)}>+</button>
+          </div>
           <div className="folder-bar">
             <select value={account.activeFolderId} onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })} aria-label="Project folder">
               {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
-            <input value={newFolderName} onChange={(event) => setNewFolderName(event.target.value)} placeholder="New folder" />
-            <button type="button" className="menu-action" onClick={createFolder}>Add</button>
             <button type="button" className="menu-action" onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
           </div>
           {activeFolderProjects.length === 0 ? (
@@ -1459,6 +1462,22 @@ function App() {
             <button type="button" className="primary-button full-width-button" onClick={() => void confirmSaveProject()}>
               Choose location and save
             </button>
+          </div>
+        </div>
+      )}
+
+      {showFolderDialog && (
+        <div className="dialog-overlay" onClick={() => setShowFolderDialog(false)}>
+          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+            <div className="dialog-header">
+              <h4>Create folder</h4>
+              <button type="button" onClick={() => setShowFolderDialog(false)}>×</button>
+            </div>
+            <div className="field-group">
+              <label htmlFor="new-folder-name">Folder name</label>
+              <input id="new-folder-name" autoFocus value={newFolderName} onChange={(event) => setNewFolderName(event.target.value)} placeholder="New folder" />
+            </div>
+            <button type="button" className="primary-button full-width-button" onClick={createFolder}>Create folder</button>
           </div>
         </div>
       )}

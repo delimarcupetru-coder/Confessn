@@ -1128,6 +1128,28 @@
   margin-bottom: 12px;
 }
 
+.saved-projects-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.saved-projects-heading h3 {
+  margin: 0;
+}
+
+.folder-plus-button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
 .folder-bar select,
 .folder-bar input {
   min-width: 0;
