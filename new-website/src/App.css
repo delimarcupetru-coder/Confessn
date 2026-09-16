@@ -319,6 +319,14 @@
   z-index: 1;
 }
 
+.art-capture-area {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .gallery-center-button {
   position: absolute;
   left: 50%;

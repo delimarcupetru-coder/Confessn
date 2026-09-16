@@ -594,7 +594,7 @@ function App() {
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const captureRef = useRef<HTMLDivElement | null>(null)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
@@ -752,13 +752,14 @@ function App() {
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
-    if (!workspaceRef.current) throw new Error('Workspace preview is unavailable')
+    if (!captureRef.current) throw new Error('Frame capture area is unavailable')
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    const canvas = await html2canvas(workspaceRef.current, {
+    const canvas = await html2canvas(captureRef.current, {
       backgroundColor: '#ffffff',
       scale: 2,
       useCORS: true,
       logging: false,
+      ignoreElements: (element) => element.hasAttribute('data-screenshot-ignore'),
     })
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
@@ -887,7 +888,6 @@ function App() {
 
       <section id="workspace" className="hero-stage">
         <div
-          ref={workspaceRef}
           className={`stage-shell stage-${wallTone}`}
           onWheel={handleStageWheel}
           aria-label="Workspace staging area"
@@ -1007,13 +1007,18 @@ function App() {
 
           <div className="workspace-canvas">
             <div
-              className="art-preview"
-              style={{
-                borderColor: selectedColor.hex,
-                width: `min(100%, ${previewWidth}px)`,
-                aspectRatio: artworkRatio,
-              }}
+              ref={captureRef}
+              className="art-capture-area"
+              style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: artworkRatio }}
             >
+              <div
+                className="art-preview"
+                style={{
+                  borderColor: selectedColor.hex,
+                  width: `min(100%, ${previewWidth}px)`,
+                  aspectRatio: artworkRatio,
+                }}
+              >
               {matEnabled && <div
                 className="art-mat"
                 style={{
@@ -1080,7 +1085,7 @@ function App() {
                     : undefined,
                 }}
               ></div>}
-              <button
+              <button data-screenshot-ignore
                 type="button"
                 className="resize-handle resize-frame-handle"
                 aria-label="Adjust frame thickness"
@@ -1093,7 +1098,7 @@ function App() {
               >
                 F
               </button>
-              <button
+              <button data-screenshot-ignore
                 type="button"
                 className="resize-handle resize-mat-handle"
                 aria-label="Adjust mat size"
@@ -1106,7 +1111,7 @@ function App() {
               >
                 M
               </button>
-              <button
+              <button data-screenshot-ignore
                 type="button"
                 className="resize-handle zoom-minus-handle"
                 aria-label="Zoom out artwork"
@@ -1115,7 +1120,7 @@ function App() {
               >
                 −
               </button>
-              <button
+              <button data-screenshot-ignore
                 type="button"
                 className="resize-handle zoom-plus-handle"
                 aria-label="Zoom in artwork"
@@ -1124,7 +1129,7 @@ function App() {
               >
                 +
               </button>
-              <button
+              <button data-screenshot-ignore
                 type="button"
                 className="resize-handle resize-strip-handle"
                 aria-label="Adjust strip size"
@@ -1137,6 +1142,7 @@ function App() {
               >
                 S
               </button>
+              </div>
             </div>
           </div>
           <button
