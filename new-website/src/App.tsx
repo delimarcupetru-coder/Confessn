@@ -753,6 +753,7 @@ function App() {
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
     if (!artPreviewRef.current) throw new Error('Frame preview is unavailable')
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     const canvas = await html2canvas(artPreviewRef.current, {
       backgroundColor: '#ffffff',
       scale: 2,
@@ -1073,6 +1074,10 @@ function App() {
                 style={{
                   borderColor: selectedColor.hex,
                   borderWidth: `${frameThickness}px`,
+                  borderImage: selectedStyle === 'engravedwood' ? 'none' : undefined,
+                  boxShadow: selectedStyle === 'engravedwood'
+                    ? 'inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b'
+                    : undefined,
                 }}
               ></div>}
               <button
