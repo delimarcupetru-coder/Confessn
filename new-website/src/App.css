@@ -150,10 +150,10 @@
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   flex-wrap: wrap;
-  padding: 10px 12px;
-  border-radius: 18px;
+  padding: 7px 9px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid rgba(15, 15, 18, 0.08);
   backdrop-filter: blur(16px);
@@ -163,8 +163,8 @@
 .menu-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 0;
+  gap: 6px;
+  padding: 0 6px 0 0;
   border-right: 1px solid rgba(17, 17, 24, 0.08);
 }
 
@@ -173,7 +173,7 @@
 }
 
 .menu-group span {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #2c2a35;
@@ -183,7 +183,7 @@
 .menu-options {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
@@ -194,8 +194,9 @@
   border: 1px solid rgba(17, 17, 24, 0.08);
   background: rgba(255, 255, 255, 0.75);
   color: #22212a;
-  border-radius: 12px;
-  padding: 0.45rem 0.7rem;
+  border-radius: 9px;
+  padding: 0.32rem 0.52rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -209,12 +210,12 @@
 }
 
 .compact-group {
-  padding-right: 10px;
+  padding-right: 7px;
 }
 
 .swatch-button {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -231,7 +232,7 @@
 .menu-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-left: auto;
   flex-wrap: wrap;
 }
@@ -261,7 +262,7 @@
 
 .workspace-canvas {
   position: absolute;
-  inset: 0;
+  inset: 82px 28px 78px;
   display: grid;
   place-items: center;
   transition: transform 0.15s ease;
@@ -275,7 +276,8 @@
   transform: translateX(-50%);
   border: 1px solid rgba(28, 29, 34, 0.08);
   border-radius: 18px;
-  padding: 0.9rem 1.5rem;
+  padding: 0.62rem 1rem;
+  font-size: 0.82rem;
   background: rgba(255, 255, 255, 0.88);
   color: #1c1d22;
   font-weight: 700;
@@ -297,7 +299,8 @@
 .workspace-save-button {
   border: 1px solid rgba(28, 29, 34, 0.12);
   border-radius: 14px;
-  padding: 0.75rem 1rem;
+  padding: 0.58rem 0.8rem;
+  font-size: 0.82rem;
   background: #1f1d25;
   color: #fff;
   font-weight: 700;
@@ -944,6 +947,22 @@
 
   .topbar {
     padding: 18px 16px;
+  }
+
+  .workspace-menu-bar {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 5px;
+  }
+
+  .menu-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .workspace-canvas {
+    inset: 142px 14px 82px;
   }
 
   .header-actions,
