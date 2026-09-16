@@ -1326,8 +1326,9 @@
   }
 
   .workspace-corner-tools {
-    right: 6px !important;
-    bottom: -48px !important;
+    left: 10px !important;
+    right: auto !important;
+    bottom: 54px !important;
     transform: scale(0.88);
     transform-origin: bottom right;
   }
