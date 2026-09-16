@@ -708,7 +708,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isLoggedIn) return
+    if (!isLoggedIn || !authReady) return
     const timeoutMs = 10 * 60 * 1000
     const markActivity = () => window.localStorage.setItem(sessionActivityKey, String(Date.now()))
     const checkActivity = () => {
