@@ -425,28 +425,33 @@
 }
 
 .resize-frame-handle {
-  right: -30px;
-  bottom: -30px;
+  position: fixed;
+  right: 28px;
+  top: 46%;
 }
 
 .resize-mat-handle {
-  right: -30px;
-  bottom: -62px;
+  position: fixed;
+  right: 28px;
+  top: calc(46% + 32px);
 }
 
 .resize-strip-handle {
-  right: -62px;
-  bottom: -30px;
+  position: fixed;
+  right: 28px;
+  top: calc(46% + 64px);
 }
 
 .zoom-minus-handle {
-  right: -62px;
-  bottom: -62px;
+  position: fixed;
+  right: 92px;
+  top: calc(46% + 32px);
 }
 
 .zoom-plus-handle {
-  right: -94px;
-  bottom: -62px;
+  position: fixed;
+  right: 60px;
+  top: calc(46% + 32px);
 }
 
 .workspace-save-button {
