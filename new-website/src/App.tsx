@@ -532,6 +532,7 @@ function App() {
   const [selectedColor, setSelectedColor] = useState(colorOptions[2])
   const [artwork, setArtwork] = useState<string | null>(null)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
+  const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -791,6 +792,30 @@ function App() {
               </button>
               <button
                 type="button"
+                className={frameOrientation === 'horizontal' ? 'menu-action active' : 'menu-action'}
+                aria-label="Horizontal frame"
+                title="Horizontal frame"
+                onClick={() => {
+                  setFrameOrientation('horizontal')
+                  setArtworkRatio((current) => Math.max(1.35, current >= 1 ? current : 1 / current))
+                }}
+              >
+                ↔
+              </button>
+              <button
+                type="button"
+                className={frameOrientation === 'vertical' ? 'menu-action active' : 'menu-action'}
+                aria-label="Vertical frame"
+                title="Vertical frame"
+                onClick={() => {
+                  setFrameOrientation('vertical')
+                  setArtworkRatio((current) => Math.min(0.75, current <= 1 ? current : 1 / current))
+                }}
+              >
+                ↕
+              </button>
+              <button
+                type="button"
                 className={wallTone === 'white' ? 'menu-action active' : 'menu-action'}
                 onClick={() => setWallTone('white')}
               >
@@ -832,7 +857,9 @@ function App() {
                       onLoad={(event) => {
                         const image = event.currentTarget
                         if (image.naturalWidth && image.naturalHeight) {
-                          setArtworkRatio(image.naturalWidth / image.naturalHeight)
+                          const naturalRatio = image.naturalWidth / image.naturalHeight
+                          setArtworkRatio(naturalRatio)
+                          setFrameOrientation(naturalRatio >= 1 ? 'horizontal' : 'vertical')
                         }
                       }}
                     />
