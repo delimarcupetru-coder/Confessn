@@ -594,7 +594,7 @@ function App() {
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const artPreviewRef = useRef<HTMLDivElement | null>(null)
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
@@ -752,9 +752,9 @@ function App() {
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
-    if (!artPreviewRef.current) throw new Error('Frame preview is unavailable')
+    if (!workspaceRef.current) throw new Error('Workspace preview is unavailable')
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    const canvas = await html2canvas(artPreviewRef.current, {
+    const canvas = await html2canvas(workspaceRef.current, {
       backgroundColor: '#ffffff',
       scale: 2,
       useCORS: true,
@@ -887,6 +887,7 @@ function App() {
 
       <section id="workspace" className="hero-stage">
         <div
+          ref={workspaceRef}
           className={`stage-shell stage-${wallTone}`}
           onWheel={handleStageWheel}
           aria-label="Workspace staging area"
@@ -1006,7 +1007,6 @@ function App() {
 
           <div className="workspace-canvas">
             <div
-              ref={artPreviewRef}
               className="art-preview"
               style={{
                 borderColor: selectedColor.hex,
