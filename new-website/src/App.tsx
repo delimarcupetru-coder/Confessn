@@ -31,6 +31,7 @@ type Account = {
 
 type LocalAuth = {
   email: string
+  username: string
   passwordHash: string
   account: Account
 }
@@ -570,6 +571,8 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(window.localStorage.getItem('virtual-art-framing-studio-session')))
+  const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMessage, setAuthMessage] = useState('')
@@ -618,6 +621,7 @@ function App() {
 
   const submitAuth = async () => {
     const email = authEmail.trim().toLowerCase()
+    const username = authUsername.trim()
     if (!email || authPassword.length < 6) {
       setAuthMessage('Enter an email and a password with at least 6 characters.')
       return
@@ -626,12 +630,19 @@ function App() {
     const passwordHash = await hashPassword(authPassword)
     const existing = window.localStorage.getItem(authKey)
     if (authMode === 'create') {
+      if (!username) {
+        setAuthMessage('Enter a username.')
+        return
+      }
       if (existing) {
         setAuthMessage('An account already exists on this device. Log in instead.')
         return
       }
-      const auth: LocalAuth = { email, passwordHash, account }
+      const auth: LocalAuth = { email, username, passwordHash, account: { ...account, name: username, email } }
       window.localStorage.setItem(authKey, JSON.stringify(auth))
+      window.localStorage.setItem('virtual-art-framing-studio-session', 'true')
+      setAccount(auth.account)
+      setIsLoggedIn(true)
       setAuthMessage('Account created. Your profile is saved on this device.')
     } else {
       const auth = existing ? JSON.parse(existing) as LocalAuth : null
@@ -640,9 +651,16 @@ function App() {
         return
       }
       setAccount(auth.account)
+      window.localStorage.setItem('virtual-art-framing-studio-session', 'true')
+      setIsLoggedIn(true)
       setAuthMessage('Logged in.')
     }
     setAuthPassword('')
+  }
+
+  const logOut = () => {
+    window.localStorage.removeItem('virtual-art-framing-studio-session')
+    setIsLoggedIn(false)
   }
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
@@ -898,26 +916,27 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="header-link-button" onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
-            {t.logIn}
-          </button>
-          <select
-            aria-label={t.languages}
-            value={language}
-            onChange={(event) => setLanguage(event.target.value as Language)}
-            className="lang-select"
-          >
-            <option value="en">EN</option>
-            <option value="fr">FR</option>
-            <option value="zh">中文</option>
-            <option value="de">DE</option>
-            <option value="it">IT</option>
-            <option value="es">ES</option>
-            <option value="ja">日本語</option>
+          {isLoggedIn ? (
+            <>
+              <div className="profile-badge" aria-label={`Logged in as ${account.name}`}>
+                <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
+                <span className="profile-name">{account.name}</span>
+              </div>
+              <button type="button" className="header-link-button" onClick={logOut}>Log out</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="header-link-button" onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
+                {t.logIn}
+              </button>
+              <button type="button" className="primary-button compact-button" onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
+                {t.createAccount}
+              </button>
+            </>
+          )}
+          <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="lang-select">
+            <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option>
           </select>
-          <button type="button" className="primary-button compact-button" onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
-            {t.createAccount}
-          </button>
         </div>
       </header>
 
@@ -1341,6 +1360,12 @@ function App() {
               <h4>{authMode === 'create' ? 'Create account' : 'Log in'}</h4>
               <button type="button" onClick={() => setAuthMode(null)}>×</button>
             </div>
+            {authMode === 'create' && (
+              <div className="field-group">
+                <label htmlFor="auth-username">Username</label>
+                <input id="auth-username" autoComplete="username" value={authUsername} onChange={(event) => setAuthUsername(event.target.value)} />
+              </div>
+            )}
             <div className="field-group">
               <label htmlFor="auth-email">Email</label>
               <input id="auth-email" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />

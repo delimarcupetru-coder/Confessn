@@ -73,6 +73,26 @@
   box-shadow: 0 8px 22px rgba(16, 14, 22, 0.12);
 }
 
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f5f2ed;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e8b57b;
+  color: #2b211d;
+  font-weight: 900;
+}
+
 .lang-select {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
