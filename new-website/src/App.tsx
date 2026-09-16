@@ -764,6 +764,11 @@ function App() {
       logging: false,
       ignoreElements: (element) => element.hasAttribute('data-screenshot-ignore')
         || element.matches('.topbar, .workspace-menu-bar, .gallery-center-button, .workspace-save-area, .workspace-scale, .workspace-dimensions'),
+      onclone: (clonedDocument) => {
+        clonedDocument.querySelectorAll('.topbar, .workspace-menu-bar, .gallery-center-button, .workspace-save-area, .workspace-scale, .workspace-dimensions, .workspace-corner-tools').forEach((element) => {
+          ;(element as HTMLElement).style.display = 'none'
+        })
+      },
     })
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
