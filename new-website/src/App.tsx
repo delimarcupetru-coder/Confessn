@@ -603,6 +603,7 @@ function App() {
   const [profileImageLoading, setProfileImageLoading] = useState(false)
   const [profileImageError, setProfileImageError] = useState('')
   const profileImageInputRef = useRef<HTMLInputElement | null>(null)
+  const explicitLogoutRef = useRef(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
@@ -677,7 +678,10 @@ function App() {
       if (!session?.user) {
         setAuthUserId(null)
         setAuthReady(true)
-        setIsLoggedIn(false)
+        if (explicitLogoutRef.current) {
+          explicitLogoutRef.current = false
+          setIsLoggedIn(false)
+        }
         return
       }
       setAuthReady(false)
@@ -760,6 +764,7 @@ function App() {
   }
 
   const logOut = () => {
+    explicitLogoutRef.current = true
     window.localStorage.removeItem('virtual-art-framing-studio-session')
     void supabase.auth.signOut()
     setIsLoggedIn(false)
