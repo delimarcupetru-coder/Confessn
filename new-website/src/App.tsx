@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import heic2any from 'heic2any'
-import html2canvas from 'html2canvas'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
@@ -42,17 +41,6 @@ type ColorOption = {
   name: string
   hex: string
 }
-
-type SaveFilePicker = (options: {
-  suggestedName: string
-  types: Array<{ description: string; accept: Record<string, string[]> }>
-}) => Promise<{
-  name: string
-  createWritable: () => Promise<{
-    write: (data: Blob | ArrayBuffer) => Promise<void>
-    close: () => Promise<void>
-  }>
-}>
 
 const defaultAccount: Account = {
   name: 'Guest customer',
@@ -573,13 +561,11 @@ function App() {
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
-  const [lastDownload, setLastDownload] = useState<{ url: string; name: string } | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
-  const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('jpg')
   const [contactName, setContactName] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -725,71 +711,7 @@ function App() {
     setShowSaveDialog(true)
   }
 
-  const downloadBlob = (blob: Blob, fileName: string) => {
-    const downloadUrl = URL.createObjectURL(blob)
-    setLastDownload({ url: downloadUrl, name: fileName })
-    const downloadLink = document.createElement('a')
-    downloadLink.href = downloadUrl
-    downloadLink.download = fileName
-    downloadLink.style.display = 'none'
-    document.body.appendChild(downloadLink)
-    downloadLink.click()
-    window.setTimeout(() => {
-      URL.revokeObjectURL(downloadUrl)
-      downloadLink.remove()
-    }, 1500)
-  }
-
-  const saveImageToPhone = async (blob: Blob, fileName: string, format: 'jpg' | 'png') => {
-    const imageFile = new File([blob], fileName, { type: format === 'jpg' ? 'image/jpeg' : 'image/png' })
-    const shareData = { files: [imageFile], title: 'Framed artwork' }
-    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [imageFile] }))) {
-      try {
-        await navigator.share(shareData)
-        setSaveMessage('Project saved to profile. Choose Save Image or Save to Files.')
-        return
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          setSaveMessage('Save cancelled')
-          return
-        }
-      }
-    }
-    downloadBlob(blob, fileName)
-    setSaveMessage(`Project saved to profile. Downloaded ${fileName}`)
-  }
-
-  const renderFramedImage = async (format: 'jpg' | 'png') => {
-    if (!captureRef.current) throw new Error('Frame capture area is unavailable')
-    const artworkImage = captureRef.current.querySelector<HTMLImageElement>('.uploaded-artwork')
-    if (artworkImage && !artworkImage.complete) {
-      await new Promise<void>((resolve) => {
-        artworkImage.addEventListener('load', () => resolve(), { once: true })
-        artworkImage.addEventListener('error', () => resolve(), { once: true })
-      })
-    }
-    if (artworkImage?.decode) await artworkImage.decode().catch(() => undefined)
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    const canvas = await html2canvas(captureRef.current, {
-      backgroundColor: '#ffffff',
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      ignoreElements: (element) => element.hasAttribute('data-screenshot-ignore')
-        || element.matches('.topbar, .workspace-menu-bar, .gallery-center-button, .workspace-save-area, .workspace-scale, .workspace-dimensions'),
-      onclone: (clonedDocument) => {
-        clonedDocument.querySelectorAll('.topbar, .workspace-menu-bar, .gallery-center-button, .workspace-save-area, .workspace-scale, .workspace-dimensions, .workspace-corner-tools').forEach((element) => {
-          ;(element as HTMLElement).style.display = 'none'
-        })
-      },
-    })
-    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
-    if (!blob || blob.size < 100 || blob.type !== mimeType) throw new Error('Image export failed')
-    return blob
-  }
-
-  const confirmSaveProject = async (nativePicker?: SaveFilePicker) => {
+  const confirmSaveProject = () => {
     const safeFileName = projectFileName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'my-framing-project'
     const nextProject: ProjectRecord = {
       id: crypto.randomUUID(),
@@ -811,71 +733,7 @@ function App() {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
-    if (!nativePicker && saveFormat !== 'json') {
-      try {
-        const imageBlob = await renderFramedImage(saveFormat)
-        const exportName = `${safeFileName}-${new Date().toISOString().replace(/[.:]/g, '-')}.${saveFormat}`
-        await saveImageToPhone(imageBlob, exportName, saveFormat)
-      } catch {
-        setSaveMessage('Image export failed')
-      }
-      return
-    }
-
-    const projectFile = new Blob([JSON.stringify(nextProject, null, 2)], { type: 'application/json' })
-    const picker = nativePicker ?? (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
-    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
-
-    if (saveFormat !== 'json') {
-      try {
-        const imageBlob = await renderFramedImage(saveFormat)
-        const extension = saveFormat === 'jpg' ? 'jpg' : 'png'
-        const exportName = `${safeFileName}.${extension}`
-        if (isTouchDevice || !picker) {
-          await saveImageToPhone(imageBlob, exportName, saveFormat)
-        } else {
-          const fileHandle = await picker({
-            suggestedName: exportName,
-            types: [{ description: saveFormat === 'jpg' ? 'Framed artwork (JPG)' : 'Framed artwork (PNG)', accept: { [saveFormat === 'jpg' ? 'image/jpeg' : 'image/png']: [`.${extension}`] } }],
-          })
-          const writable = await fileHandle.createWritable()
-          await writable.write(await imageBlob.arrayBuffer())
-          await writable.close()
-          setSaveMessage('Project saved to profile and device')
-        }
-      } catch {
-        try {
-          const fallbackBlob = await renderFramedImage(saveFormat)
-          const fallbackName = `${safeFileName}.${saveFormat}`
-          downloadBlob(fallbackBlob, fallbackName)
-          setSaveMessage(`Project saved to profile. Downloaded ${fallbackName}`)
-        } catch {
-          setSaveMessage('Save cancelled')
-        }
-      }
-      setShowSaveDialog(false)
-      return
-    }
-
-    if (picker) {
-      try {
-        const fileHandle = await picker({
-          suggestedName: `${safeFileName}.json`,
-          types: [{ description: 'Framing project (JSON)', accept: { 'application/json': ['.json'] } }],
-        })
-        const writable = await fileHandle.createWritable()
-        await writable.write(await projectFile.arrayBuffer())
-        await writable.close()
-        setSaveMessage('Project saved to profile and device')
-      } catch {
-        downloadBlob(projectFile, `${safeFileName}.json`)
-        setSaveMessage(`Project saved to profile. Downloaded ${safeFileName}.json`)
-      }
-    } else {
-      downloadBlob(projectFile, `${safeFileName}.json`)
-      setSaveMessage(`Project saved to profile. Downloaded ${safeFileName}.json`)
-    }
-    setShowSaveDialog(false)
+    setSaveMessage(`Saved to profile: ${safeFileName}`)
   }
 
   const createFolder = () => {
@@ -1302,11 +1160,6 @@ function App() {
           )}
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
-            {lastDownload && (
-              <a className="save-download-link" href={lastDownload.url} download={lastDownload.name}>
-                Download JPG
-              </a>
-            )}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
               Save Project
             </button>
@@ -1443,24 +1296,17 @@ function App() {
                 placeholder="my-framing-project"
               />
             </div>
-            <div className="field-group">
-              <span className="field-label">File format</span>
-              <div className="format-options" role="group" aria-label="File format">
-                {(['json', 'jpg', 'png'] as const).map((format) => (
-                  <button
-                    key={format}
-                    type="button"
-                    className={saveFormat === format ? 'format-option active' : 'format-option'}
-                    onClick={() => setSaveFormat(format)}
-                  >
-                    {format.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="dialog-hint">Choose where to save the project file on your device.</p>
-            <button type="button" className="primary-button full-width-button" onClick={() => void confirmSaveProject()}>
-              Choose location and save
+            <p className="dialog-hint">Choose a profile folder for this project.</p>
+            <select
+              className="menu-select full-width-button"
+              value={account.activeFolderId}
+              onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })}
+              aria-label="Profile folder"
+            >
+              {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+            </select>
+            <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
+              Save to profile
             </button>
           </div>
         </div>
