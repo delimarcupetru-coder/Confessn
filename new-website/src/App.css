@@ -854,7 +854,7 @@
   place-items: center;
   background: rgba(19, 18, 23, 0.75);
   overflow: visible;
-  z-index: 1;
+  z-index: 0;
 }
 
 .art-preview img {
@@ -916,31 +916,39 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 5;
+  z-index: 1;
   border-style: solid;
   border-radius: 0;
   background: transparent;
 }
 
 .frame-stainless {
-  border-image: linear-gradient(135deg, #f5f7f8 0%, #8d989f 48%, #e9eef0 100%) 1;
+  border-color: transparent;
+  border-image: none;
+  background: linear-gradient(135deg, #f5f7f8 0%, #8d989f 48%, #e9eef0 100%);
 }
 
 .frame-darkwood {
-  border-image: linear-gradient(135deg, #20120d 0%, #5a3020 48%, #2b1710 100%) 1;
+  border-color: transparent;
+  border-image: none;
+  background: linear-gradient(135deg, #20120d 0%, #5a3020 48%, #2b1710 100%);
 }
 
 .frame-lightwood {
-  border-image: linear-gradient(135deg, #e0b47d 0%, #a86d3f 48%, #d7a66d 100%) 1;
+  border-color: transparent;
+  border-image: none;
+  background: linear-gradient(135deg, #e0b47d 0%, #a86d3f 48%, #d7a66d 100%);
 }
 
 .frame-engravedwood {
   border-image: none;
-  border-color: #6a4128;
+  border-color: transparent;
+  background: #6a4128;
   box-shadow: inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b;
 }
 
 .frame-floating {
+  background: transparent;
   box-shadow: 0 16px 24px rgba(23, 20, 18, 0.28);
 }
 
