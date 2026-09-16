@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import heic2any from 'heic2any'
+import html2canvas from 'html2canvas'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
@@ -593,6 +594,7 @@ function App() {
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const artPreviewRef = useRef<HTMLDivElement | null>(null)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
@@ -750,70 +752,13 @@ function App() {
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
-    const image = new Image()
-    if (artwork) {
-      image.src = artwork
-      await new Promise<void>((resolve, reject) => {
-        image.onload = () => resolve()
-        image.onerror = () => reject(new Error('Artwork could not be loaded'))
-      })
-    }
-
-    const canvas = document.createElement('canvas')
-    canvas.width = 1200
-    canvas.height = Math.round(canvas.width / artworkRatio)
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Canvas is unavailable')
-
-    const scale = canvas.width / previewWidth
-    const frameInset = 0
-    const frameWidth = frameEnabled ? frameThickness * scale : 0
-    const matInset = frameInset + frameWidth + (selectedFrameType === 'floating' && frameEnabled ? frameGap * scale : 0)
-    const matPadding = matMargin * scale
-    const cutEdge = stripThickness * scale
-
-    const frameFill = selectedStyle === 'stainless'
-      ? '#aeb8bd'
-      : selectedStyle === 'lightwood'
-        ? '#b77a4c'
-        : selectedStyle === 'engravedwood'
-          ? '#6a4128'
-          : '#3d2419'
-    if (frameEnabled) {
-      context.fillStyle = frameFill
-      context.fillRect(0, 0, canvas.width, canvas.height)
-    }
-    if (matEnabled) {
-      context.fillStyle = selectedMatColor.hex
-      context.fillRect(matInset, matInset, canvas.width - matInset * 2, canvas.height - matInset * 2)
-    }
-    if (matEnabled && stripEnabled) {
-      context.strokeStyle = selectedStripColor.hex
-      context.lineWidth = cutEdge
-      context.strokeRect(
-        matInset + matPadding,
-        matInset + matPadding,
-        canvas.width - (matInset + matPadding) * 2,
-        canvas.height - (matInset + matPadding) * 2,
-      )
-    }
-
-    const imageInset = matEnabled ? matInset + matPadding + (stripEnabled ? cutEdge : 0) : matInset
-    const imageWidth = canvas.width - imageInset * 2
-    const imageHeight = canvas.height - imageInset * 2
-    if (artwork) {
-      const imageScale = Math.min(imageWidth / image.naturalWidth, imageHeight / image.naturalHeight)
-      const drawnWidth = image.naturalWidth * imageScale * zoom
-      const drawnHeight = image.naturalHeight * imageScale * zoom
-      context.drawImage(
-        image,
-        imageInset + (imageWidth - drawnWidth) / 2 + artPosition.x * scale,
-        imageInset + (imageHeight - drawnHeight) / 2 + artPosition.y * scale,
-        drawnWidth,
-        drawnHeight,
-      )
-    }
-
+    if (!artPreviewRef.current) throw new Error('Frame preview is unavailable')
+    const canvas = await html2canvas(artPreviewRef.current, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
     if (!blob || blob.size < 100 || blob.type !== mimeType) throw new Error('Image export failed')
@@ -1060,6 +1005,7 @@ function App() {
 
           <div className="workspace-canvas">
             <div
+              ref={artPreviewRef}
               className="art-preview"
               style={{
                 borderColor: selectedColor.hex,
