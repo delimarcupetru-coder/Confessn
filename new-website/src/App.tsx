@@ -24,6 +24,7 @@ type ProjectRecord = {
 type Account = {
   name: string
   email: string
+  avatar?: string
   folders: Folder[]
   activeFolderId: string
   projects: ProjectRecord[]
@@ -576,6 +577,12 @@ function App() {
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMessage, setAuthMessage] = useState('')
+  const [showAccountDialog, setShowAccountDialog] = useState(false)
+  const [profileUsername, setProfileUsername] = useState('')
+  const [profileEmail, setProfileEmail] = useState('')
+  const [profilePassword, setProfilePassword] = useState('')
+  const [profileAvatar, setProfileAvatar] = useState<string | undefined>()
+  const profileImageInputRef = useRef<HTMLInputElement | null>(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
@@ -671,6 +678,43 @@ function App() {
   const logOut = () => {
     window.localStorage.removeItem('virtual-art-framing-studio-session')
     setIsLoggedIn(false)
+  }
+
+  const openAccountDialog = () => {
+    setProfileUsername(account.name)
+    setProfileEmail(account.email)
+    setProfilePassword('')
+    setProfileAvatar(account.avatar)
+    setShowAccountDialog(true)
+  }
+
+  const saveAccountChanges = async () => {
+    const username = profileUsername.trim()
+    const email = profileEmail.trim().toLowerCase()
+    if (!username || !email) return
+    const nextAccount = { ...account, name: username, email, avatar: profileAvatar }
+    setAccount(nextAccount)
+    const storedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
+    if (storedAuth) {
+      try {
+        const auth = JSON.parse(storedAuth) as LocalAuth
+        const passwordHash = profilePassword ? await hashPassword(profilePassword) : auth.passwordHash
+        window.localStorage.setItem('virtual-art-framing-studio-auth', JSON.stringify({ ...auth, email, username, passwordHash, account: nextAccount }))
+      } catch {
+        // Keep the profile update local even if an old auth record is malformed.
+      }
+    }
+    setShowAccountDialog(false)
+  }
+
+  const handleProfileImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setProfileAvatar(reader.result)
+    }
+    reader.readAsDataURL(file)
   }
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
@@ -928,10 +972,10 @@ function App() {
         <div className="header-actions">
           {isLoggedIn ? (
             <>
-              <div className="profile-badge" aria-label={`Logged in as ${account.name}`}>
-                <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
+              <button type="button" className="profile-badge" aria-label={`Open account for ${account.name}`} onClick={openAccountDialog}>
+                {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>}
                 <span className="profile-name">{account.name}</span>
-              </div>
+              </button>
               <button type="button" className="header-link-button" onClick={logOut}>Log out</button>
             </>
           ) : (
@@ -1423,6 +1467,36 @@ function App() {
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
               Save
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAccountDialog && (
+        <div className="dialog-overlay" onClick={() => setShowAccountDialog(false)}>
+          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+            <div className="dialog-header">
+              <h4>Account</h4>
+              <button type="button" onClick={() => setShowAccountDialog(false)}>×</button>
+            </div>
+            <div className="account-photo-editor">
+              <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>
+                {profileAvatar ? <img src={profileAvatar} alt="Profile" /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}
+              </button>
+              <input ref={profileImageInputRef} type="file" accept="image/*" hidden onChange={handleProfileImage} />
+            </div>
+            <div className="field-group">
+              <label htmlFor="profile-username">Username</label>
+              <input id="profile-username" value={profileUsername} onChange={(event) => setProfileUsername(event.target.value)} />
+            </div>
+            <div className="field-group">
+              <label htmlFor="profile-email">Email</label>
+              <input id="profile-email" type="email" value={profileEmail} onChange={(event) => setProfileEmail(event.target.value)} />
+            </div>
+            <div className="field-group">
+              <label htmlFor="profile-password">Password</label>
+              <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
+            </div>
+            <button type="button" className="primary-button full-width-button" onClick={() => void saveAccountChanges()}>Save Changes</button>
           </div>
         </div>
       )}
