@@ -1296,17 +1296,20 @@ function App() {
                 placeholder="my-framing-project"
               />
             </div>
-            <p className="dialog-hint">Choose a profile folder for this project.</p>
-            <select
-              className="menu-select full-width-button"
-              value={account.activeFolderId}
-              onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })}
-              aria-label="Profile folder"
-            >
-              {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
-            </select>
+            <div className="field-group">
+              <label htmlFor="project-folder-location">Folder location</label>
+              <select
+                id="project-folder-location"
+                className="menu-select full-width-button"
+                value={account.activeFolderId}
+                onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })}
+                aria-label="Folder location"
+              >
+                {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+              </select>
+            </div>
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
-              Save to profile
+              Save
             </button>
           </div>
         </div>
