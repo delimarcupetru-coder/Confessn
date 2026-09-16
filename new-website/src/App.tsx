@@ -746,8 +746,35 @@ function App() {
     setProfileImageError('')
     const reader = new FileReader()
     reader.onload = () => {
-      if (typeof reader.result === 'string') setProfileAvatar(reader.result)
-      setProfileImageLoading(false)
+      if (typeof reader.result !== 'string') {
+        setProfileImageLoading(false)
+        setProfileImageError('Image could not be loaded.')
+        return
+      }
+      const image = new Image()
+      image.onload = () => {
+        const size = 512
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const context = canvas.getContext('2d')
+        if (!context) {
+          setProfileImageLoading(false)
+          setProfileImageError('Image could not be processed.')
+          return
+        }
+        const cropSize = Math.min(image.naturalWidth, image.naturalHeight)
+        const sourceX = (image.naturalWidth - cropSize) / 2
+        const sourceY = (image.naturalHeight - cropSize) / 2
+        context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, size, size)
+        setProfileAvatar(canvas.toDataURL('image/jpeg', 0.9))
+        setProfileImageLoading(false)
+      }
+      image.onerror = () => {
+        setProfileImageLoading(false)
+        setProfileImageError('Image could not be loaded.')
+      }
+      image.src = reader.result
     }
     reader.onerror = () => {
       setProfileImageLoading(false)
