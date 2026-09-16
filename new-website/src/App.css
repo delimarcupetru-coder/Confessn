@@ -719,7 +719,6 @@
   display: grid;
   place-items: center;
   background: rgba(19, 18, 23, 0.75);
-  border: 2px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 
@@ -772,12 +771,29 @@
 
 .frame-shell {
   position: absolute;
-  inset: 22px;
+  inset: 0;
   pointer-events: none;
   z-index: 2;
   border-style: solid;
   border-radius: 0;
   background: transparent;
+}
+
+.frame-stainless {
+  border-image: linear-gradient(135deg, #f5f7f8 0%, #8d989f 48%, #e9eef0 100%) 1;
+}
+
+.frame-darkwood {
+  border-image: linear-gradient(135deg, #20120d 0%, #5a3020 48%, #2b1710 100%) 1;
+}
+
+.frame-lightwood {
+  border-image: linear-gradient(135deg, #e0b47d 0%, #a86d3f 48%, #d7a66d 100%) 1;
+}
+
+.frame-floating {
+  border-image: linear-gradient(135deg, #ddd8cf 0%, #9f988e 48%, #eeeae3 100%) 1;
+  box-shadow: 0 16px 24px rgba(23, 20, 18, 0.28);
 }
 
 .details-row {

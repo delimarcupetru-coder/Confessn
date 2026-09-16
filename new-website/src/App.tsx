@@ -476,9 +476,10 @@ const translations = {
 } as const
 
 const frameOptions: FrameOption[] = [
-  { id: 'modern', label: 'Modern', description: 'Minimal, crisp lines', icon: '▭' },
-  { id: 'classic', label: 'Classic', description: 'Timeless elegance', icon: '◫' },
-  { id: 'gallery', label: 'Gallery', description: 'Architectural focus', icon: '▣' },
+  { id: 'stainless', label: 'Stainless steel', description: 'Cool metallic finish', icon: '▤' },
+  { id: 'darkwood', label: 'Dark wood', description: 'Deep natural grain', icon: '▥' },
+  { id: 'lightwood', label: 'Light wood', description: 'Warm natural grain', icon: '▦' },
+  { id: 'floating', label: 'Floating frame', description: 'Shadowed gallery edge', icon: '□' },
 ]
 
 const sizeOptions = [
@@ -568,7 +569,8 @@ function App() {
   })
 
   const t = translations[language]
-  const frameBorderWidth = selectedSize === 'narrow' ? 10 : selectedSize === 'medium' ? 18 : 26
+  const frameBorderWidth = selectedStyle === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
+  const matPadding = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   useEffect(() => {
@@ -657,10 +659,10 @@ function App() {
     if (!context) throw new Error('Canvas is unavailable')
 
     const scale = canvas.width / previewWidth
-    const frameInset = 22 * scale
+    const frameInset = 0
     const frameWidth = frameBorderWidth * scale
     const matInset = frameInset + frameWidth
-    const matPadding = 14 * scale
+    const matPadding = (selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22) * scale
     const cutEdge = 2 * scale
 
     context.fillStyle = selectedColor.hex
@@ -984,12 +986,16 @@ function App() {
                 aspectRatio: artworkRatio,
               }}
             >
-              <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px`, background: selectedMatColor.hex }}>
+              <div
+                className="art-mat"
+                style={{ inset: `${frameBorderWidth}px`, padding: `${matPadding}px`, background: selectedMatColor.hex }}
+              >
                 <div
                   className="mat-cut-edge"
                   style={{
                     borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
                     borderWidth: stripEnabled ? '2px' : 0,
+                    boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
                   }}
                 >
                   {artwork ? (
@@ -1013,7 +1019,7 @@ function App() {
                 </div>
               </div>
               <div
-                className="frame-shell"
+                className={`frame-shell frame-${selectedStyle}`}
                 style={{
                   borderColor: selectedColor.hex,
                   borderWidth: `${frameBorderWidth}px`,
