@@ -1019,6 +1019,7 @@ function App() {
                 title="Drag F to adjust frame thickness"
                 onPointerDown={(event) => {
                   event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                 }}
               >
@@ -1031,6 +1032,7 @@ function App() {
                 title="Drag M to adjust mat size"
                 onPointerDown={(event) => {
                   event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
               >
@@ -1045,6 +1047,7 @@ function App() {
                 title="Drag S to adjust strip thickness"
                 onPointerDown={(event) => {
                   event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
                 }}
               >
