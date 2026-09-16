@@ -425,31 +425,31 @@
 }
 
 .resize-frame-handle {
-  position: fixed;
+  position: fixed !important;
   right: 28px;
   top: 46%;
 }
 
 .resize-mat-handle {
-  position: fixed;
+  position: fixed !important;
   right: 28px;
   top: calc(46% + 32px);
 }
 
 .resize-strip-handle {
-  position: fixed;
+  position: fixed !important;
   right: 28px;
   top: calc(46% + 64px);
 }
 
 .zoom-minus-handle {
-  position: fixed;
+  position: fixed !important;
   right: 92px;
   top: calc(46% + 32px);
 }
 
 .zoom-plus-handle {
-  position: fixed;
+  position: fixed !important;
   right: 60px;
   top: calc(46% + 32px);
 }
