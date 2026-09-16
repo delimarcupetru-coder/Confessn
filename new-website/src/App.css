@@ -1217,7 +1217,13 @@
 
 @media (max-width: 620px) {
   .studio-shell {
-    width: min(100% - 18px, 1400px);
+    width: 100%;
+    padding-bottom: 0;
+  }
+
+  .hero-stage {
+    min-height: calc(100svh - 18px);
+    padding: 0;
   }
 
   .topbar {
@@ -1236,8 +1242,9 @@
 
   .stage-shell {
     width: 100%;
-    min-height: 760px;
+    min-height: calc(100svh - 18px);
     aspect-ratio: auto;
+    border-radius: 0;
   }
 
   .workspace-menu-bar .menu-group {
@@ -1246,7 +1253,7 @@
   }
 
   .workspace-canvas {
-    inset: 180px 14px 118px;
+    inset: 180px 10px 96px;
   }
 
   .workspace-corner-tools {
