@@ -744,7 +744,7 @@ function App() {
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [imageFile] }))) {
       try {
         await navigator.share(shareData)
-        setSaveMessage('Use Save Image in the share sheet to save to Photos')
+        setSaveMessage('Project saved to profile. Choose Save Image or Save to Files.')
         return
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -754,7 +754,7 @@ function App() {
       }
     }
     downloadBlob(blob, fileName)
-    setSaveMessage(`Downloaded ${fileName}`)
+    setSaveMessage(`Project saved to profile. Downloaded ${fileName}`)
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
@@ -839,14 +839,14 @@ function App() {
           const writable = await fileHandle.createWritable()
           await writable.write(await imageBlob.arrayBuffer())
           await writable.close()
-          setSaveMessage('Saved to your device')
+          setSaveMessage('Project saved to profile and device')
         }
       } catch {
         try {
           const fallbackBlob = await renderFramedImage(saveFormat)
           const fallbackName = `${safeFileName}.${saveFormat}`
           downloadBlob(fallbackBlob, fallbackName)
-          setSaveMessage(`Downloaded ${fallbackName}`)
+          setSaveMessage(`Project saved to profile. Downloaded ${fallbackName}`)
         } catch {
           setSaveMessage('Save cancelled')
         }
@@ -864,14 +864,14 @@ function App() {
         const writable = await fileHandle.createWritable()
         await writable.write(await projectFile.arrayBuffer())
         await writable.close()
-        setSaveMessage('Saved to your device')
+        setSaveMessage('Project saved to profile and device')
       } catch {
         downloadBlob(projectFile, `${safeFileName}.json`)
-        setSaveMessage(`Downloaded ${safeFileName}.json`)
+        setSaveMessage(`Project saved to profile. Downloaded ${safeFileName}.json`)
       }
     } else {
       downloadBlob(projectFile, `${safeFileName}.json`)
-      setSaveMessage('Downloaded to your device')
+      setSaveMessage(`Project saved to profile. Downloaded ${safeFileName}.json`)
     }
     setShowSaveDialog(false)
   }
