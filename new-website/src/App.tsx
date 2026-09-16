@@ -619,7 +619,17 @@ function App() {
   const [artHeightInches, setArtHeightInches] = useState(15)
   const [frameWidthInches] = useState(16)
   const [frameHeightInches] = useState(20)
-  const standardFrameSizes = [{ width: 16, height: 20 }, { width: 18, height: 24 }, { width: 24, height: 30 }]
+  const standardFrameSizes = [
+    { width: 8, height: 10 },
+    { width: 11, height: 14 },
+    { width: 12, height: 16 },
+    { width: 16, height: 20 },
+    { width: 18, height: 24 },
+    { width: 20, height: 24 },
+    { width: 24, height: 30 },
+    { width: 24, height: 36 },
+    { width: 30, height: 40 },
+  ]
   const [standardFrameSizeIndex, setStandardFrameSizeIndex] = useState(0)
   const [showDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
@@ -1307,17 +1317,21 @@ function App() {
             onTouchMove={handlePinchMove}
             onTouchEnd={handlePinchEnd}
           >
-            <button
-              type="button"
+            <select
               className="standard-size-control"
               data-screenshot-ignore
               disabled={selectedFrameType === 'floating'}
               aria-label="Change standard frame size"
               title="Change standard frame size"
-              onClick={() => setStandardFrameSizeIndex((current) => (current + 1) % standardFrameSizes.length)}
+              value={standardFrameSizeIndex}
+              onChange={(event) => setStandardFrameSizeIndex(Number(event.target.value))}
             >
-              ×
-            </button>
+              {standardFrameSizes.map((size, index) => (
+                <option key={`${size.width}x${size.height}`} value={index}>
+                  {size.width.toFixed(2)} in × {size.height.toFixed(2)} in
+                </option>
+              ))}
+            </select>
             <div
               className="workspace-corner-tools"
               data-screenshot-ignore
@@ -1476,7 +1490,7 @@ function App() {
           </button>
           {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
           <div className="workspace-scale" aria-label="Frame size">
-            {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(1)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(1)} in
+            {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(2)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(2)} in
           </div>
           {showDimensions && (
             <div className="workspace-dimensions" aria-label="Artwork dimensions">
