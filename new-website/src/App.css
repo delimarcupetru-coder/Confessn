@@ -1121,6 +1121,33 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+.folder-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.folder-bar select,
+.folder-bar input {
+  min-width: 0;
+  flex: 1 1 120px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0edff;
+}
+
+.saved-project-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  float: left;
+  margin-right: 10px;
+  border-radius: 4px;
+}
+
 .project-list span {
   color: #c5c4d7;
 }

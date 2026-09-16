@@ -576,6 +576,7 @@ function App() {
   const [lastDownload, setLastDownload] = useState<{ url: string; name: string } | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
   const [saveFormat, setSaveFormat] = useState<'json' | 'jpg' | 'png'>('jpg')
   const [contactName, setContactName] = useState('')
@@ -808,6 +809,7 @@ function App() {
 
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
+    setShowSaveDialog(false)
     if (!nativePicker && saveFormat !== 'json') {
       try {
         const imageBlob = await renderFramedImage(saveFormat)
@@ -816,7 +818,6 @@ function App() {
       } catch {
         setSaveMessage('Image export failed')
       }
-      setShowSaveDialog(false)
       return
     }
 
@@ -874,6 +875,23 @@ function App() {
       setSaveMessage(`Project saved to profile. Downloaded ${safeFileName}.json`)
     }
     setShowSaveDialog(false)
+  }
+
+  const createFolder = () => {
+    const name = newFolderName.trim()
+    if (!name) return
+    const folder = { id: crypto.randomUUID(), name }
+    const nextAccount = { ...account, folders: [...account.folders, folder], activeFolderId: folder.id }
+    setAccount(nextAccount)
+    setNewFolderName('')
+  }
+
+  const renameActiveFolder = () => {
+    if (account.activeFolderId === 'all') return
+    const current = account.folders.find((folder) => folder.id === account.activeFolderId)
+    const name = window.prompt('Rename folder', current?.name ?? '')?.trim()
+    if (!name) return
+    setAccount({ ...account, folders: account.folders.map((folder) => folder.id === account.activeFolderId ? { ...folder, name } : folder) })
   }
 
   const deleteProject = (projectId: string) => {
@@ -1322,6 +1340,14 @@ function App() {
       <section id="about" className="bottom-grid">
         <div className="project-list panel-block">
           <h3>{t.savedProjects}</h3>
+          <div className="folder-bar">
+            <select value={account.activeFolderId} onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })} aria-label="Project folder">
+              {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+            </select>
+            <input value={newFolderName} onChange={(event) => setNewFolderName(event.target.value)} placeholder="New folder" />
+            <button type="button" className="menu-action" onClick={createFolder}>Add</button>
+            <button type="button" className="menu-action" onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
+          </div>
           {activeFolderProjects.length === 0 ? (
             <p>{t.noProjects}</p>
           ) : (
@@ -1333,6 +1359,7 @@ function App() {
                     className="project-select-button"
                     onClick={() => loadProject(project)}
                   >
+                    {project.artwork && <img className="saved-project-thumb" src={project.artwork} alt="" />}
                     <strong>{project.name}</strong>
                     <span>
                       {project.size} · {project.color}
