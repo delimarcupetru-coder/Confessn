@@ -1229,6 +1229,31 @@
     left: 10px;
     right: 10px;
     gap: 5px;
+    max-height: 150px;
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+
+  .stage-shell {
+    width: 100%;
+    min-height: 760px;
+    aspect-ratio: auto;
+  }
+
+  .workspace-menu-bar .menu-group {
+    flex: 1 1 100%;
+    border-right: 0;
+  }
+
+  .workspace-canvas {
+    inset: 180px 14px 118px;
+  }
+
+  .workspace-corner-tools {
+    right: 6px !important;
+    bottom: 6px !important;
+    transform: scale(0.88);
+    transform-origin: bottom right;
   }
 
   .menu-actions {
