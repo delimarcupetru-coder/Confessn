@@ -48,7 +48,7 @@ type SaveFilePicker = (options: {
 }) => Promise<{
   name: string
   createWritable: () => Promise<{
-    write: (data: Blob) => Promise<void>
+    write: (data: Blob | ArrayBuffer) => Promise<void>
     close: () => Promise<void>
   }>
 }>
@@ -775,7 +775,7 @@ function App() {
 
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
-    if (!blob) throw new Error('Image export failed')
+    if (!blob || blob.size < 100 || blob.type !== mimeType) throw new Error('Image export failed')
     return blob
   }
 
@@ -822,7 +822,7 @@ function App() {
         })
         const fileToWrite = await renderFramedImage('jpg')
         const writable = await fileHandle.createWritable()
-        await writable.write(fileToWrite)
+        await writable.write(await fileToWrite.arrayBuffer())
         await writable.close()
         setSaveMessage('Saved to your device')
       } catch {
