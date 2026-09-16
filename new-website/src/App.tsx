@@ -621,31 +621,46 @@ function App() {
     }
     return defaultAccount
   })
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted || !data.session?.user) return
-      const user = data.session.user
-      setAccount((current) => ({
-        ...current,
-        name: user.user_metadata.username ?? current.name,
-        email: user.email ?? current.email,
-      }))
+    const loadSessionProfile = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (!mounted) return
+      const user = data.session?.user
+      if (!user) {
+        setAuthReady(true)
+        return
+      }
+      setAuthUserId(user.id)
+      const { data: profile } = await supabase.from('user_profiles').select('account').eq('user_id', user.id).maybeSingle()
+      if (profile?.account) setAccount(profile.account as Account)
+      setAccount((current) => ({ ...current, name: user.user_metadata.username ?? current.name, email: user.email ?? current.email }))
       setIsLoggedIn(true)
-    })
+      setAuthReady(true)
+    }
+    void loadSessionProfile()
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
+        setAuthUserId(null)
         setIsLoggedIn(false)
         return
       }
+      setAuthUserId(session.user.id)
       setAccount((current) => ({
         ...current,
         name: session.user.user_metadata.username ?? current.name,
         email: session.user.email ?? current.email,
       }))
       setIsLoggedIn(true)
+      window.setTimeout(() => {
+        void supabase.from('user_profiles').select('account').eq('user_id', session.user.id).maybeSingle().then(({ data: profile }) => {
+          if (profile?.account) setAccount(profile.account as Account)
+        })
+      }, 0)
     })
 
     return () => {
@@ -878,7 +893,10 @@ function App() {
         // Ignore malformed local auth data and keep the profile usable.
       }
     }
-  }, [account])
+    if (authReady && authUserId) {
+      void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() })
+    }
+  }, [account, authReady, authUserId])
 
   const activeFolderProjects = useMemo(() => {
     return account.projects.filter((project) => {
