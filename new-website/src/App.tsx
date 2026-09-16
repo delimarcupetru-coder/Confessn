@@ -740,8 +740,13 @@ function App() {
     const downloadLink = document.createElement('a')
     downloadLink.href = downloadUrl
     downloadLink.download = fileName
+    downloadLink.style.display = 'none'
+    document.body.appendChild(downloadLink)
     downloadLink.click()
-    URL.revokeObjectURL(downloadUrl)
+    window.setTimeout(() => {
+      URL.revokeObjectURL(downloadUrl)
+      downloadLink.remove()
+    }, 1500)
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
@@ -762,16 +767,27 @@ function App() {
 
     const scale = canvas.width / previewWidth
     const frameInset = 0
-    const frameWidth = frameThickness * scale
-    const matInset = frameInset + frameWidth + frameGap * scale
+    const frameWidth = frameEnabled ? frameThickness * scale : 0
+    const matInset = frameInset + frameWidth + (selectedFrameType === 'floating' && frameEnabled ? frameGap * scale : 0)
     const matPadding = matMargin * scale
     const cutEdge = stripThickness * scale
 
-    context.fillStyle = selectedColor.hex
-    context.fillRect(0, 0, canvas.width, canvas.height)
-    context.fillStyle = selectedMatColor.hex
-    context.fillRect(matInset, matInset, canvas.width - matInset * 2, canvas.height - matInset * 2)
-    if (stripEnabled) {
+    const frameFill = selectedStyle === 'stainless'
+      ? '#aeb8bd'
+      : selectedStyle === 'lightwood'
+        ? '#b77a4c'
+        : selectedStyle === 'engravedwood'
+          ? '#6a4128'
+          : '#3d2419'
+    if (frameEnabled) {
+      context.fillStyle = frameFill
+      context.fillRect(0, 0, canvas.width, canvas.height)
+    }
+    if (matEnabled) {
+      context.fillStyle = selectedMatColor.hex
+      context.fillRect(matInset, matInset, canvas.width - matInset * 2, canvas.height - matInset * 2)
+    }
+    if (matEnabled && stripEnabled) {
       context.strokeStyle = selectedStripColor.hex
       context.lineWidth = cutEdge
       context.strokeRect(
@@ -782,7 +798,7 @@ function App() {
       )
     }
 
-    const imageInset = matInset + matPadding + cutEdge
+    const imageInset = matEnabled ? matInset + matPadding + (stripEnabled ? cutEdge : 0) : matInset
     const imageWidth = canvas.width - imageInset * 2
     const imageHeight = canvas.height - imageInset * 2
     if (artwork) {
@@ -831,7 +847,7 @@ function App() {
         downloadBlob(imageBlob, `${safeFileName}.${saveFormat}`)
         setSaveMessage(`Downloaded ${saveFormat.toUpperCase()} image`)
       } catch {
-        setSaveMessage('Image export failed. Upload artwork first.')
+        setSaveMessage('Image export failed')
       }
       setShowSaveDialog(false)
       return
