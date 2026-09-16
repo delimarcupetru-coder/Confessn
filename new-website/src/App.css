@@ -215,6 +215,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
   transition: all 0.2s ease;
 }
 

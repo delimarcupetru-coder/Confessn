@@ -1040,8 +1040,13 @@ function App() {
                 title="Drag M to adjust mat size"
                 onPointerDown={(event) => {
                   event.preventDefault()
+                  if (event.pointerType === 'touch') return
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                }}
+                onClick={() => {
+                  const step = 4
+                  setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + step)))
                 }}
               >
                 M
