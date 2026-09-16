@@ -530,6 +530,7 @@ function App() {
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[2])
   const [artwork, setArtwork] = useState<string | null>(null)
+  const [artworkRatio, setArtworkRatio] = useState(4 / 5)
   const [saveMessage, setSaveMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -789,13 +790,22 @@ function App() {
           </div>
 
           <div className="workspace-canvas" style={{ transform: `scale(${zoom})` }}>
-            <div className="art-preview" style={{ borderColor: selectedColor.hex }}>
+            <div
+              className="art-preview"
+              style={{ borderColor: selectedColor.hex, aspectRatio: artworkRatio }}
+            >
               {artwork ? (
                 <img
                   key={artwork}
                   className="uploaded-artwork"
                   src={artwork}
                   alt="Uploaded artwork preview"
+                  onLoad={(event) => {
+                    const image = event.currentTarget
+                    if (image.naturalWidth && image.naturalHeight) {
+                      setArtworkRatio(image.naturalWidth / image.naturalHeight)
+                    }
+                  }}
                 />
               ) : (
                 <div className="art-placeholder">Your artwork</div>
