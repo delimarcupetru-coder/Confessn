@@ -322,6 +322,7 @@
   transition: transform 0.15s ease;
   transform-origin: center center;
   z-index: 1;
+  touch-action: none;
 }
 
 .art-capture-area {
@@ -955,6 +956,17 @@
   border-style: solid;
   border-radius: 0;
   background: transparent;
+}
+
+@media (pointer: coarse) {
+  .workspace-corner-tools {
+    display: none !important;
+  }
+
+  .frame-shell,
+  .art-mat {
+    pointer-events: auto;
+  }
 }
 
 .frame-stainless {

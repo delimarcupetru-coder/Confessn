@@ -596,6 +596,7 @@ function App() {
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
+  const pinchDistanceRef = useRef<number | null>(null)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
@@ -872,6 +873,27 @@ function App() {
     setZoom((current) => Math.min(2.2, Math.max(0.7, Number((current + delta).toFixed(2)))))
   }
 
+  const handlePinchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length === 2) {
+      const [first, second] = Array.from(event.touches)
+      pinchDistanceRef.current = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+    }
+  }
+
+  const handlePinchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2 || !pinchDistanceRef.current) return
+    event.preventDefault()
+    const [first, second] = Array.from(event.touches)
+    const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+    const delta = (distance - pinchDistanceRef.current) / 180
+    setZoom((current) => Number(Math.min(2.2, Math.max(0.7, current + delta)).toFixed(2)))
+    pinchDistanceRef.current = distance
+  }
+
+  const handlePinchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length < 2) pinchDistanceRef.current = null
+  }
+
   return (
     <main className="studio-shell">
       <header className="topbar">
@@ -1044,7 +1066,12 @@ function App() {
             </div>
           </div>
 
-          <div className="workspace-canvas">
+          <div
+            className="workspace-canvas"
+            onTouchStart={handlePinchStart}
+            onTouchMove={handlePinchMove}
+            onTouchEnd={handlePinchEnd}
+          >
             <div
               className="workspace-corner-tools"
               data-screenshot-ignore
@@ -1117,6 +1144,13 @@ function App() {
                   padding: `${matMargin}px`,
                   background: selectedMatColor.hex,
                 }}
+                onPointerDown={(event) => {
+                  if (event.pointerType !== 'touch') return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                }}
               >
                 <div
                   className="mat-cut-edge"
@@ -1175,6 +1209,13 @@ function App() {
                   boxShadow: selectedStyle === 'engravedwood'
                     ? 'inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b'
                     : undefined,
+                }}
+                onPointerDown={(event) => {
+                  if (event.pointerType !== 'touch') return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                 }}
               ></div>}
               </div>
