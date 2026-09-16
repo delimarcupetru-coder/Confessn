@@ -475,15 +475,18 @@ const translations = {
   },
 } as const
 
-const frameOptions: FrameOption[] = [
-  { id: 'stainless', label: 'Stainless steel', description: 'Cool metallic finish', icon: '▤' },
-  { id: 'darkwood', label: 'Dark wood', description: 'Deep natural grain', icon: '▥' },
-  { id: 'lightwood', label: 'Light wood', description: 'Warm natural grain', icon: '▦' },
+const materialOptions: FrameOption[] = [
+  { id: 'darkwood', label: 'Dark Wood', description: 'Deep natural grain', icon: '▥' },
+  { id: 'stainless', label: 'Stainless Steel', description: 'Cool metallic finish', icon: '▤' },
+  { id: 'lightwood', label: 'Light Wood', description: 'Warm natural grain', icon: '▦' },
+  { id: 'engravedwood', label: 'Engraved Wood', description: 'Detailed carved grain', icon: '▧' },
 ]
 
 const frameTypeOptions: FrameOption[] = [
-  { id: 'standard', label: 'Standard', description: 'Frame meets the mat', icon: '□' },
   { id: 'floating', label: 'Floating', description: 'Open gap around the mat', icon: '▣' },
+  { id: 'classic', label: 'Classic', description: 'Timeless profile', icon: '◫' },
+  { id: 'studio', label: 'Studio', description: 'Clean professional profile', icon: '▭' },
+  { id: 'modern', label: 'Modern', description: 'Minimal crisp profile', icon: '□' },
 ]
 
 const sizeOptions = [
@@ -501,10 +504,26 @@ const colorOptions: ColorOption[] = [
 ]
 
 const matColorOptions: ColorOption[] = [
-  { id: 'mat-ivory', name: 'Mat ivory', hex: '#eee7d8' },
-  { id: 'mat-white', name: 'Mat white', hex: '#faf8f2' },
-  { id: 'mat-sage', name: 'Mat sage', hex: '#dce4d8' },
-  { id: 'mat-blush', name: 'Mat blush', hex: '#ead8d2' },
+  { id: 'yellow', name: 'Yellow', hex: '#f2d34f' },
+  { id: 'light-blue', name: 'Light Blue', hex: '#b9dced' },
+  { id: 'sky-blue', name: 'Sky Blue', hex: '#74b9e6' },
+  { id: 'carrot', name: 'Carrot', hex: '#ed934d' },
+  { id: 'phosphate', name: 'Phosphate', hex: '#d9c89f' },
+  { id: 'cobalt', name: 'Cobalt', hex: '#3156a3' },
+  { id: 'copper-hydroxide-phosphate', name: 'Copper Hydroxide Phosphate', hex: '#70a89b' },
+  { id: 'nickel-phosphate-octahydrate', name: 'Nikel Phosphate Octahydrate', hex: '#91a6b5' },
+  { id: 'cristal-zinc-nickel-phosphate', name: 'Cristal Zinc Nickel Phosphate', hex: '#c5d0d4' },
+  { id: 'nickel-phosphate', name: 'Nickel Phosphate', hex: '#b6b7ad' },
+  { id: 'chromium-phosphate', name: 'Chromium Phosphate', hex: '#76948c' },
+]
+
+const stripColorOptions: ColorOption[] = [
+  { id: 'red', name: 'Red', hex: '#c94242' },
+  { id: 'blue', name: 'Blue', hex: '#356bc1' },
+  { id: 'purple', name: 'Purple', hex: '#8152ad' },
+  { id: 'green', name: 'Green', hex: '#4e9560' },
+  { id: 'black', name: 'Black', hex: '#1d1d22' },
+  ...colorOptions,
 ]
 
 const galleryItems = [
@@ -539,12 +558,14 @@ const portfolioIcons = {
 
 function App() {
   const [language, setLanguage] = useState<Language>('en')
-  const [selectedStyle, setSelectedStyle] = useState(frameOptions[1].id)
+  const [frameEnabled, setFrameEnabled] = useState(true)
+  const [matEnabled, setMatEnabled] = useState(true)
+  const [selectedStyle, setSelectedStyle] = useState(materialOptions[0].id)
   const [selectedFrameType, setSelectedFrameType] = useState(frameTypeOptions[0].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
-  const [selectedStripColor, setSelectedStripColor] = useState(colorOptions[2])
+  const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(null)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
@@ -696,7 +717,7 @@ function App() {
 
   const fitStandardFrameToArtwork = () => {
     const borderInches = ((frameThickness + frameGap + matMargin + stripThickness) * 2) / 25.4
-    setSelectedFrameType('standard')
+    setSelectedFrameType('modern')
     setFrameWidthInches(artWidthInches + borderInches)
     setFrameHeightInches(artHeightInches + borderInches)
   }
@@ -918,50 +939,29 @@ function App() {
           <div className="workspace-menu-bar">
             <div className="menu-group">
               <span>Frame</span>
-              <div className="menu-options">
-                {frameTypeOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={selectedFrameType === option.id ? 'menu-chip active' : 'menu-chip'}
-                    onClick={() => setSelectedFrameType(option.id)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} onClick={() => setFrameEnabled((current) => !current)}>
+                {frameEnabled ? 'On' : 'Off'}
+              </button>
+              <select className="menu-select" aria-label="Frame type" value={selectedFrameType} onChange={(event) => setSelectedFrameType(event.target.value as typeof selectedFrameType)}>
+                {frameTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
             </div>
 
             <div className="menu-group">
               <span>Material</span>
-              <div className="menu-options">
-                {frameOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={selectedStyle === option.id ? 'menu-chip active' : 'menu-chip'}
-                    onClick={() => setSelectedStyle(option.id)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <select className="menu-select" aria-label="Frame material" value={selectedStyle} onChange={(event) => setSelectedStyle(event.target.value)}>
+                {materialOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
             </div>
 
             <div className="menu-group">
               <span>Mat</span>
-              <div className="menu-options">
-                {sizeOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={selectedSize === option.id ? 'menu-chip active' : 'menu-chip'}
-                    onClick={() => setSelectedSize(option.id)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} onClick={() => setMatEnabled((current) => !current)}>
+                {matEnabled ? 'On' : 'Off'}
+              </button>
+              <select className="menu-select" aria-label="Mat size" value={selectedSize} onChange={(event) => setSelectedSize(event.target.value as typeof selectedSize)}>
+                {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
             </div>
 
             <div className="menu-group compact-group">
@@ -1034,9 +1034,9 @@ function App() {
                 <select
                   aria-label="Strip color"
                   value={selectedStripColor.id}
-                  onChange={(event) => setSelectedStripColor(colorOptions.find((color) => color.id === event.target.value) ?? colorOptions[0])}
+                  onChange={(event) => setSelectedStripColor(stripColorOptions.find((color) => color.id === event.target.value) ?? stripColorOptions[0])}
                 >
-                  {colorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                  {stripColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
                 </select>
               </label>
               <button
@@ -1065,7 +1065,7 @@ function App() {
                 aspectRatio: artworkRatio,
               }}
             >
-              <div
+              {matEnabled && <div
                 className="art-mat"
                 style={{
                   inset: `${frameThickness + frameGap}px`,
@@ -1113,14 +1113,20 @@ function App() {
                     <div className="art-placeholder">Your artwork</div>
                   )}
                 </div>
-              </div>
-              <div
+              </div>}
+              {!matEnabled && artwork && <img
+                className="uploaded-artwork artwork-without-mat"
+                src={artwork}
+                alt="Uploaded artwork preview"
+                style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+              />}
+              {frameEnabled && <div
                 className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                 style={{
                   borderColor: selectedColor.hex,
                   borderWidth: `${frameThickness}px`,
                 }}
-              ></div>
+              ></div>}
               <button
                 type="button"
                 className="resize-handle resize-frame-handle"

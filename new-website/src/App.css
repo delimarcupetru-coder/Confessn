@@ -237,6 +237,19 @@
   cursor: pointer;
 }
 
+.menu-select {
+  min-width: 86px;
+  max-width: 150px;
+  border: 1px solid rgba(17, 17, 24, 0.08);
+  border-radius: 9px;
+  padding: 0.32rem 0.42rem;
+  background: rgba(255, 255, 255, 0.75);
+  color: #22212a;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .menu-chip.active,
 .menu-action.active {
   background: #1f1d25;
@@ -910,6 +923,10 @@
 
 .frame-lightwood {
   border-image: linear-gradient(135deg, #e0b47d 0%, #a86d3f 48%, #d7a66d 100%) 1;
+}
+
+.frame-engravedwood {
+  border-image: repeating-linear-gradient(135deg, #6a4128 0 6px, #9b6a43 6px 9px) 1;
 }
 
 .frame-floating {
