@@ -20,6 +20,17 @@ type ProjectRecord = {
   folderId: string
   artwork: string | null
   createdAt: string
+  frameEnabled?: boolean
+  matEnabled?: boolean
+  matColorId?: string
+  stripColorId?: string
+  stripEnabled?: boolean
+  artworkRatio?: number
+  zoom?: number
+  artPosition?: { x: number; y: number }
+  frameThickness?: number
+  matMargin?: number
+  stripThickness?: number
 }
 
 type Account = {
@@ -613,6 +624,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
   const pinchDistanceRef = useRef<number | null>(null)
+  const restoringProjectRef = useRef(0)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
@@ -848,10 +860,18 @@ function App() {
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   useEffect(() => {
+    if (restoringProjectRef.current > 0) {
+      restoringProjectRef.current -= 1
+      return
+    }
     setFrameThickness(defaultFrameThickness)
   }, [defaultFrameThickness])
 
   useEffect(() => {
+    if (restoringProjectRef.current > 0) {
+      restoringProjectRef.current -= 1
+      return
+    }
     setMatMargin(defaultMatMargin)
   }, [defaultMatMargin])
 
@@ -978,6 +998,17 @@ function App() {
       folderId: account.activeFolderId,
       artwork,
       createdAt: new Date().toISOString(),
+      frameEnabled,
+      matEnabled,
+      matColorId: selectedMatColor.id,
+      stripColorId: selectedStripColor.id,
+      stripEnabled,
+      artworkRatio,
+      zoom,
+      artPosition,
+      frameThickness,
+      matMargin,
+      stripThickness,
     }
 
     const nextAccount = {
@@ -1039,11 +1070,19 @@ function App() {
     setSelectedStyle(materialOptions.some((option) => option.id === savedMaterial) ? savedMaterial : materialOptions[0].id)
     setSelectedSize(project.size as typeof selectedSize)
     if (matchingColor) setSelectedColor(matchingColor)
-    setFrameEnabled(true)
-    setMatEnabled(true)
+    restoringProjectRef.current = 2
+    setFrameEnabled(project.frameEnabled ?? true)
+    setMatEnabled(project.matEnabled ?? true)
+    if (project.matColorId) setSelectedMatColor(matColorOptions.find((color) => color.id === project.matColorId) ?? selectedMatColor)
+    if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
+    setStripEnabled(project.stripEnabled ?? true)
     setArtwork(project.artwork)
-    setArtPosition({ x: 0, y: 0 })
-    setZoom(1)
+    setArtworkRatio(project.artworkRatio ?? 4 / 5)
+    setArtPosition(project.artPosition ?? { x: 0, y: 0 })
+    setZoom(project.zoom ?? 1)
+    if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
+    if (project.matMargin !== undefined) setMatMargin(project.matMargin)
+    if (project.stripThickness !== undefined) setStripThickness(project.stripThickness)
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
