@@ -8,9 +8,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 22px 26px;
-  border-radius: 24px;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 16px;
   background: rgba(14, 16, 23, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
@@ -44,7 +44,7 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
 }
 
 .nav a {
@@ -64,7 +64,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #f0ebff;
   border-radius: 14px;
-  padding: 0.72rem 1rem;
+  padding: 0.52rem 0.82rem;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(16, 14, 22, 0.12);
 }
@@ -74,11 +74,12 @@
   background: rgba(255, 255, 255, 0.05);
   color: #f3edff;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.72rem 0.9rem;
+  padding: 0.52rem 0.75rem;
 }
 
 .compact-button {
   padding-inline: 1.1rem;
+  padding-block: 0.52rem;
 }
 
 .primary-button,
