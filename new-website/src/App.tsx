@@ -762,7 +762,8 @@ function App() {
       scale: 2,
       useCORS: true,
       logging: false,
-      ignoreElements: (element) => element.hasAttribute('data-screenshot-ignore'),
+      ignoreElements: (element) => element.hasAttribute('data-screenshot-ignore')
+        || element.matches('.topbar, .workspace-menu-bar, .gallery-center-button, .workspace-save-area, .workspace-scale, .workspace-dimensions'),
     })
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
