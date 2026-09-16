@@ -959,7 +959,7 @@ function App() {
     setShowSaveDialog(true)
   }
 
-  const confirmSaveProject = () => {
+  const confirmSaveProject = async () => {
     const safeFileName = projectFileName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'my-framing-project'
     const nextProject: ProjectRecord = {
       id: crypto.randomUUID(),
@@ -980,8 +980,21 @@ function App() {
 
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
+    if (authUserId) {
+      const { error } = await supabase.from('user_profiles').upsert({
+        user_id: authUserId,
+        account: nextAccount,
+        updated_at: new Date().toISOString(),
+      })
+      if (error) {
+        setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+      } else {
+        setSaveMessage(`Saved to profile: ${safeFileName}`)
+      }
+    } else {
+      setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+    }
     setShowSaveDialog(false)
-    setSaveMessage(`Saved to profile: ${safeFileName}`)
   }
 
   const createFolder = () => {
