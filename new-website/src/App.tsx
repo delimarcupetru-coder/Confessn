@@ -885,6 +885,20 @@ function App() {
           <a href="#projects">{t.navProjects}</a>
           <a href="#about">{t.navAbout}</a>
           <a href="#contact">{t.navContact}</a>
+          <select
+            aria-label={t.languages}
+            value={language}
+            onChange={(event) => setLanguage(event.target.value as Language)}
+            className="mobile-lang-select"
+          >
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+            <option value="zh">中文</option>
+            <option value="de">DE</option>
+            <option value="it">IT</option>
+            <option value="es">ES</option>
+            <option value="ja">日本語</option>
+          </select>
         </nav>
 
         <div className="header-actions">
