@@ -1328,7 +1328,7 @@
   .workspace-corner-tools {
     left: 10px !important;
     right: auto !important;
-    bottom: 54px !important;
+    bottom: 0 !important;
     transform: scale(0.88);
     transform-origin: bottom right;
   }
