@@ -1010,11 +1010,6 @@ function App() {
               >
                 Light
               </button>
-              <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
-              <button type="button" className="menu-action" aria-label="Adjust mat size" onClick={() => setShowDimensionsDialog(true)}>M</button>
-              <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
-              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
-              <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
             </div>
           </div>
 
@@ -1100,6 +1095,13 @@ function App() {
               ></div>}
               </div>
             </div>
+          </div>
+          <div className="workspace-corner-tools" data-screenshot-ignore>
+            <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
+            <button type="button" className="menu-action" aria-label="Adjust mat size" onClick={() => setShowDimensionsDialog(true)}>M</button>
+            <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
+            <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
+            <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
           </div>
           <button
             type="button"

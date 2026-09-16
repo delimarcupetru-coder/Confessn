@@ -407,6 +407,21 @@
   gap: 10px;
 }
 
+.workspace-corner-tools {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(17, 17, 24, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 18px rgba(12, 12, 22, 0.14);
+}
+
 .resize-handle {
   position: absolute;
   z-index: 4;
