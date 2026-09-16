@@ -739,11 +739,23 @@ function App() {
     setShowAccountDialog(false)
   }
 
-  const handleProfileImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
     setProfileImageLoading(true)
     setProfileImageError('')
+    let imageBlob: Blob = file
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name)
+    if (isHeic) {
+      try {
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 })
+        imageBlob = Array.isArray(converted) ? converted[0] : converted
+      } catch {
+        setProfileImageLoading(false)
+        setProfileImageError('This HEIC photo could not be converted.')
+        return
+      }
+    }
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result !== 'string') {
@@ -763,10 +775,12 @@ function App() {
           setProfileImageError('Image could not be processed.')
           return
         }
-        const cropSize = Math.min(image.naturalWidth, image.naturalHeight)
-        const sourceX = (image.naturalWidth - cropSize) / 2
-        const sourceY = (image.naturalHeight - cropSize) / 2
-        context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, size, size)
+        context.fillStyle = '#e8e2d9'
+        context.fillRect(0, 0, size, size)
+        const imageScale = Math.min(size / image.naturalWidth, size / image.naturalHeight) * 0.82
+        const drawnWidth = image.naturalWidth * imageScale
+        const drawnHeight = image.naturalHeight * imageScale
+        context.drawImage(image, (size - drawnWidth) / 2, (size - drawnHeight) / 2, drawnWidth, drawnHeight)
         setProfileAvatar(canvas.toDataURL('image/jpeg', 0.9))
         setProfileImageLoading(false)
       }
@@ -780,7 +794,7 @@ function App() {
       setProfileImageLoading(false)
       setProfileImageError('Image could not be loaded.')
     }
-    reader.readAsDataURL(file)
+    reader.readAsDataURL(imageBlob)
   }
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
