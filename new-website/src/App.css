@@ -298,7 +298,7 @@
 .workspace-canvas {
   position: absolute;
   inset: 108px 36px 104px;
-  overflow: hidden;
+  overflow: visible;
   display: grid;
   place-items: center;
   transition: transform 0.15s ease;
@@ -401,18 +401,18 @@
 }
 
 .resize-frame-handle {
-  right: 4px;
-  bottom: 4px;
+  right: -30px;
+  bottom: -30px;
 }
 
 .resize-mat-handle {
-  right: 4px;
-  bottom: 34px;
+  right: -30px;
+  bottom: -62px;
 }
 
 .resize-strip-handle {
-  right: 34px;
-  bottom: 4px;
+  right: -62px;
+  bottom: -30px;
 }
 
 .workspace-save-button {
@@ -822,7 +822,7 @@
   display: grid;
   place-items: center;
   background: rgba(19, 18, 23, 0.75);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .art-preview img {
