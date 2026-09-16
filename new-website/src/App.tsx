@@ -562,6 +562,8 @@ function App() {
   const [frameThickness, setFrameThickness] = useState(18)
   const [matMargin, setMatMargin] = useState(14)
   const [stripThickness, setStripThickness] = useState(2)
+  const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
+  const [artDrag, setArtDrag] = useState<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [artWidthInches, setArtWidthInches] = useState(12)
   const [artHeightInches, setArtHeightInches] = useState(15)
   const [frameWidthInches, setFrameWidthInches] = useState(16)
@@ -615,6 +617,23 @@ function App() {
   }, [resizeDrag])
 
   useEffect(() => {
+    if (!artDrag) return
+    const handlePointerMove = (event: PointerEvent) => {
+      setArtPosition({
+        x: artDrag.originX + event.clientX - artDrag.startX,
+        y: artDrag.originY + event.clientY - artDrag.startY,
+      })
+    }
+    const stopDrag = () => setArtDrag(null)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopDrag)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopDrag)
+    }
+  }, [artDrag])
+
+  useEffect(() => {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
   }, [account])
 
@@ -648,6 +667,7 @@ function App() {
         if (typeof reader.result === 'string') {
           setArtwork(reader.result)
           setZoom(1)
+          setArtPosition({ x: 0, y: 0 })
           setUploadMessage('')
         }
       }
@@ -747,8 +767,8 @@ function App() {
     const drawnHeight = image.naturalHeight * imageScale * zoom
     context.drawImage(
       image,
-      imageInset + (imageWidth - drawnWidth) / 2,
-      imageInset + (imageHeight - drawnHeight) / 2,
+      imageInset + (imageWidth - drawnWidth) / 2 + artPosition.x * scale,
+      imageInset + (imageHeight - drawnHeight) / 2 + artPosition.y * scale,
       drawnWidth,
       drawnHeight,
     )
@@ -1078,7 +1098,18 @@ function App() {
                       className="uploaded-artwork"
                       src={artwork}
                       alt="Uploaded artwork preview"
-                      style={{ transform: `scale(${zoom})` }}
+                      style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                      onPointerDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        setArtDrag({
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          originX: artPosition.x,
+                          originY: artPosition.y,
+                        })
+                      }}
                       onLoad={(event) => {
                         const image = event.currentTarget
                         if (image.naturalWidth && image.naturalHeight) {

@@ -865,6 +865,12 @@
   background: transparent;
   transform-origin: center;
   transition: transform 0.18s ease;
+  cursor: grab;
+  touch-action: none;
+}
+
+.uploaded-artwork:active {
+  cursor: grabbing;
 }
 
 .art-placeholder {
