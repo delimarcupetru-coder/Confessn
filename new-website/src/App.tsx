@@ -1008,6 +1008,7 @@ function App() {
                 type="button"
                 className={stripEnabled ? 'menu-action active' : 'menu-action'}
                 aria-label="Toggle mat strip"
+                aria-pressed={stripEnabled}
                 title="Toggle mat strip"
                 onClick={() => setStripEnabled((current) => !current)}
               >
@@ -1061,7 +1062,7 @@ function App() {
                   className="mat-cut-edge"
                   style={{
                     borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
-                    borderWidth: stripEnabled ? `${stripThickness}px` : 0,
+                    borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
                     boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
                   }}
                 >
