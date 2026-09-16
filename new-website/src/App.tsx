@@ -1015,6 +1015,29 @@ function App() {
 
           <div className="workspace-canvas">
             <div
+              className="workspace-corner-tools"
+              data-screenshot-ignore
+              style={{ right: `calc(50% - ${(previewWidth + 48) / 2}px)`, bottom: '-48px' }}
+            >
+              <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust mat size"
+                title="Drag M to adjust mat size; click to edit dimensions"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                }}
+                onClick={() => setShowDimensionsDialog(true)}
+              >
+                M
+              </button>
+              <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
+              <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
+            </div>
+            <div
               ref={captureRef}
               className="art-capture-area"
               style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: artworkRatio }}
@@ -1093,13 +1116,6 @@ function App() {
                     : undefined,
                 }}
               ></div>}
-              </div>
-              <div className="workspace-corner-tools" data-screenshot-ignore>
-                <button type="button" className="menu-action" aria-label="Adjust frame thickness" onClick={fitStandardFrameToArtwork}>F</button>
-                <button type="button" className="menu-action" aria-label="Adjust mat size" onClick={() => setShowDimensionsDialog(true)}>M</button>
-                <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
-                <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(2.2, current + 0.1).toFixed(2)))}>+</button>
-                <button type="button" className="menu-action" aria-label="Adjust strip size" onClick={() => setShowDimensions((current) => !current)}>S</button>
               </div>
             </div>
           </div>
