@@ -589,6 +589,7 @@ function App() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const sessionActivityKey = 'virtual-art-framing-session-activity'
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
@@ -706,6 +707,28 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const timeoutMs = 10 * 60 * 1000
+    const markActivity = () => window.localStorage.setItem(sessionActivityKey, String(Date.now()))
+    const checkActivity = () => {
+      const lastActivity = Number(window.localStorage.getItem(sessionActivityKey) ?? Date.now())
+      if (Date.now() - lastActivity >= timeoutMs) {
+        void supabase.auth.signOut()
+        window.localStorage.removeItem(sessionActivityKey)
+        setIsLoggedIn(false)
+      }
+    }
+    markActivity()
+    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    events.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }))
+    const timer = window.setInterval(checkActivity, 30000)
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, markActivity))
+      window.clearInterval(timer)
+    }
+  }, [isLoggedIn])
+
   const t = translations[language]
 
   const hashPassword = async (password: string) => {
@@ -761,6 +784,7 @@ function App() {
 
   const logOut = () => {
     window.localStorage.removeItem('virtual-art-framing-studio-session')
+    window.localStorage.removeItem(sessionActivityKey)
     void supabase.auth.signOut()
     setIsLoggedIn(false)
   }
