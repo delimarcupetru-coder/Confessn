@@ -583,6 +583,8 @@ function App() {
   const [profileEmail, setProfileEmail] = useState('')
   const [profilePassword, setProfilePassword] = useState('')
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>()
+  const [profileImageLoading, setProfileImageLoading] = useState(false)
+  const [profileImageError, setProfileImageError] = useState('')
   const profileImageInputRef = useRef<HTMLInputElement | null>(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
@@ -740,9 +742,16 @@ function App() {
   const handleProfileImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    setProfileImageLoading(true)
+    setProfileImageError('')
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') setProfileAvatar(reader.result)
+      setProfileImageLoading(false)
+    }
+    reader.onerror = () => {
+      setProfileImageLoading(false)
+      setProfileImageError('Image could not be loaded.')
     }
     reader.readAsDataURL(file)
   }
@@ -1510,9 +1519,10 @@ function App() {
             </div>
             <div className="account-photo-editor">
               <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>
-                {profileAvatar ? <img src={profileAvatar} alt="Profile" /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}
+                {profileImageLoading ? <span className="upload-dots" aria-label="Uploading photo">...</span> : profileAvatar ? <img src={profileAvatar} alt="Profile" /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}
               </button>
               <input ref={profileImageInputRef} type="file" accept="image/*" hidden onChange={handleProfileImage} />
+              {profileImageError && <span className="dialog-hint" role="alert">{profileImageError}</span>}
             </div>
             <div className="field-group">
               <label htmlFor="profile-username">Username</label>
@@ -1526,7 +1536,7 @@ function App() {
               <label htmlFor="profile-password">Password</label>
               <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
-            <button type="button" className="primary-button full-width-button" onClick={() => void saveAccountChanges()}>Save Changes</button>
+            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading} onClick={() => void saveAccountChanges()}>Save Changes</button>
           </div>
         </div>
       )}

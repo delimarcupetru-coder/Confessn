@@ -135,6 +135,18 @@
   object-position: center center;
 }
 
+.upload-dots {
+  display: inline-block;
+  min-width: 2.2em;
+  animation: upload-dots-pulse 1s steps(4, end) infinite;
+}
+
+@keyframes upload-dots-pulse {
+  0% { opacity: 0.35; }
+  50% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
 .lang-select {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
