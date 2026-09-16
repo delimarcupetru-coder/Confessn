@@ -490,7 +490,6 @@ const sizeOptions = [
 const colorOptions: ColorOption[] = [
   { id: 'ivory', name: 'Ivory', hex: '#f4e9d8' },
   { id: 'walnut', name: 'Walnut', hex: '#5e3727' },
-  { id: 'black', name: 'Black', hex: '#1d1d22' },
   { id: 'oak', name: 'Oak', hex: '#c9a36b' },
   { id: 'sage', name: 'Sage', hex: '#a7b39a' },
   { id: 'rust', name: 'Rust', hex: '#b8583a' },
@@ -537,7 +536,7 @@ function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [selectedStyle, setSelectedStyle] = useState(frameOptions[1].id)
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
-  const [selectedColor, setSelectedColor] = useState(colorOptions[2])
+  const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
   const [selectedStripColor, setSelectedStripColor] = useState(colorOptions[2])
   const [stripEnabled, setStripEnabled] = useState(true)
