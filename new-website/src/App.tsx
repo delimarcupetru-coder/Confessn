@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import heic2any from 'heic2any'
+import { supabase } from './supabase'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
@@ -618,6 +619,38 @@ function App() {
     return defaultAccount
   })
 
+  useEffect(() => {
+    let mounted = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted || !data.session?.user) return
+      const user = data.session.user
+      setAccount((current) => ({
+        ...current,
+        name: user.user_metadata.username ?? current.name,
+        email: user.email ?? current.email,
+      }))
+      setIsLoggedIn(true)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setIsLoggedIn(false)
+        return
+      }
+      setAccount((current) => ({
+        ...current,
+        name: session.user.user_metadata.username ?? current.name,
+        email: session.user.email ?? current.email,
+      }))
+      setIsLoggedIn(true)
+    })
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
   const t = translations[language]
 
   const hashPassword = async (password: string) => {
@@ -633,50 +666,40 @@ function App() {
       setAuthMessage('Enter an email and a password with at least 6 characters.')
       return
     }
-    const authKey = 'virtual-art-framing-studio-auth'
-    const passwordHash = await hashPassword(authPassword)
-    const existing = window.localStorage.getItem(authKey)
-    if (authMode === 'create') {
-      if (!username) {
-        setAuthMessage('Enter a username.')
-        return
-      }
-      if (existing) {
-        setAuthMessage('An account already exists on this device. Log in instead.')
-        return
-      }
-      const auth: LocalAuth = { email, username, passwordHash, account: { ...account, name: username, email } }
-      window.localStorage.setItem(authKey, JSON.stringify(auth))
-      window.localStorage.setItem('virtual-art-framing-studio-session', 'true')
-      setAccount(auth.account)
-      setIsLoggedIn(true)
-      setAuthMessage('Account created. Your profile is saved on this device.')
-    } else {
-      let auth: LocalAuth | null = null
-      try {
-        auth = existing ? JSON.parse(existing) as LocalAuth : null
-      } catch {
-        auth = null
-      }
-      if (!auth) {
-        setAuthMessage('No account exists on this device. Create an account first.')
-        return
-      }
-      if (auth.email !== email || auth.passwordHash !== passwordHash) {
-        setAuthMessage('Email or password is incorrect.')
-        return
-      }
-      setAccount(auth.account)
-      window.localStorage.setItem('virtual-art-framing-studio-session', 'true')
-      setIsLoggedIn(true)
-      setAuthMessage('Logged in.')
+    if (authMode === 'create' && !username) {
+      setAuthMessage('Enter a username.')
+      return
     }
+    const supabaseResult = authMode === 'create'
+      ? await supabase.auth.signUp({ email, password: authPassword, options: { data: { username } } })
+      : await supabase.auth.signInWithPassword({ email, password: authPassword })
+
+    if (supabaseResult.error) {
+      setAuthMessage(supabaseResult.error.message)
+      return
+    }
+
+    if (authMode === 'create' && !supabaseResult.data.session) {
+      setAuthMessage('Account created. Check your email to confirm the account, then log in.')
+      return
+    }
+
+    const user = supabaseResult.data.user
+    const nextAccount = {
+      ...account,
+      name: user?.user_metadata.username ?? username ?? account.name,
+      email: user?.email ?? email,
+    }
+    setAccount(nextAccount)
+    setIsLoggedIn(true)
+    setAuthMessage(authMode === 'create' ? 'Account created.' : 'Logged in.')
     setAuthPassword('')
     setAuthMode(null)
   }
 
   const logOut = () => {
     window.localStorage.removeItem('virtual-art-framing-studio-session')
+    void supabase.auth.signOut()
     setIsLoggedIn(false)
   }
 
