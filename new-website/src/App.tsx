@@ -1024,12 +1024,11 @@ function App() {
                 type="button"
                 className="menu-action"
                 aria-label="Adjust mat size"
-                title="Drag M to adjust mat size; click to edit dimensions"
+                title="Drag M to adjust mat size"
                 onPointerDown={(event) => {
                   event.preventDefault()
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
-                onClick={() => setShowDimensionsDialog(true)}
               >
                 M
               </button>
