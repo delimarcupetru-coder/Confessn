@@ -987,21 +987,20 @@ function App() {
 
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
-    if (authUserId) {
-      const { error } = await supabase.from('user_profiles').upsert({
-        user_id: authUserId,
-        account: nextAccount,
-        updated_at: new Date().toISOString(),
-      })
-      if (error) {
-        setSaveMessage(`Saved locally to profile: ${safeFileName}`)
-      } else {
-        setSaveMessage(`Saved to profile: ${safeFileName}`)
-      }
-    } else {
-      setSaveMessage(`Saved locally to profile: ${safeFileName}`)
-    }
     setShowSaveDialog(false)
+    setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+    if (authUserId) {
+      try {
+        const { error } = await supabase.from('user_profiles').upsert({
+          user_id: authUserId,
+          account: nextAccount,
+          updated_at: new Date().toISOString(),
+        })
+        if (!error) setSaveMessage(`Saved to profile: ${safeFileName}`)
+      } catch {
+        setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+      }
+    }
   }
 
   const createFolder = () => {
