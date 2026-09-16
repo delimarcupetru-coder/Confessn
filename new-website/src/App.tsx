@@ -593,6 +593,7 @@ function App() {
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMessage, setAuthMessage] = useState('')
+  const [authSuccessMessage, setAuthSuccessMessage] = useState('')
   const [showAccountDialog, setShowAccountDialog] = useState(false)
   const [profileUsername, setProfileUsername] = useState('')
   const [profileEmail, setProfileEmail] = useState('')
@@ -659,7 +660,7 @@ function App() {
     }
     void loadSessionProfile()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session?.user) {
         setAuthUserId(null)
         setAuthReady(true)
@@ -674,6 +675,10 @@ function App() {
         email: session.user.email ?? current.email,
       }))
       setIsLoggedIn(true)
+      if (event === 'SIGNED_IN' && (window.location.search.includes('code=') || window.location.hash.includes('access_token'))) {
+        setAuthSuccessMessage('Authentication successful!')
+        window.setTimeout(() => setAuthSuccessMessage(''), 6000)
+      }
       window.setTimeout(() => {
         void supabase.from('user_profiles').select('account').eq('user_id', session.user.id).maybeSingle().then(({ data: profile }) => {
           if (profile?.account) setAccount(profile.account as Account)
@@ -1122,6 +1127,7 @@ function App() {
 
   return (
     <main className="studio-shell">
+      {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
       <header className="topbar">
         <div className="brand-wrap">
           <div className="brand-mark">V</div>

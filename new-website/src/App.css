@@ -4,6 +4,22 @@
   padding: 20px 0 72px;
 }
 
+.auth-success-message {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  padding: 0.7rem 1rem;
+  border: 1px solid #54b779;
+  border-radius: 10px;
+  background: #e4f8ea;
+  color: #14532d;
+  font-size: 0.86rem;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(20, 83, 45, 0.18);
+}
+
 .topbar {
   display: flex;
   align-items: center;
