@@ -747,6 +747,25 @@ function App() {
     }, 1500)
   }
 
+  const saveImageToPhone = async (blob: Blob, fileName: string) => {
+    const imageFile = new File([blob], fileName, { type: 'image/jpeg' })
+    const shareData = { files: [imageFile], title: 'Framed artwork' }
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [imageFile] }))) {
+      try {
+        await navigator.share(shareData)
+        setSaveMessage('Use Save Image in the share sheet to save to Photos')
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setSaveMessage('Save cancelled')
+          return
+        }
+      }
+    }
+    downloadBlob(blob, fileName)
+    setSaveMessage(`Downloaded ${fileName}`)
+  }
+
   const renderFramedImage = async (format: 'jpg' | 'png') => {
     if (!captureRef.current) throw new Error('Frame capture area is unavailable')
     const artworkImage = captureRef.current.querySelector<HTMLImageElement>('.uploaded-artwork')
@@ -802,8 +821,7 @@ function App() {
       try {
         const imageBlob = await renderFramedImage(saveFormat)
         const exportName = `${safeFileName}-${new Date().toISOString().replace(/[.:]/g, '-')}.${saveFormat}`
-        downloadBlob(imageBlob, exportName)
-        setSaveMessage(`Downloaded ${exportName}`)
+        await saveImageToPhone(imageBlob, exportName)
       } catch {
         setSaveMessage('Image export failed')
       }
