@@ -792,7 +792,6 @@
 }
 
 .frame-floating {
-  border-image: linear-gradient(135deg, #ddd8cf 0%, #9f988e 48%, #eeeae3 100%) 1;
   box-shadow: 0 16px 24px rgba(23, 20, 18, 0.28);
 }
 
