@@ -218,6 +218,25 @@
   transition: all 0.2s ease;
 }
 
+.color-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-picker select {
+  min-width: 76px;
+  max-width: 112px;
+  border: 1px solid rgba(17, 17, 24, 0.08);
+  border-radius: 9px;
+  padding: 0.32rem 0.4rem;
+  background: rgba(255, 255, 255, 0.75);
+  color: #22212a;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .menu-chip.active,
 .menu-action.active {
   background: #1f1d25;

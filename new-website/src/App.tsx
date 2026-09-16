@@ -930,33 +930,30 @@ function App() {
 
             <div className="menu-group compact-group">
               <span>Color</span>
-              <button
-                type="button"
-                className="swatch-button"
-                onClick={() => {
-                  const currentIndex = colorOptions.findIndex((color) => color.id === selectedColor.id)
-                  const nextColor = colorOptions[(currentIndex + 1) % colorOptions.length]
-                  setSelectedColor(nextColor)
-                }}
-              >
+              <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedColor.hex }}></span>
-              </button>
+                <select
+                  aria-label="Frame color"
+                  value={selectedColor.id}
+                  onChange={(event) => setSelectedColor(colorOptions.find((color) => color.id === event.target.value) ?? colorOptions[0])}
+                >
+                  {colorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                </select>
+              </label>
             </div>
 
             <div className="menu-group compact-group">
               <span>Mat color</span>
-              <button
-                type="button"
-                className="swatch-button"
-                aria-label="Change mat color"
-                title="Change mat color"
-                onClick={() => {
-                  const currentIndex = matColorOptions.findIndex((color) => color.id === selectedMatColor.id)
-                  setSelectedMatColor(matColorOptions[(currentIndex + 1) % matColorOptions.length])
-                }}
-              >
+              <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
-              </button>
+                <select
+                  aria-label="Mat color"
+                  value={selectedMatColor.id}
+                  onChange={(event) => setSelectedMatColor(matColorOptions.find((color) => color.id === event.target.value) ?? matColorOptions[0])}
+                >
+                  {matColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                </select>
+              </label>
             </div>
 
             <div className="menu-actions">
@@ -996,18 +993,16 @@ function App() {
               >
                 Strip
               </button>
-              <button
-                type="button"
-                className="swatch-button"
-                aria-label="Change strip color"
-                title="Change strip color"
-                onClick={() => {
-                  const currentIndex = colorOptions.findIndex((color) => color.id === selectedStripColor.id)
-                  setSelectedStripColor(colorOptions[(currentIndex + 1) % colorOptions.length])
-                }}
-              >
+              <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedStripColor.hex }}></span>
-              </button>
+                <select
+                  aria-label="Strip color"
+                  value={selectedStripColor.id}
+                  onChange={(event) => setSelectedStripColor(colorOptions.find((color) => color.id === event.target.value) ?? colorOptions[0])}
+                >
+                  {colorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                </select>
+              </label>
               <button
                 type="button"
                 className={wallTone === 'white' ? 'menu-action active' : 'menu-action'}
