@@ -702,6 +702,10 @@ function App() {
   }
 
   const saveProject = () => {
+    if (saveFormat === 'jpg') {
+      void confirmSaveProject()
+      return
+    }
     const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
     if (picker) {
       void confirmSaveProject(picker)
