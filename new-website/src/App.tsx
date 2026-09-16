@@ -720,16 +720,14 @@ function App() {
   }
 
   const renderFramedImage = async (format: 'jpg' | 'png') => {
-    if (!artwork) {
-      throw new Error('Upload artwork before exporting an image')
-    }
-
     const image = new Image()
-    image.src = artwork
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve()
-      image.onerror = () => reject(new Error('Artwork could not be loaded'))
-    })
+    if (artwork) {
+      image.src = artwork
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve()
+        image.onerror = () => reject(new Error('Artwork could not be loaded'))
+      })
+    }
 
     const canvas = document.createElement('canvas')
     canvas.width = 1200
@@ -762,16 +760,18 @@ function App() {
     const imageInset = matInset + matPadding + cutEdge
     const imageWidth = canvas.width - imageInset * 2
     const imageHeight = canvas.height - imageInset * 2
-    const imageScale = Math.min(imageWidth / image.naturalWidth, imageHeight / image.naturalHeight)
-    const drawnWidth = image.naturalWidth * imageScale * zoom
-    const drawnHeight = image.naturalHeight * imageScale * zoom
-    context.drawImage(
-      image,
-      imageInset + (imageWidth - drawnWidth) / 2 + artPosition.x * scale,
-      imageInset + (imageHeight - drawnHeight) / 2 + artPosition.y * scale,
-      drawnWidth,
-      drawnHeight,
-    )
+    if (artwork) {
+      const imageScale = Math.min(imageWidth / image.naturalWidth, imageHeight / image.naturalHeight)
+      const drawnWidth = image.naturalWidth * imageScale * zoom
+      const drawnHeight = image.naturalHeight * imageScale * zoom
+      context.drawImage(
+        image,
+        imageInset + (imageWidth - drawnWidth) / 2 + artPosition.x * scale,
+        imageInset + (imageHeight - drawnHeight) / 2 + artPosition.y * scale,
+        drawnWidth,
+        drawnHeight,
+      )
+    }
 
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.94))
