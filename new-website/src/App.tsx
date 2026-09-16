@@ -726,7 +726,29 @@ function App() {
     const username = profileUsername.trim()
     const email = profileEmail.trim().toLowerCase()
     if (!username || !email) return
-    const nextAccount = { ...account, name: username, email, avatar: profileAvatar }
+    let savedAvatar = profileAvatar
+    if (profileAvatar && profileAvatarZoom !== 1) {
+      const image = new Image()
+      image.src = profileAvatar
+      await new Promise<void>((resolve) => {
+        image.onload = () => resolve()
+        image.onerror = () => resolve()
+      })
+      if (image.naturalWidth && image.naturalHeight) {
+        const size = 512
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const context = canvas.getContext('2d')
+        if (context) {
+          const sourceSize = size / profileAvatarZoom
+          const sourceOffset = (size - sourceSize) / 2
+          context.drawImage(image, sourceOffset, sourceOffset, sourceSize, sourceSize, 0, 0, size, size)
+          savedAvatar = canvas.toDataURL('image/jpeg', 0.9)
+        }
+      }
+    }
+    const nextAccount = { ...account, name: username, email, avatar: savedAvatar }
     setAccount(nextAccount)
     const storedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
     if (storedAuth) {
