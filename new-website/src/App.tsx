@@ -557,6 +557,7 @@ function App() {
 
   const t = translations[language]
   const frameBorderWidth = selectedSize === 'narrow' ? 10 : selectedSize === 'medium' ? 18 : 26
+  const previewWidth = Math.min(380, 480 * artworkRatio)
 
   useEffect(() => {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
@@ -814,7 +815,11 @@ function App() {
           <div className="workspace-canvas" style={{ transform: `scale(${zoom})` }}>
             <div
               className="art-preview"
-              style={{ borderColor: selectedColor.hex, aspectRatio: artworkRatio }}
+              style={{
+                borderColor: selectedColor.hex,
+                width: `min(100%, ${previewWidth}px)`,
+                aspectRatio: artworkRatio,
+              }}
             >
               <div className="art-mat" style={{ inset: `${22 + frameBorderWidth}px` }}>
                 <div className="mat-cut-edge">

@@ -715,7 +715,6 @@
 .art-preview {
   position: relative;
   width: min(100%, 380px);
-  max-height: 100%;
   border-radius: 18px;
   display: grid;
   place-items: center;
