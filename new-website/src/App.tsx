@@ -671,7 +671,14 @@ function App() {
       return
     }
     const supabaseResult = authMode === 'create'
-      ? await supabase.auth.signUp({ email, password: authPassword, options: { data: { username } } })
+      ? await supabase.auth.signUp({
+        email,
+        password: authPassword,
+        options: {
+          data: { username },
+          emailRedirectTo: window.location.origin,
+        },
+      })
       : await supabase.auth.signInWithPassword({ email, password: authPassword })
 
     if (supabaseResult.error) {
