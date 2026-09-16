@@ -29,6 +29,12 @@ type Account = {
   projects: ProjectRecord[]
 }
 
+type LocalAuth = {
+  email: string
+  passwordHash: string
+  account: Account
+}
+
 type FrameOption = {
   id: string
   label: string
@@ -563,6 +569,10 @@ function App() {
   const [saveMessage, setSaveMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
@@ -599,6 +609,41 @@ function App() {
   })
 
   const t = translations[language]
+
+  const hashPassword = async (password: string) => {
+    const data = new TextEncoder().encode(password)
+    const digest = await crypto.subtle.digest('SHA-256', data)
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  }
+
+  const submitAuth = async () => {
+    const email = authEmail.trim().toLowerCase()
+    if (!email || authPassword.length < 6) {
+      setAuthMessage('Enter an email and a password with at least 6 characters.')
+      return
+    }
+    const authKey = 'virtual-art-framing-studio-auth'
+    const passwordHash = await hashPassword(authPassword)
+    const existing = window.localStorage.getItem(authKey)
+    if (authMode === 'create') {
+      if (existing) {
+        setAuthMessage('An account already exists on this device. Log in instead.')
+        return
+      }
+      const auth: LocalAuth = { email, passwordHash, account }
+      window.localStorage.setItem(authKey, JSON.stringify(auth))
+      setAuthMessage('Account created. Your profile is saved on this device.')
+    } else {
+      const auth = existing ? JSON.parse(existing) as LocalAuth : null
+      if (!auth || auth.email !== email || auth.passwordHash !== passwordHash) {
+        setAuthMessage('Email or password is incorrect.')
+        return
+      }
+      setAccount(auth.account)
+      setAuthMessage('Logged in.')
+    }
+    setAuthPassword('')
+  }
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
@@ -648,6 +693,15 @@ function App() {
 
   useEffect(() => {
     window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
+    const savedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
+    if (savedAuth) {
+      try {
+        const auth = JSON.parse(savedAuth) as LocalAuth
+        window.localStorage.setItem('virtual-art-framing-studio-auth', JSON.stringify({ ...auth, account }))
+      } catch {
+        // Ignore malformed local auth data and keep the profile usable.
+      }
+    }
   }, [account])
 
   const activeFolderProjects = useMemo(() => {
@@ -844,7 +898,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="header-link-button">
+          <button type="button" className="header-link-button" onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
             {t.logIn}
           </button>
           <select
@@ -861,7 +915,7 @@ function App() {
             <option value="es">ES</option>
             <option value="ja">日本語</option>
           </select>
-          <button type="button" className="primary-button compact-button">
+          <button type="button" className="primary-button compact-button" onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
             {t.createAccount}
           </button>
         </div>
@@ -1279,6 +1333,29 @@ function App() {
           </button>
         </div>
       </section>
+
+      {authMode && (
+        <div className="dialog-overlay" onClick={() => setAuthMode(null)}>
+          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+            <div className="dialog-header">
+              <h4>{authMode === 'create' ? 'Create account' : 'Log in'}</h4>
+              <button type="button" onClick={() => setAuthMode(null)}>×</button>
+            </div>
+            <div className="field-group">
+              <label htmlFor="auth-email">Email</label>
+              <input id="auth-email" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+            </div>
+            <div className="field-group">
+              <label htmlFor="auth-password">Password</label>
+              <input id="auth-password" type="password" autoComplete={authMode === 'create' ? 'new-password' : 'current-password'} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+            </div>
+            {authMessage && <p className="dialog-hint" role="status">{authMessage}</p>}
+            <button type="button" className="primary-button full-width-button" onClick={() => void submitAuth()}>
+              {authMode === 'create' ? 'Create account' : 'Log in'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSaveDialog && (
         <div className="dialog-overlay" onClick={() => setShowSaveDialog(false)}>
