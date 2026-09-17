@@ -1075,6 +1075,18 @@ function App() {
     setAccount({ ...account, folders: account.folders.map((folder) => folder.id === account.activeFolderId ? { ...folder, name } : folder) })
   }
 
+  const deleteActiveFolder = () => {
+    if (account.activeFolderId === 'all') return
+    const folderId = account.activeFolderId
+    const nextAccount = {
+      ...account,
+      folders: account.folders.filter((folder) => folder.id !== folderId),
+      activeFolderId: 'all',
+      projects: account.projects.map((project) => project.folderId === folderId ? { ...project, folderId: 'all' } : project),
+    }
+    setAccount(nextAccount)
+  }
+
   const deleteProject = (projectId: string) => {
     const nextAccount = {
       ...account,
@@ -1549,6 +1561,7 @@ function App() {
               {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
             <button type="button" className="menu-action" onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
+            <button type="button" className="menu-action" onClick={deleteActiveFolder} disabled={account.activeFolderId === 'all'}>Delete</button>
           </div>
           {activeFolderProjects.length === 0 ? (
             <p>{t.noProjects}</p>
