@@ -596,6 +596,7 @@ function App() {
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -649,6 +650,7 @@ function App() {
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
+  const saveHandleRef = useRef<FileSystemFileHandle | null>(null)
   const artworkOpeningRef = useRef<HTMLDivElement | null>(null)
   const pinchGestureRef = useRef<PinchGesture | null>(null)
   const artZoomRef = useRef(zoom)
@@ -986,7 +988,11 @@ function App() {
   }, [artDrag])
 
   useEffect(() => {
-    window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
+    try {
+      window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
+    } catch {
+      setSaveMessage('Browser storage is full. Your recent changes may not be saved.')
+    }
     const savedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
     if (savedAuth) {
       try {
@@ -1060,6 +1066,7 @@ function App() {
   }
 
   const saveProject = () => {
+    setSaveError('')
     setShowSaveDialog(true)
   }
 
@@ -1093,10 +1100,15 @@ function App() {
       projects: [nextProject, ...account.projects],
     }
 
-    window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
+    try {
+      window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
+    } catch {
+      setSaveError('Could not save in this browser. Free up storage or try a smaller artwork.')
+      return
+    }
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
-    setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+    setSaveMessage(`Saved in this browser: ${safeFileName}`)
     if (authUserId) {
       try {
         const { error } = await supabase.from('user_profiles').upsert({
@@ -1104,9 +1116,9 @@ function App() {
           account: nextAccount,
           updated_at: new Date().toISOString(),
         })
-        if (!error) setSaveMessage(`Saved to profile: ${safeFileName}`)
+        setSaveMessage(error ? `Saved in this browser, but account sync failed: ${safeFileName}` : `Saved to profile: ${safeFileName}`)
       } catch {
-        setSaveMessage(`Saved locally to profile: ${safeFileName}`)
+        setSaveMessage(`Saved in this browser, but account sync failed: ${safeFileName}`)
       }
     }
   }
@@ -1186,12 +1198,19 @@ function App() {
         const image = capture.querySelector<HTMLImageElement>('img.uploaded-artwork')
         if (image) await image.decode()
         await document.fonts.ready
-        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
         if (cancelled) return
         const canvas = await html2canvas(capture, { backgroundColor: null, scale: 2, useCORS: true })
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
         if (!blob) throw new Error('Image export failed')
         if (cancelled) return
+        const handle = saveHandleRef.current
+        if (handle) {
+          const writable = await handle.createWritable()
+          await writable.write(blob)
+          await writable.close()
+          setSaveMessage(`Saved ${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png to your device`)
+          return
+        }
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
@@ -1200,18 +1219,31 @@ function App() {
         link.click()
         link.remove()
         window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-        setSaveMessage(`Downloaded ${link.download}`)
+        setSaveMessage(`Download requested: ${link.download}. Check your browser's Downloads.`)
       } catch {
-        if (!cancelled) setSaveMessage('Could not download this project. Please try again.')
+        if (!cancelled) setSaveMessage('Could not save this project to your device. Please try again.')
       } finally {
-        if (!cancelled) setPendingDownload(null)
+        if (!cancelled) {
+          saveHandleRef.current = null
+          setPendingDownload(null)
+        }
       }
     }
     void download()
     return () => { cancelled = true }
   }, [pendingDownload, selectedProjectId])
 
-  const downloadProject = (project: ProjectRecord) => {
+  const downloadProject = async (project: ProjectRecord) => {
+    const filename = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
+    const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker
+    if (picker) {
+      try {
+        saveHandleRef.current = await picker.call(window, { suggestedName: filename, types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }] })
+      } catch (error) {
+        if ((error as DOMException).name !== 'AbortError') setSaveMessage('Could not open the Save dialog. Please try again.')
+        return
+      }
+    }
     loadProject(project)
     setPendingDownload(project)
   }
@@ -1709,7 +1741,7 @@ function App() {
                       aria-label={`Download ${project.name}`}
                       title="Download framed project"
                       disabled={!project.artwork || pendingDownload !== null}
-                      onClick={() => downloadProject(project)}
+                      onClick={() => void downloadProject(project)}
                     >
                       ↓
                     </button>
@@ -1830,6 +1862,7 @@ function App() {
                 {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
               </select>
             </div>
+            {saveError && <p className="dialog-hint" role="alert">{saveError}</p>}
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
               Save
             </button>
