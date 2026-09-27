@@ -34,6 +34,9 @@ type ProjectRecord = {
   stripThickness?: number
 }
 
+type ImageFormat = 'png' | 'jpg'
+type ExportSelection = { handle: FileSystemFileHandle | null; filename: string; format: ImageFormat }
+
 type Account = {
   name: string
   email: string
@@ -722,6 +725,7 @@ function App() {
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
+  const [exportFormat, setExportFormat] = useState<ImageFormat>('png')
   const [contactName, setContactName] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -752,7 +756,7 @@ function App() {
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
-  const saveHandleRef = useRef<FileSystemFileHandle | null>(null)
+  const saveHandleRef = useRef<ExportSelection | null>(null)
   const artworkOpeningRef = useRef<HTMLDivElement | null>(null)
   const pinchGestureRef = useRef<PinchGesture | null>(null)
   const artZoomRef = useRef(zoom)
@@ -1345,22 +1349,23 @@ function App() {
         if (image && !image.naturalWidth) throw new Error('Artwork could not be loaded')
         await document.fonts.ready
         if (cancelled) return
-        const canvas = await html2canvas(capture, { backgroundColor: null, scale: 2, useCORS: true })
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+        const selection = saveHandleRef.current
+        const format = selection?.format ?? 'png'
+        const canvas = await html2canvas(capture, { backgroundColor: format === 'jpg' ? '#f7f4ed' : null, scale: 2, useCORS: true })
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92))
         if (!blob) throw new Error('Image export failed')
         if (cancelled) return
-        const handle = saveHandleRef.current
-        if (handle) {
-          const writable = await handle.createWritable()
+        if (selection?.handle) {
+          const writable = await selection.handle.createWritable()
           await writable.write(blob)
           await writable.close()
-          setDownloadMessage(`Saved ${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png to your device`)
+          setDownloadMessage(`Saved ${selection.filename} to your device`)
           return
         }
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = `${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
+        link.download = selection?.filename ?? `${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
         document.body.appendChild(link)
         link.click()
         link.remove()
@@ -1379,30 +1384,35 @@ function App() {
     return () => { cancelled = true }
   }, [pendingDownload, selectedProjectId])
 
-  const chooseSaveFile = async (project: ProjectRecord): Promise<FileSystemFileHandle | null | undefined> => {
+  const chooseSaveFile = async (project: ProjectRecord): Promise<ExportSelection | undefined> => {
     setDownloadMessage('')
-    const filename = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
+    const filename = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.${exportFormat}`
     const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker
     if (picker) {
       try {
-        return await picker.call(window, { suggestedName: filename, types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }] })
+        const handle = await picker.call(window, { suggestedName: filename, types: [
+          { description: 'PNG image', accept: { 'image/png': ['.png'] } },
+          { description: 'JPG image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } },
+        ] })
+        const extension = handle.name.toLowerCase().match(/\.(png|jpe?g)$/)?.[1]
+        return { handle, filename: handle.name, format: extension === 'jpg' || extension === 'jpeg' ? 'jpg' : extension === 'png' ? 'png' : exportFormat }
       } catch (error) {
         setDownloadMessage((error as DOMException).name === 'AbortError' ? 'File save canceled; project remains in this browser.' : 'Could not open the Save dialog. Please try again.')
         return undefined
       }
     }
-    return null
+    return { handle: null, filename, format: exportFormat }
   }
 
-  const beginProjectDownload = (project: ProjectRecord, handle: FileSystemFileHandle | null) => {
-    saveHandleRef.current = handle
+  const beginProjectDownload = (project: ProjectRecord, selection: ExportSelection) => {
+    saveHandleRef.current = selection
     loadProject(project)
     setPendingDownload(project)
   }
 
   const downloadProject = async (project: ProjectRecord) => {
-    const handle = await chooseSaveFile(project)
-    if (handle !== undefined) beginProjectDownload(project, handle)
+    const selection = await chooseSaveFile(project)
+    if (selection) beginProjectDownload(project, selection)
   }
 
   const sendContactMessage = () => {
@@ -2043,6 +2053,14 @@ function App() {
               >
                 {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
               </select>
+            </div>
+            <div className="field-group">
+              <span className="field-label">Image format</span>
+              <div className="format-options save-format-options" role="group" aria-label="Image format">
+                {(['png', 'jpg'] as const).map((format) => (
+                  <button key={format} type="button" className={`format-option ${exportFormat === format ? 'active' : ''}`} aria-pressed={exportFormat === format} onClick={() => setExportFormat(format)}>{format.toUpperCase()}</button>
+                ))}
+              </div>
             </div>
             {saveError && <p className="dialog-hint" role="alert">{saveError}</p>}
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
