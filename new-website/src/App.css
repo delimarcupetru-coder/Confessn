@@ -1013,7 +1013,7 @@
   display: grid;
   place-items: center;
   background: rgba(19, 18, 23, 0.75);
-  overflow: visible;
+  overflow: hidden;
   z-index: 0;
 }
 
@@ -1056,9 +1056,9 @@
   object-fit: contain !important;
   background: transparent;
   transform-origin: center;
-  transition: transform 0.18s ease;
   cursor: grab;
   touch-action: none;
+  user-select: none;
 }
 
 .uploaded-artwork:active {

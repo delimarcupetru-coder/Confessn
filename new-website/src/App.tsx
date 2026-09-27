@@ -565,6 +565,16 @@ const portfolioIcons = {
   youtube: '▶',
 }
 
+const minArtZoom = 0.5
+const maxArtZoom = 4
+
+type PinchGesture = {
+  distance: number
+  zoom: number
+  position: { x: number; y: number }
+  focus: { x: number; y: number }
+}
+
 function App() {
   useEffect(() => {
     document.title = 'VAFS'
@@ -615,7 +625,7 @@ function App() {
   const [matMargin, setMatMargin] = useState(14)
   const [stripThickness, setStripThickness] = useState(2)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
-  const [artDrag, setArtDrag] = useState<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const [artDrag, setArtDrag] = useState<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [artWidthInches, setArtWidthInches] = useState(12)
   const [artHeightInches, setArtHeightInches] = useState(15)
   const [frameWidthInches] = useState(16)
@@ -637,7 +647,10 @@ function App() {
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
-  const pinchDistanceRef = useRef<number | null>(null)
+  const artworkOpeningRef = useRef<HTMLDivElement | null>(null)
+  const pinchGestureRef = useRef<PinchGesture | null>(null)
+  const artZoomRef = useRef(zoom)
+  const artPositionRef = useRef(artPosition)
   const restoringProjectRef = useRef(0)
 
   const [account, setAccount] = useState<Account>(() => {
@@ -882,6 +895,39 @@ function App() {
   const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
+  const moveArtwork = (position: { x: number; y: number }) => {
+    artPositionRef.current = position
+    setArtPosition(position)
+  }
+
+  const zoomArtworkAt = (
+    nextScale: number,
+    focus: { x: number; y: number },
+    fromScale = artZoomRef.current,
+    fromPosition = artPositionRef.current,
+    fromFocus = focus,
+  ) => {
+    const opening = artworkOpeningRef.current
+    if (!artwork || !opening) return
+    const rect = opening.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const scale = Math.min(maxArtZoom, Math.max(minArtZoom, nextScale))
+    const ratio = scale / fromScale
+    moveArtwork({
+      x: focus.x - centerX - (fromFocus.x - centerX - fromPosition.x) * ratio,
+      y: focus.y - centerY - (fromFocus.y - centerY - fromPosition.y) * ratio,
+    })
+    artZoomRef.current = scale
+    setZoom(scale)
+  }
+
+  const adjustArtworkZoom = (factor: number) => {
+    const rect = artworkOpeningRef.current?.getBoundingClientRect()
+    if (!rect) return
+    zoomArtworkAt(artZoomRef.current * factor, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+  }
+
   useEffect(() => {
     if (restoringProjectRef.current > 0) {
       restoringProjectRef.current -= 1
@@ -918,17 +964,22 @@ function App() {
   useEffect(() => {
     if (!artDrag) return
     const handlePointerMove = (event: PointerEvent) => {
-      setArtPosition({
+      if (event.pointerId !== artDrag.pointerId || pinchGestureRef.current) return
+      moveArtwork({
         x: artDrag.originX + event.clientX - artDrag.startX,
         y: artDrag.originY + event.clientY - artDrag.startY,
       })
     }
-    const stopDrag = () => setArtDrag(null)
+    const stopDrag = (event: PointerEvent) => {
+      if (event.pointerId === artDrag.pointerId) setArtDrag(null)
+    }
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup', stopDrag)
+    window.addEventListener('pointercancel', stopDrag)
     return () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', stopDrag)
+      window.removeEventListener('pointercancel', stopDrag)
     }
   }, [artDrag])
 
@@ -977,8 +1028,9 @@ function App() {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           setArtwork(reader.result)
+          artZoomRef.current = 1
           setZoom(1)
-          setArtPosition({ x: 0, y: 0 })
+          moveArtwork({ x: 0, y: 0 })
           setUploadMessage('')
         }
       }
@@ -1113,8 +1165,9 @@ function App() {
     setStripEnabled(project.stripEnabled ?? true)
     setArtwork(project.artwork)
     setArtworkRatio(project.artworkRatio ?? 4 / 5)
-    setArtPosition(project.artPosition ?? { x: 0, y: 0 })
-    setZoom(project.zoom ?? 1)
+    moveArtwork(project.artPosition ?? { x: 0, y: 0 })
+    artZoomRef.current = project.zoom ?? 1
+    setZoom(artZoomRef.current)
     if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
     if (project.matMargin !== undefined) setMatMargin(project.matMargin)
     if (project.stripThickness !== undefined) setStripThickness(project.stripThickness)
@@ -1127,32 +1180,67 @@ function App() {
     window.location.href = `mailto:hello@virtualartframingstudio.com?subject=${subject}&body=${body}`
   }
 
-  const handleStageWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey) return
+  useEffect(() => {
+    const opening = artworkOpeningRef.current
+    if (!artwork || !opening) return
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1)
+      zoomArtworkAt(artZoomRef.current * Math.exp(-delta * 0.002), { x: event.clientX, y: event.clientY })
+    }
+    opening.addEventListener('wheel', handleWheel, { passive: false })
+    return () => opening.removeEventListener('wheel', handleWheel)
+  }, [artwork, matEnabled])
+
+  const handleArtworkPointerDown = (event: React.PointerEvent<HTMLImageElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
     event.preventDefault()
-    const delta = event.deltaY < 0 ? 0.08 : -0.08
-    setZoom((current) => Math.min(1.25, Math.max(0.8, Number((current + delta).toFixed(2)))))
+    event.stopPropagation()
+    if (pinchGestureRef.current) return
+    setResizeDrag(null)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setArtDrag({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: artPositionRef.current.x,
+      originY: artPositionRef.current.y,
+    })
   }
 
   const handlePinchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length === 2) {
-      const [first, second] = Array.from(event.touches)
-      pinchDistanceRef.current = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+    if (!artwork || event.touches.length !== 2 || !Array.from(event.touches).some(
+      (touch) => touch.target instanceof Node && artworkOpeningRef.current?.contains(touch.target),
+    )) return
+    const [first, second] = Array.from(event.touches)
+    const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+    if (!distance) return
+    pinchGestureRef.current = {
+      distance,
+      zoom: artZoomRef.current,
+      position: artPositionRef.current,
+      focus: { x: (first.clientX + second.clientX) / 2, y: (first.clientY + second.clientY) / 2 },
     }
+    setArtDrag(null)
+    setResizeDrag(null)
   }
 
   const handlePinchMove = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length !== 2 || !pinchDistanceRef.current) return
-    event.preventDefault()
+    const gesture = pinchGestureRef.current
+    if (event.touches.length !== 2 || !gesture) return
     const [first, second] = Array.from(event.touches)
     const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
-    const delta = (distance - pinchDistanceRef.current) / 180
-    setZoom((current) => Number(Math.min(1.25, Math.max(0.8, current + delta)).toFixed(2)))
-    pinchDistanceRef.current = distance
+    zoomArtworkAt(
+      gesture.zoom * distance / gesture.distance,
+      { x: (first.clientX + second.clientX) / 2, y: (first.clientY + second.clientY) / 2 },
+      gesture.zoom,
+      gesture.position,
+      gesture.focus,
+    )
   }
 
   const handlePinchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length < 2) pinchDistanceRef.current = null
+    if (event.touches.length < 2) pinchGestureRef.current = null
   }
 
   return (
@@ -1213,7 +1301,6 @@ function App() {
       <section id="workspace" className="hero-stage">
         <div
           className={`stage-shell stage-${wallTone}`}
-          onWheel={handleStageWheel}
           aria-label="Workspace staging area"
         >
           <input
@@ -1334,6 +1421,7 @@ function App() {
             onTouchStart={handlePinchStart}
             onTouchMove={handlePinchMove}
             onTouchEnd={handlePinchEnd}
+            onTouchCancel={handlePinchEnd}
           >
             <select
               className="standard-size-control"
@@ -1386,8 +1474,8 @@ function App() {
               >
                 M
               </button>
-              <button type="button" className="menu-action" aria-label="Zoom out artwork" onClick={() => setZoom((current) => Number(Math.max(0.7, current - 0.1).toFixed(2)))}>−</button>
-              <button type="button" className="menu-action" aria-label="Zoom in artwork" onClick={() => setZoom((current) => Number(Math.min(1.25, current + 0.1).toFixed(2)))}>+</button>
+              <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
               <button
                 type="button"
                 className="menu-action"
@@ -1408,6 +1496,7 @@ function App() {
               style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: artworkRatio }}
             >
               <div
+                ref={!matEnabled ? artworkOpeningRef : undefined}
                 className="art-preview"
                 style={{
                   borderColor: selectedColor.hex,
@@ -1431,6 +1520,7 @@ function App() {
                 }}
               >
                 <div
+                  ref={artworkOpeningRef}
                   className="mat-cut-edge"
                   style={{
                     borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
@@ -1445,18 +1535,7 @@ function App() {
                       src={artwork}
                       alt="Uploaded artwork preview"
                       style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
-                      onPointerDown={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setResizeDrag(null)
-                        event.currentTarget.setPointerCapture(event.pointerId)
-                        setArtDrag({
-                          startX: event.clientX,
-                          startY: event.clientY,
-                          originX: artPosition.x,
-                          originY: artPosition.y,
-                        })
-                      }}
+                      onPointerDown={handleArtworkPointerDown}
                       onLoad={(event) => {
                         const image = event.currentTarget
                         if (image.naturalWidth && image.naturalHeight) {
@@ -1477,6 +1556,7 @@ function App() {
                 src={artwork}
                 alt="Uploaded artwork preview"
                 style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                onPointerDown={handleArtworkPointerDown}
               />}
               {frameEnabled && <div
                 className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
