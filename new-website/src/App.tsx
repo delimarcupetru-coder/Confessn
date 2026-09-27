@@ -1196,7 +1196,13 @@ function App() {
         const capture = captureRef.current
         if (!capture) throw new Error('Preview unavailable')
         const image = capture.querySelector<HTMLImageElement>('img.uploaded-artwork')
-        if (image) await image.decode()
+        if (image && !image.complete) {
+          await new Promise<void>((resolve, reject) => {
+            image.addEventListener('load', () => resolve(), { once: true })
+            image.addEventListener('error', () => reject(new Error('Artwork could not be loaded')), { once: true })
+          })
+        }
+        if (image && !image.naturalWidth) throw new Error('Artwork could not be loaded')
         await document.fonts.ready
         if (cancelled) return
         const canvas = await html2canvas(capture, { backgroundColor: null, scale: 2, useCORS: true })
