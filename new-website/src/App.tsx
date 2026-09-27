@@ -43,6 +43,16 @@ type Account = {
   projects: ProjectRecord[]
 }
 
+function mergeProfileAccount(local: Account, remote: Account): Account {
+  const localProjectIds = new Set(local.projects.map((project) => project.id))
+  const localFolderIds = new Set(local.folders.map((folder) => folder.id))
+  return {
+    ...remote,
+    folders: [...local.folders, ...remote.folders.filter((folder) => !localFolderIds.has(folder.id))],
+    projects: [...local.projects, ...remote.projects.filter((project) => !localProjectIds.has(project.id))],
+  }
+}
+
 type LocalAuth = {
   email: string
   username: string
@@ -69,6 +79,46 @@ const defaultAccount: Account = {
   folders: [{ id: 'all', name: 'All projects' }],
   activeFolderId: 'all',
   projects: [],
+}
+
+const accountStorageKey = 'virtual-art-framing-studio-account'
+
+function openAccountDatabase() {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('virtual-art-framing-studio-projects', 1)
+    request.onupgradeneeded = () => request.result.createObjectStore('accounts')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function readStoredAccount(): Promise<Account | undefined> {
+  const database = await openAccountDatabase()
+  try {
+    return await new Promise<Account | undefined>((resolve, reject) => {
+      const request = database.transaction('accounts', 'readonly').objectStore('accounts').get('current')
+      request.onsuccess = () => resolve(request.result as Account | undefined)
+      request.onerror = () => reject(request.error)
+    })
+  } finally {
+    database.close()
+  }
+}
+
+async function writeStoredAccount(account: Account) {
+  const database = await openAccountDatabase()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('accounts', 'readwrite')
+      transaction.objectStore('accounts').put(account, 'current')
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+    window.localStorage.removeItem(accountStorageKey)
+  } finally {
+    database.close()
+  }
 }
 
 const translations = {
@@ -659,7 +709,7 @@ function App() {
   const restoringProjectRef = useRef(0)
 
   const [account, setAccount] = useState<Account>(() => {
-    const saved = window.localStorage.getItem('virtual-art-framing-studio-account')
+    const saved = window.localStorage.getItem(accountStorageKey)
     if (saved) {
       try {
         return JSON.parse(saved) as Account
@@ -669,10 +719,24 @@ function App() {
     }
     return defaultAccount
   })
+  const [accountReady, setAccountReady] = useState(false)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
+    let mounted = true
+    void readStoredAccount().then((stored) => {
+      if (mounted && stored) setAccount(stored)
+    }).catch(() => {
+      if (mounted) setSaveMessage('Browser project storage is unavailable.')
+    }).finally(() => {
+      if (mounted) setAccountReady(true)
+    })
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    if (!accountReady) return
     let mounted = true
     const loadSessionProfile = async () => {
       const { data } = await supabase.auth.getSession()
@@ -685,7 +749,7 @@ function App() {
       }
       setAuthUserId(user.id)
       const { data: profile } = await supabase.from('user_profiles').select('account').eq('user_id', user.id).maybeSingle()
-      if (profile?.account) setAccount(profile.account as Account)
+      if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
       setAccount((current) => ({ ...current, name: user.user_metadata.username ?? current.name, email: user.email ?? current.email }))
       setIsLoggedIn(true)
       setAuthReady(true)
@@ -716,7 +780,7 @@ function App() {
       }
       window.setTimeout(() => {
         void supabase.from('user_profiles').select('account').eq('user_id', session.user.id).maybeSingle().then(({ data: profile }) => {
-          if (profile?.account) setAccount(profile.account as Account)
+          if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
           setAuthReady(true)
         })
       }, 0)
@@ -726,7 +790,7 @@ function App() {
       mounted = false
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [accountReady])
 
   const t = translations[language]
 
@@ -989,11 +1053,8 @@ function App() {
   }, [artDrag])
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(account))
-    } catch {
-      setSaveMessage('Browser storage is full. Your recent changes may not be saved.')
-    }
+    if (!accountReady) return
+    void writeStoredAccount(account).catch(() => setSaveMessage('Could not keep your projects in this browser.'))
     const savedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
     if (savedAuth) {
       try {
@@ -1006,7 +1067,7 @@ function App() {
     if (authReady && authUserId) {
       void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() })
     }
-  }, [account, authReady, authUserId])
+  }, [account, accountReady, authReady, authUserId])
 
   const activeFolderProjects = useMemo(() => {
     return account.projects.filter((project) => {
@@ -1067,6 +1128,7 @@ function App() {
   }
 
   const saveProject = () => {
+    if (!accountReady) return
     setSaveError('')
     setShowSaveDialog(true)
   }
@@ -1101,16 +1163,20 @@ function App() {
       projects: [nextProject, ...account.projects],
     }
 
+    const filePromise = artwork ? chooseSaveFile(nextProject) : null
     try {
-      window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
+      await writeStoredAccount(nextAccount)
     } catch {
-      setSaveError('Could not save in this browser. Free up storage or try a smaller artwork.')
+      setSaveError('Could not save in this browser. Check your available device storage.')
       return
     }
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
     setSaveMessage(`Saved in this browser: ${safeFileName}`)
-    if (artwork) void downloadProject(nextProject)
+    if (filePromise) {
+      const handle = await filePromise
+      if (handle !== undefined) beginProjectDownload(nextProject, handle)
+    }
     if (authUserId) {
       try {
         const { error } = await supabase.from('user_profiles').upsert({
@@ -1160,7 +1226,6 @@ function App() {
       ...account,
       projects: account.projects.filter((project) => project.id !== projectId),
     }
-    window.localStorage.setItem('virtual-art-framing-studio-account', JSON.stringify(nextAccount))
     setAccount(() => nextAccount)
     setSelectedProjectId(null)
   }
@@ -1241,20 +1306,30 @@ function App() {
     return () => { cancelled = true }
   }, [pendingDownload, selectedProjectId])
 
-  const downloadProject = async (project: ProjectRecord) => {
+  const chooseSaveFile = async (project: ProjectRecord): Promise<FileSystemFileHandle | null | undefined> => {
     setDownloadMessage('')
     const filename = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
     const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker
     if (picker) {
       try {
-        saveHandleRef.current = await picker.call(window, { suggestedName: filename, types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }] })
+        return await picker.call(window, { suggestedName: filename, types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }] })
       } catch (error) {
         setDownloadMessage((error as DOMException).name === 'AbortError' ? 'File save canceled; project remains in this browser.' : 'Could not open the Save dialog. Please try again.')
-        return
+        return undefined
       }
     }
+    return null
+  }
+
+  const beginProjectDownload = (project: ProjectRecord, handle: FileSystemFileHandle | null) => {
+    saveHandleRef.current = handle
     loadProject(project)
     setPendingDownload(project)
+  }
+
+  const downloadProject = async (project: ProjectRecord) => {
+    const handle = await chooseSaveFile(project)
+    if (handle !== undefined) beginProjectDownload(project, handle)
   }
 
   const sendContactMessage = () => {
@@ -1682,7 +1757,7 @@ function App() {
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
             {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
-            <button type="button" className="workspace-save-button" onClick={saveProject}>
+            <button type="button" className="workspace-save-button" onClick={saveProject} disabled={!accountReady}>
               Save Project
             </button>
           </div>
