@@ -596,6 +596,7 @@ function App() {
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
+  const [downloadMessage, setDownloadMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
@@ -1109,6 +1110,7 @@ function App() {
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
     setSaveMessage(`Saved in this browser: ${safeFileName}`)
+    if (artwork) void downloadProject(nextProject)
     if (authUserId) {
       try {
         const { error } = await supabase.from('user_profiles').upsert({
@@ -1214,7 +1216,7 @@ function App() {
           const writable = await handle.createWritable()
           await writable.write(blob)
           await writable.close()
-          setSaveMessage(`Saved ${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png to your device`)
+          setDownloadMessage(`Saved ${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png to your device`)
           return
         }
         const url = URL.createObjectURL(blob)
@@ -1225,9 +1227,9 @@ function App() {
         link.click()
         link.remove()
         window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-        setSaveMessage(`Download requested: ${link.download}. Check your browser's Downloads.`)
+        setDownloadMessage(`Download requested: ${link.download}. Check your browser's Downloads.`)
       } catch {
-        if (!cancelled) setSaveMessage('Could not save this project to your device. Please try again.')
+        if (!cancelled) setDownloadMessage('Could not save this project to your device. Please try again.')
       } finally {
         if (!cancelled) {
           saveHandleRef.current = null
@@ -1240,13 +1242,14 @@ function App() {
   }, [pendingDownload, selectedProjectId])
 
   const downloadProject = async (project: ProjectRecord) => {
+    setDownloadMessage('')
     const filename = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
     const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker
     if (picker) {
       try {
         saveHandleRef.current = await picker.call(window, { suggestedName: filename, types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }] })
       } catch (error) {
-        if ((error as DOMException).name !== 'AbortError') setSaveMessage('Could not open the Save dialog. Please try again.')
+        setDownloadMessage((error as DOMException).name === 'AbortError' ? 'File save canceled; project remains in this browser.' : 'Could not open the Save dialog. Please try again.')
         return
       }
     }
@@ -1678,6 +1681,7 @@ function App() {
           )}
           <div className="workspace-save-area">
             {saveMessage && <span className="save-message">{saveMessage}</span>}
+            {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
             <button type="button" className="workspace-save-button" onClick={saveProject}>
               Save Project
             </button>
