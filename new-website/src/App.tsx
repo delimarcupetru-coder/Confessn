@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import heic2any from 'heic2any'
+import html2canvas from 'html2canvas'
 import { supabase } from './supabase'
 import './App.css'
 
@@ -596,6 +597,7 @@ function App() {
   const [uploadMessage, setUploadMessage] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -1174,6 +1176,46 @@ function App() {
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  useEffect(() => {
+    if (!pendingDownload || selectedProjectId !== pendingDownload.id) return
+    let cancelled = false
+    const download = async () => {
+      try {
+        const capture = captureRef.current
+        if (!capture) throw new Error('Preview unavailable')
+        const image = capture.querySelector<HTMLImageElement>('img.uploaded-artwork')
+        if (image) await image.decode()
+        await document.fonts.ready
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        if (cancelled) return
+        const canvas = await html2canvas(capture, { backgroundColor: null, scale: 2, useCORS: true })
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+        if (!blob) throw new Error('Image export failed')
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${pendingDownload.name.replace(/[\\/:*?"<>|]+/g, '-')}.png`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+        setSaveMessage(`Downloaded ${link.download}`)
+      } catch {
+        if (!cancelled) setSaveMessage('Could not download this project. Please try again.')
+      } finally {
+        if (!cancelled) setPendingDownload(null)
+      }
+    }
+    void download()
+    return () => { cancelled = true }
+  }, [pendingDownload, selectedProjectId])
+
+  const downloadProject = (project: ProjectRecord) => {
+    loadProject(project)
+    setPendingDownload(project)
+  }
+
   const sendContactMessage = () => {
     const subject = encodeURIComponent(`Framing project inquiry from ${contactName || 'customer'}`)
     const body = encodeURIComponent(contactMessage || 'Hello, I would like to discuss a custom frame order.')
@@ -1660,14 +1702,26 @@ function App() {
                       {project.size} · {project.color}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className="trash-button project-trash-button"
-                    aria-label={`Delete ${project.name}`}
-                    onClick={() => deleteProject(project.id)}
-                  >
-                    🗑
-                  </button>
+                  <div className="project-row-actions">
+                    <button
+                      type="button"
+                      className="trash-button project-download-button"
+                      aria-label={`Download ${project.name}`}
+                      title="Download framed project"
+                      disabled={!project.artwork || pendingDownload !== null}
+                      onClick={() => downloadProject(project)}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="trash-button project-trash-button"
+                      aria-label={`Delete ${project.name}`}
+                      onClick={() => deleteProject(project.id)}
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1238,11 +1238,24 @@
 
 .project-list li {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
+}
+
+.project-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.project-download-button {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+  font-size: 1.3rem;
 }
 
 .folder-bar {
