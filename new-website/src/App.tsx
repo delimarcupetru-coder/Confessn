@@ -539,8 +539,48 @@ const materialOptions: FrameOption[] = [
   { id: 'darkwood', label: 'Dark Wood', description: 'Deep natural grain', icon: '▥' },
   { id: 'stainless', label: 'Stainless Steel', description: 'Cool metallic finish', icon: '▤' },
   { id: 'lightwood', label: 'Light Wood', description: 'Warm natural grain', icon: '▦' },
+  { id: 'blackwood', label: 'Black Wood', description: 'Dark stained natural grain', icon: '▥' },
   { id: 'engravedwood', label: 'Engraved Wood', description: 'Detailed carved grain', icon: '▧' },
 ]
+
+function makeFrameTexture(base: [number, number, number], steel = false) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 128
+  const context = canvas.getContext('2d')!
+  const image = context.createImageData(canvas.width, canvas.height)
+  let seed = 14321
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      const noise = (seed / 4294967296 - 0.5) * (steel ? 10 : 5)
+      const knot = Math.exp(-((x - 156) ** 2 / 1500 + (y - 62) ** 2 / 220))
+      const grainLine = y + 3 * Math.sin(x * 0.025 + y * 0.06) + (y - 62) * knot * 1.4
+      const grain = steel
+        ? 9 * Math.sin(y * 0.055) + 3 * Math.sin(y * 1.8) + noise
+        : 16 * Math.sin(grainLine * 0.23) + 7 * Math.sin(grainLine * 0.72) + 4 * Math.sin(y * 0.06) + noise
+      const index = (y * canvas.width + x) * 4
+      for (let channel = 0; channel < 3; channel++) image.data[index + channel] = Math.max(0, Math.min(255, base[channel] + grain))
+      image.data[index + 3] = 255
+    }
+  }
+  context.putImageData(image, 0, 0)
+  const rotated = document.createElement('canvas')
+  rotated.width = canvas.height
+  rotated.height = canvas.width
+  const rotatedContext = rotated.getContext('2d')!
+  rotatedContext.translate(rotated.width, 0)
+  rotatedContext.rotate(Math.PI / 2)
+  rotatedContext.drawImage(canvas, 0, 0)
+  return { horizontal: canvas.toDataURL('image/png'), vertical: rotated.toDataURL('image/png') }
+}
+
+const frameTextures: Record<string, { horizontal: string; vertical: string }> = {
+  darkwood: makeFrameTexture([81, 48, 33]),
+  lightwood: makeFrameTexture([200, 159, 107]),
+  blackwood: makeFrameTexture([43, 42, 40]),
+  stainless: makeFrameTexture([175, 183, 186], true),
+}
 
 const frameTypeOptions: FrameOption[] = [
   { id: 'floating', label: 'Floating', description: 'Open gap around the mat', icon: '▣' },
@@ -564,6 +604,9 @@ const colorOptions: ColorOption[] = [
 ]
 
 const matColorOptions: ColorOption[] = [
+  { id: 'pearl', name: 'Pearl', hex: '#e1e3de' },
+  { id: 'linen', name: 'Linen', hex: '#e7dfcf' },
+  { id: 'warm-ivory', name: 'Warm Ivory', hex: '#f4e4b8' },
   { id: 'yellow', name: 'Yellow', hex: '#f2d34f' },
   { id: 'light-blue', name: 'Light Blue', hex: '#b9dced' },
   { id: 'sky-blue', name: 'Sky Blue', hex: '#74b9e6' },
@@ -572,7 +615,7 @@ const matColorOptions: ColorOption[] = [
   { id: 'cobalt', name: 'Cobalt', hex: '#3156a3' },
   { id: 'copper-hydroxide-phosphate', name: 'Copper Hydroxide Phosphate', hex: '#70a89b' },
   { id: 'nickel-phosphate-octahydrate', name: 'Nikel Phosphate Octahydrate', hex: '#91a6b5' },
-  { id: 'cristal-zinc-nickel-phosphate', name: 'Cristal Zinc Nickel Phosphate', hex: '#c5d0d4' },
+  { id: 'cristal-zinc-nickel-phosphate', name: 'Crystal Zinc Nickel Phosphate', hex: '#c5d0d4' },
   { id: 'nickel-phosphate', name: 'Nickel Phosphate', hex: '#b6b7ad' },
   { id: 'chromium-phosphate', name: 'Chromium Phosphate', hex: '#76948c' },
 ]
@@ -591,23 +634,31 @@ const galleryItems = [
     title: 'Monochrome Morning',
     image:
       'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=900&q=80',
+    material: 'blackwood', profile: 'modern', frameWidth: 10, matColorId: 'pearl', matSize: 'narrow', matWidth: 8,
+    stripColorId: 'black', stripWidth: 2, details: 'Modern · Black Wood · narrow pearl mat',
   },
   {
     title: 'Coastal Stillness',
     image:
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=900&q=80',
+    material: 'lightwood', profile: 'floating', frameWidth: 12, matColorId: 'light-blue', matSize: 'medium', matWidth: 18,
+    stripColorId: 'blue', stripWidth: 2, details: 'Floating · Light Wood · blue mat',
   },
   {
     title: 'Hunter & Linen',
     image:
       'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=900&q=80',
+    material: 'darkwood', profile: 'studio', frameWidth: 18, matColorId: 'linen', matSize: 'large', matWidth: 26,
+    stripColorId: 'walnut', stripWidth: 3, details: 'Studio · Dark Wood · wide linen mat',
   },
   {
     title: 'Golden Hour',
     image:
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+    material: 'stainless', profile: 'classic', frameWidth: 24, matColorId: 'warm-ivory', matSize: 'medium', matWidth: 12,
+    stripColorId: 'rust', stripWidth: 2, details: 'Classic · Stainless Steel · warm mat',
   },
-]
+] as const
 
 const portfolioIcons = {
   maps: '⌖',
@@ -634,14 +685,14 @@ function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
-  const [selectedStyle, setSelectedStyle] = useState(materialOptions[0].id)
-  const [selectedFrameType, setSelectedFrameType] = useState(frameTypeOptions[0].id)
+  const [selectedStyle, setSelectedStyle] = useState('stainless')
+  const [selectedFrameType, setSelectedFrameType] = useState('modern')
   const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
-  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions[0])
+  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
-  const [artwork, setArtwork] = useState<string | null>(null)
+  const [artwork, setArtwork] = useState<string | null>(galleryItems[3].image)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
@@ -675,7 +726,7 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
-  const [frameThickness, setFrameThickness] = useState(18)
+  const [frameThickness, setFrameThickness] = useState(10)
   const [matMargin, setMatMargin] = useState(14)
   const [stripThickness, setStripThickness] = useState(2)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
@@ -959,7 +1010,7 @@ function App() {
     }
     reader.readAsDataURL(imageBlob)
   }
-  const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedStyle === 'stainless' ? 14 : 18
+  const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
@@ -1255,6 +1306,28 @@ function App() {
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
+    restoringProjectRef.current = 2
+    setSelectedProjectId(null)
+    setSelectedFrameType(item.profile)
+    setSelectedStyle(item.material)
+    setFrameThickness(item.frameWidth)
+    setFrameEnabled(true)
+    setSelectedSize(item.matSize)
+    setMatMargin(item.matWidth)
+    setSelectedMatColor(matColorOptions.find((color) => color.id === item.matColorId)!)
+    setMatEnabled(true)
+    setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
+    setStripThickness(item.stripWidth)
+    setStripEnabled(true)
+    setArtwork(item.image)
+    setArtworkRatio(1)
+    artZoomRef.current = 1
+    setZoom(1)
+    moveArtwork({ x: 0, y: 0 })
+    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   useEffect(() => {
     if (!pendingDownload || selectedProjectId !== pendingDownload.id) return
     let cancelled = false
@@ -1474,14 +1547,14 @@ function App() {
               <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" onClick={() => setFrameEnabled((current) => !current)}>
                 Frame
               </button>
-              <select className="menu-select" aria-label="Frame type" value={selectedFrameType} onChange={(event) => setSelectedFrameType(event.target.value as typeof selectedFrameType)}>
+              <select className="menu-select" aria-label="Frame type" value={selectedFrameType} onChange={(event) => { restoringProjectRef.current = 0; setSelectedFrameType(event.target.value as typeof selectedFrameType) }}>
                 {frameTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
 
             <div className="menu-group">
               <span>Material</span>
-              <select className="menu-select" aria-label="Frame material" value={selectedStyle} onChange={(event) => setSelectedStyle(event.target.value)}>
+              <select className="menu-select" aria-label="Frame material" value={selectedStyle} onChange={(event) => { restoringProjectRef.current = 0; setSelectedStyle(event.target.value) }}>
                 {materialOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
@@ -1490,7 +1563,7 @@ function App() {
               <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle mat" onClick={() => setMatEnabled((current) => !current)}>
                 Mat
               </button>
-              <select className="menu-select" aria-label="Mat size" value={selectedSize} onChange={(event) => setSelectedSize(event.target.value as typeof selectedSize)}>
+              <select className="menu-select" aria-label="Mat size" value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
                 {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
@@ -1719,13 +1792,10 @@ function App() {
               {frameEnabled && <div
                 className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                 style={{
-                  borderColor: selectedColor.hex,
-                  borderWidth: `${frameThickness}px`,
-                  borderImage: selectedStyle === 'engravedwood' ? 'none' : undefined,
-                  boxShadow: selectedStyle === 'engravedwood'
-                    ? 'inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b'
-                    : undefined,
-                }}
+                  '--frame-width': `${frameThickness}px`,
+                  '--frame-texture-horizontal': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].horizontal}")` : undefined,
+                  '--frame-texture-vertical': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].vertical}")` : undefined,
+                } as React.CSSProperties}
                 onPointerDown={(event) => {
                   if (event.pointerType !== 'touch') return
                   event.preventDefault()
@@ -1733,7 +1803,12 @@ function App() {
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                 }}
-              ></div>}
+              >
+                <span className="frame-side frame-side-top" />
+                <span className="frame-side frame-side-right" />
+                <span className="frame-side frame-side-bottom" />
+                <span className="frame-side frame-side-left" />
+              </div>}
               </div>
             </div>
           </div>
@@ -1774,18 +1849,40 @@ function App() {
         </div>
 
         <div className="carousel" aria-label="Completed projects carousel">
-          {galleryItems.map((item) => (
+          {galleryItems.map((item) => {
+            const matColor = matColorOptions.find((color) => color.id === item.matColorId)!
+            const stripColor = stripColorOptions.find((color) => color.id === item.stripColorId)!
+            return (
             <article key={item.title} className="gallery-card">
-              <div className="gallery-frame">
+              <div
+                className={`gallery-frame frame-${item.material} frame-${item.profile}`}
+                style={{
+                  '--frame-width': `${item.frameWidth}px`,
+                  '--frame-texture-horizontal': `url("${frameTextures[item.material].horizontal}")`,
+                  '--frame-texture-vertical': `url("${frameTextures[item.material].vertical}")`,
+                  '--gallery-mat-color': matColor.hex,
+                  '--gallery-mat-width': `${item.matWidth}px`,
+                  '--gallery-strip-color': stripColor.hex,
+                  '--gallery-strip-width': `${item.stripWidth}px`,
+                } as React.CSSProperties}
+              >
                 <div className="gallery-mat">
                   <img src={item.image} alt={item.title} />
+                </div>
+                <div className="frame-shell" aria-hidden="true">
+                  <span className="frame-side frame-side-top" />
+                  <span className="frame-side frame-side-right" />
+                  <span className="frame-side frame-side-bottom" />
+                  <span className="frame-side frame-side-left" />
                 </div>
               </div>
               <div className="gallery-info">
                 <strong>{item.title}</strong>
+                <span>{item.details}</span>
+                <button type="button" className="gallery-use-button" onClick={() => applyGalleryLook(item)} aria-label={`Use ${item.title} look`}>Use this look</button>
               </div>
             </article>
-          ))}
+          )})}
         </div>
       </section>
 

@@ -1076,10 +1076,106 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
-  border-style: solid;
-  border-radius: 0;
+  z-index: 5;
   background: transparent;
+}
+
+.frame-side {
+  position: absolute;
+  display: block;
+  background: #6a4128;
+}
+
+.frame-darkwood,
+.frame-lightwood,
+.frame-blackwood,
+.frame-stainless {
+  --frame-edge-light: rgba(255, 235, 207, 0.3);
+  --frame-edge-dark: rgba(27, 18, 12, 0.4);
+}
+
+.frame-blackwood {
+  --frame-edge-light: rgba(210, 208, 199, 0.22);
+  --frame-edge-dark: rgba(4, 4, 5, 0.55);
+}
+
+.frame-stainless {
+  --frame-edge-light: rgba(255, 255, 255, 0.85);
+  --frame-edge-dark: rgba(28, 43, 51, 0.54);
+}
+
+.frame-darkwood .frame-side,
+.frame-lightwood .frame-side,
+.frame-blackwood .frame-side,
+.frame-stainless .frame-side {
+  background-image: linear-gradient(to bottom, var(--frame-edge-light), transparent 38%, var(--frame-edge-dark)), var(--frame-texture-horizontal);
+  background-size: 100% 100%, 256px 128px;
+}
+
+.frame-darkwood .frame-side-left,
+.frame-darkwood .frame-side-right,
+.frame-lightwood .frame-side-left,
+.frame-lightwood .frame-side-right,
+.frame-blackwood .frame-side-left,
+.frame-blackwood .frame-side-right,
+.frame-stainless .frame-side-left,
+.frame-stainless .frame-side-right {
+  background-image: linear-gradient(to right, var(--frame-edge-light), transparent 38%, var(--frame-edge-dark)), var(--frame-texture-vertical);
+  background-size: 100% 100%, 128px 256px;
+}
+
+.frame-side-top {
+  inset: 0 0 auto;
+  height: var(--frame-width);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--frame-width)) 100%, var(--frame-width) 100%);
+}
+
+.frame-side-right {
+  inset: 0 0 0 auto;
+  width: var(--frame-width);
+  clip-path: polygon(0 var(--frame-width), 100% 0, 100% 100%, 0 calc(100% - var(--frame-width)));
+}
+
+.frame-side-bottom {
+  inset: auto 0 0;
+  height: var(--frame-width);
+  clip-path: polygon(var(--frame-width) 0, calc(100% - var(--frame-width)) 0, 100% 100%, 0 100%);
+}
+
+.frame-side-left {
+  inset: 0 auto 0 0;
+  width: var(--frame-width);
+  clip-path: polygon(0 0, 100% var(--frame-width), 100% calc(100% - var(--frame-width)), 0 100%);
+}
+
+.frame-classic .frame-side::after,
+.frame-studio .frame-side::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.frame-classic .frame-side::after {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 12%, transparent 15%, transparent 37%, rgba(0, 0, 0, 0.28) 40%, rgba(255, 255, 255, 0.23) 48%, transparent 53%, transparent 75%, rgba(0, 0, 0, 0.34) 81%);
+}
+
+.frame-classic .frame-side-left::after,
+.frame-classic .frame-side-right::after {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.2) 12%, transparent 15%, transparent 37%, rgba(0, 0, 0, 0.28) 40%, rgba(255, 255, 255, 0.23) 48%, transparent 53%, transparent 75%, rgba(0, 0, 0, 0.34) 81%);
+}
+
+.frame-studio .frame-side::after {
+  background: linear-gradient(to bottom, transparent 68%, rgba(0, 0, 0, 0.32) 75%, rgba(255, 255, 255, 0.27) 83%, transparent 92%);
+}
+
+.frame-studio .frame-side-left::after,
+.frame-studio .frame-side-right::after {
+  background: linear-gradient(to right, transparent 68%, rgba(0, 0, 0, 0.32) 75%, rgba(255, 255, 255, 0.27) 83%, transparent 92%);
+}
+
+.frame-modern .frame-side {
+  box-shadow: inset 0 0 0 1px rgba(14, 19, 22, 0.22);
 }
 
 @media (pointer: coarse) {
@@ -1087,34 +1183,13 @@
     display: none !important;
   }
 
-  .frame-shell,
+  .frame-side,
   .art-mat {
     pointer-events: auto;
   }
 }
 
-.frame-stainless {
-  border-color: transparent;
-  border-image: none;
-  background: linear-gradient(135deg, #f5f7f8 0%, #8d989f 48%, #e9eef0 100%);
-}
-
-.frame-darkwood {
-  border-color: transparent;
-  border-image: none;
-  background: linear-gradient(135deg, #20120d 0%, #5a3020 48%, #2b1710 100%);
-}
-
-.frame-lightwood {
-  border-color: transparent;
-  border-image: none;
-  background: linear-gradient(135deg, #e0b47d 0%, #a86d3f 48%, #d7a66d 100%);
-}
-
-.frame-engravedwood {
-  border-image: none;
-  border-color: transparent;
-  background: #6a4128;
+.frame-engravedwood .frame-side {
   box-shadow: inset 0 0 0 3px #b27b4d, inset 0 0 0 6px #4a291b;
 }
 
@@ -1170,16 +1245,21 @@
 }
 
 .gallery-frame {
+  position: relative;
   margin: 18px 18px 0;
-  padding: 12px;
-  background: linear-gradient(135deg, #5a3928 0%, #b47a4d 50%, #3d2419 100%);
-  border: 1px solid rgba(255, 226, 184, 0.32);
-  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.28), inset 0 0 0 3px rgba(31, 17, 10, 0.42);
+  padding: var(--frame-width);
+  background: #332a23;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.28);
+}
+
+.gallery-frame.frame-floating {
+  padding: calc(var(--frame-width) + 4px);
+  background: #e8e2d6;
 }
 
 .gallery-mat {
-  padding: 10px;
-  background: #eee7d8;
+  padding: var(--gallery-mat-width);
+  background: var(--gallery-mat-color);
   box-shadow: inset 0 0 0 1px rgba(75, 55, 40, 0.18);
 }
 
@@ -1189,6 +1269,8 @@
   aspect-ratio: 1 / 1;
   height: auto;
   object-fit: cover;
+  box-sizing: border-box;
+  border: var(--gallery-strip-width) solid var(--gallery-strip-color);
 }
 
 .gallery-info {
@@ -1197,6 +1279,25 @@
 
 .gallery-info strong {
   font-size: 1.04rem;
+}
+
+.gallery-info span {
+  display: block;
+  margin-top: 5px;
+  color: #c5c4d7;
+  font-size: 0.78rem;
+}
+
+.gallery-use-button {
+  margin-top: 12px;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: #f2edf3;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
 }
 
 .bottom-grid {
@@ -1501,7 +1602,7 @@
     overflow-x: hidden;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overscroll-behavior-y: auto;
     align-content: flex-start;
   }
 
@@ -1534,6 +1635,11 @@
     min-height: 330px;
     padding: 18px 10px 58px;
     box-sizing: border-box;
+    touch-action: pan-y;
+  }
+
+  .uploaded-artwork {
+    touch-action: pan-y;
   }
 
   .workspace-save-area {
