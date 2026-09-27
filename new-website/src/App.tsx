@@ -1351,9 +1351,38 @@ function App() {
         if (cancelled) return
         const selection = saveHandleRef.current
         const format = selection?.format ?? 'png'
-        const canvas = await html2canvas(capture, { backgroundColor: format === 'jpg' ? '#f7f4ed' : null, scale: 2, useCORS: true })
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92))
-        if (!blob) throw new Error('Image export failed')
+        const canvas = await html2canvas(capture, {
+          backgroundColor: null,
+          scale: 2,
+          useCORS: true,
+          onclone: (documentClone) => {
+            const clone = documentClone.querySelector<HTMLElement>('.art-capture-area')
+            if (clone) clone.style.background = 'transparent'
+          },
+        })
+        const wallX = Math.round(canvas.width * 0.18)
+        const wallY = Math.round(canvas.height * 0.12)
+        const screenshot = document.createElement('canvas')
+        screenshot.width = canvas.width + wallX * 2
+        screenshot.height = canvas.height + wallY * 2
+        const context = screenshot.getContext('2d')
+        if (!context) throw new Error('Screenshot canvas unavailable')
+        const wall = context.createLinearGradient(0, 0, 0, screenshot.height)
+        wall.addColorStop(0, wallTone === 'warm' ? '#fffaf0' : '#ffffff')
+        wall.addColorStop(1, wallTone === 'warm' ? '#f3e7bc' : '#f4f1e8')
+        context.fillStyle = wall
+        context.fillRect(0, 0, screenshot.width, screenshot.height)
+        context.shadowColor = 'rgba(23, 20, 18, 0.25)'
+        context.shadowBlur = 36
+        context.shadowOffsetY = 18
+        context.drawImage(canvas, wallX, wallY)
+        const mime = format === 'jpg' ? 'image/jpeg' : 'image/png'
+        const blob = await new Promise<Blob | null>((resolve) => screenshot.toBlob(resolve, mime, 0.92))
+        if (!blob || blob.type !== mime) throw new Error('Image encoding failed')
+        const signature = new Uint8Array(await blob.slice(0, format === 'jpg' ? 3 : 8).arrayBuffer())
+        if (format === 'jpg' ? signature[0] !== 255 || signature[1] !== 216 || signature[2] !== 255 : signature[0] !== 137 || signature[1] !== 80 || signature[2] !== 78 || signature[3] !== 71) {
+          throw new Error('Image format mismatch')
+        }
         if (cancelled) return
         if (selection?.handle) {
           const writable = await selection.handle.createWritable()
@@ -1382,7 +1411,7 @@ function App() {
     }
     void download()
     return () => { cancelled = true }
-  }, [pendingDownload, selectedProjectId])
+  }, [pendingDownload, selectedProjectId, wallTone])
 
   const chooseSaveFile = async (project: ProjectRecord): Promise<ExportSelection | undefined> => {
     setDownloadMessage('')
