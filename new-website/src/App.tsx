@@ -28,6 +28,7 @@ type ProjectRecord = {
   bottomMatColorId?: string
   stripColorId?: string
   stripEnabled?: boolean
+  frameSizeIndex?: number
   artworkRatio?: number
   zoom?: number
   artPosition?: { x: number; y: number }
@@ -764,6 +765,7 @@ function App() {
   const [standardFrameSizeIndex, setStandardFrameSizeIndex] = useState(
     standardFrameSizes.findIndex((size) => size.width === 8 && size.height === 10),
   )
+  const selectedFrameSize = standardFrameSizes[standardFrameSizeIndex]
   const [showDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
@@ -1032,7 +1034,10 @@ function App() {
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const bottomMatMargin = 12
-  const previewWidth = Math.min(380, 480 * artworkRatio)
+  const previewFrameRatio = selectedFrameType === 'floating'
+    ? frameWidthInches / frameHeightInches
+    : selectedFrameSize.width / selectedFrameSize.height
+  const previewWidth = Math.min(380, 480 * previewFrameRatio)
 
   useEffect(() => {
     if (!autoFitDefaultArtworkRef.current || !artwork) return
@@ -1051,7 +1056,7 @@ function App() {
     artPositionRef.current = { x: 0, y: 0 }
     setArtPosition({ x: 0, y: 0 })
     setZoom(centeredZoom)
-  }, [artwork, artworkRatio, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin])
+  }, [artwork, artworkRatio, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin, previewFrameRatio])
 
   const moveArtwork = (position: { x: number; y: number }) => {
     artPositionRef.current = position
@@ -1242,6 +1247,7 @@ function App() {
       bottomMatColorId: selectedBottomMatColor.id,
       stripColorId: selectedStripColor.id,
       stripEnabled,
+      frameSizeIndex: standardFrameSizeIndex,
       artworkRatio,
       zoom,
       artPosition,
@@ -1329,6 +1335,9 @@ function App() {
     setSelectedFrameType(frameTypeOptions.some((option) => option.id === savedFrameType) ? savedFrameType : 'modern')
     setSelectedStyle(materialOptions.some((option) => option.id === savedMaterial) ? savedMaterial : materialOptions[0].id)
     setSelectedSize(project.size === 'letter' || project.size === 'large' ? 'letter' : 'standard')
+    if (project.frameSizeIndex !== undefined && standardFrameSizes[project.frameSizeIndex]) {
+      setStandardFrameSizeIndex(project.frameSizeIndex)
+    }
     if (matchingColor) setSelectedColor(matchingColor)
     restoringProjectRef.current = 2
     setFrameEnabled(project.frameEnabled ?? true)
@@ -1628,7 +1637,19 @@ function App() {
               <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" onClick={() => setFrameEnabled((current) => !current)}>
                 Frame
               </button>
-              <select className="menu-select" aria-label="Frame type" value={selectedFrameType} onChange={(event) => { restoringProjectRef.current = 0; setSelectedFrameType(event.target.value as typeof selectedFrameType) }}>
+              <select
+                className="menu-select"
+                aria-label="Frame type"
+                value={selectedFrameType}
+                onChange={(event) => {
+                  restoringProjectRef.current = 0
+                  autoFitDefaultArtworkRef.current = true
+                  artZoomRef.current = 1
+                  setZoom(1)
+                  moveArtwork({ x: 0, y: 0 })
+                  setSelectedFrameType(event.target.value as typeof selectedFrameType)
+                }}
+              >
                 {frameTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
@@ -1757,7 +1778,13 @@ function App() {
               aria-label="Change standard frame size"
               title="Change standard frame size"
               value={standardFrameSizeIndex}
-              onChange={(event) => setStandardFrameSizeIndex(Number(event.target.value))}
+              onChange={(event) => {
+                autoFitDefaultArtworkRef.current = true
+                artZoomRef.current = 1
+                setZoom(1)
+                moveArtwork({ x: 0, y: 0 })
+                setStandardFrameSizeIndex(Number(event.target.value))
+              }}
             >
               {frameSizeGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -1799,7 +1826,7 @@ function App() {
             <div
               ref={captureRef}
               className="art-capture-area"
-              style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: artworkRatio }}
+              style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: previewFrameRatio }}
             >
               <div
                 ref={!matEnabled && !bottomMatEnabled ? artworkOpeningRef : undefined}
@@ -1807,7 +1834,7 @@ function App() {
                 style={{
                   borderColor: selectedColor.hex,
                   width: `min(100%, ${previewWidth}px)`,
-                  aspectRatio: artworkRatio,
+                  aspectRatio: previewFrameRatio,
                 }}
               >
                 {(matEnabled || bottomMatEnabled) && (
