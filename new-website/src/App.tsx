@@ -749,6 +749,13 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [cunActive, setCunActive] = useState(false)
+  const [showCunManual, setShowCunManual] = useState(false)
+  const [cunMessage, setCunMessage] = useState({
+    key: 'ready',
+    title: 'Guide mode is ready',
+    description: 'Hover over or focus a highlighted control to see what it does and how to use it.',
+  })
   const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [authUsername, setAuthUsername] = useState('')
@@ -1603,8 +1610,22 @@ function App() {
     if (event.touches.length < 2) pinchGestureRef.current = null
   }
 
+  const updateCunMessage = (target: EventTarget | null) => {
+    if (!cunActive || !(target instanceof Element)) return
+    const control = target.closest<HTMLElement>('[data-cun-title][data-cun]')
+    if (!control) return
+    const title = control.dataset.cunTitle ?? 'Control'
+    const description = control.dataset.cun ?? ''
+    if (!description) return
+    setCunMessage((current) => current.key === title ? current : { key: title, title, description })
+  }
+
   return (
-    <main className="studio-shell">
+    <main
+      className={cunActive ? 'studio-shell cun-guide-active' : 'studio-shell'}
+      onPointerOverCapture={(event) => updateCunMessage(event.target)}
+      onFocusCapture={(event) => updateCunMessage(event.target)}
+    >
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
       <header className="topbar">
         <div className="brand-wrap">
@@ -1613,10 +1634,24 @@ function App() {
         </div>
 
         <nav className="nav">
-          <a href="#workspace">{t.navWork}</a>
-          <a href="#projects">{t.navProjects}</a>
-          <a href="#about">{t.navAbout}</a>
-          <a href="#contact">{t.navContact}</a>
+          <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
+          <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
+          <a
+            href="#confessn-university"
+            className="nav-university-link"
+            aria-controls="cun-notification"
+            aria-expanded={cunActive}
+            data-cun-title="Confessn University"
+            data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
+            onClick={(event) => {
+              event.preventDefault()
+              setCunActive(true)
+              setShowCunManual(false)
+              setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
+            }}
+          >Confessn University</a>
+          <a href="#about" data-cun-title="About" data-cun="Read about Confessn and the framing studio.">{t.navAbout}</a>
+          <a href="#contact" data-cun-title="Contact" data-cun="Use the contact form to send a message to the studio.">{t.navContact}</a>
           <select
             aria-label={t.languages}
             value={language}
@@ -1636,18 +1671,18 @@ function App() {
         <div className="header-actions">
           {isLoggedIn ? (
             <>
-              <button type="button" className="profile-badge" aria-label={`Open account for ${account.name}`} onClick={openAccountDialog}>
+              <button type="button" className="profile-badge" aria-label={`Open account for ${account.name}`} data-cun-title="Account profile" data-cun="Open your account to update the profile name, email, password, or profile photo." onClick={openAccountDialog}>
                 {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>}
                 <span className="profile-name">{account.name}</span>
               </button>
-              <button type="button" className="header-link-button" onClick={logOut}>Log out</button>
+              <button type="button" className="header-link-button" data-cun-title="Log out" data-cun="Sign out of the current account on this device." onClick={logOut}>Log out</button>
             </>
           ) : (
             <>
-              <button type="button" className="header-link-button" onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
+              <button type="button" className="header-link-button" data-cun-title="Log in" data-cun="Open the sign-in form to access an existing account." onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
                 {t.logIn}
               </button>
-              <button type="button" className="primary-button compact-button" onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
+              <button type="button" className="primary-button compact-button" data-cun-title="Create account" data-cun="Create an account to manage your profile and saved framing projects." onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
                 {t.createAccount}
               </button>
             </>
@@ -1657,6 +1692,18 @@ function App() {
           </select>
         </div>
       </header>
+
+      {cunActive && (
+        <aside id="cun-notification" className="cun-notification" aria-label="Confessn University Notification" role="status">
+          <div className="cun-notification-heading">
+            <span>Confessn University Notification</span>
+            <button type="button" aria-label="Close CUN guide mode" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
+          </div>
+          <strong>{cunMessage.title}</strong>
+          <p>{cunMessage.description}</p>
+          <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>Open illustrated manual</button>
+        </aside>
+      )}
 
       <section id="workspace" className="hero-stage">
         <div
@@ -1673,12 +1720,14 @@ function App() {
 
           <div className="workspace-menu-bar">
             <div className="menu-group">
-              <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" onClick={() => setFrameEnabled((current) => !current)}>
+              <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" data-cun-title="Frame on or off" data-cun="Toggle the decorative frame without changing the artwork or mat settings." onClick={() => setFrameEnabled((current) => !current)}>
                 Frame
               </button>
               <select
                 className="menu-select"
                 aria-label="Frame type"
+                data-cun-title="Frame type"
+                data-cun="Choose Classic, Studio, Modern, or Floating to change the frame profile. Floating uses its own fixed dimensions."
                 value={selectedFrameType}
                 onChange={(event) => {
                   restoringProjectRef.current = 0
@@ -1695,16 +1744,16 @@ function App() {
 
             <div className="menu-group">
               <span>Material</span>
-              <select className="menu-select" aria-label="Frame material" value={selectedStyle} onChange={(event) => { restoringProjectRef.current = 0; setSelectedStyle(event.target.value) }}>
+              <select className="menu-select" aria-label="Frame material" data-cun-title="Frame material" data-cun="Choose a material and finish, including wood and stainless options." value={selectedStyle} onChange={(event) => { restoringProjectRef.current = 0; setSelectedStyle(event.target.value) }}>
                 {materialOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
 
             <div className="menu-group">
-              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle top mat" onClick={() => setMatEnabled((current) => !current)}>
+              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle top mat" data-cun-title="Top Mat" data-cun="Turn the outer mat layer on or off. Choose Standard or Letter size and a color beside this control." onClick={() => setMatEnabled((current) => !current)}>
                 Top Mat
               </button>
-              <select className="menu-select" aria-label="Top mat size" value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
+              <select className="menu-select" aria-label="Top mat size" data-cun-title="Top Mat size" data-cun="Choose Standard or Letter to change the outer mat opening size." value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
                 {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
@@ -1715,6 +1764,8 @@ function App() {
                 <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
                 <select
                   aria-label="Top mat color"
+                  data-cun-title="Top Mat color"
+                  data-cun="Choose the color for the outer mat board."
                   value={selectedMatColor.id}
                   onChange={(event) => setSelectedMatColor(matColorOptions.find((color) => color.id === event.target.value) ?? matColorOptions[0])}
                 >
@@ -1729,6 +1780,8 @@ function App() {
                 className={bottomMatEnabled ? 'menu-chip active' : 'menu-chip'}
                 aria-label="Toggle bottom mat"
                 aria-pressed={bottomMatEnabled}
+                data-cun-title="Bottom Mat"
+                data-cun="Turn on the inner mat layer, then choose its color from the menu beside it."
                 onClick={() => setBottomMatEnabled((current) => !current)}
               >
                 Bottom Mat
@@ -1737,6 +1790,8 @@ function App() {
                 <span className="swatch-mini" style={{ background: selectedBottomMatColor.hex }}></span>
                 <select
                   aria-label="Bottom mat color"
+                  data-cun-title="Bottom Mat color"
+                  data-cun="Choose the color for the inner mat. This menu becomes available when Bottom Mat is on."
                   value={selectedBottomMatColor.id}
                   disabled={!bottomMatEnabled}
                   onChange={(event) => setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === event.target.value) ?? bottomMatColorOptions[0])}
@@ -1747,7 +1802,7 @@ function App() {
             </div>
 
             <div className="menu-actions">
-              <button type="button" className="menu-action workspace-upload-action" onClick={openArtworkPicker}>
+              <button type="button" className="menu-action workspace-upload-action" data-cun-title="Upload artwork" data-cun="Choose an image from your device to place it inside the frame. Upload replaces the current artwork." onClick={openArtworkPicker}>
                 Upload
               </button>
               <button
@@ -1755,6 +1810,8 @@ function App() {
                 className={frameOrientation === 'horizontal' ? 'menu-action active' : 'menu-action'}
                 aria-label="Horizontal frame"
                 title="Horizontal frame"
+                data-cun-title="Horizontal orientation"
+                data-cun="Set the artwork orientation to horizontal. The image will remain centered in the mat opening."
                 onClick={() => {
                   setFrameOrientation('horizontal')
                   setArtworkRatio((current) => Math.max(1.35, current >= 1 ? current : 1 / current))
@@ -1767,6 +1824,8 @@ function App() {
                 className={frameOrientation === 'vertical' ? 'menu-action active' : 'menu-action'}
                 aria-label="Vertical frame"
                 title="Vertical frame"
+                data-cun-title="Vertical orientation"
+                data-cun="Set the artwork orientation to vertical. The image will remain centered in the mat opening."
                 onClick={() => {
                   setFrameOrientation('vertical')
                   setArtworkRatio((current) => Math.min(0.75, current <= 1 ? current : 1 / current))
@@ -1780,6 +1839,8 @@ function App() {
                 aria-label="Mat Offcut"
                 aria-pressed={stripEnabled}
                 title="Mat Offcut"
+                data-cun-title="Mat Offcut"
+                data-cun="Toggle the narrow accent strip where the outer and inner mat layers meet. Choose its color from the adjacent menu."
                 onClick={() => setStripEnabled((current) => !current)}
               >
                 Mat Offcut
@@ -1788,6 +1849,8 @@ function App() {
                 <span className="swatch-mini" style={{ background: selectedStripColor.hex }}></span>
                 <select
                   aria-label="Strip color"
+                  data-cun-title="Mat Offcut color"
+                  data-cun="Choose the accent color for the Mat Offcut strip."
                   value={selectedStripColor.id}
                   onChange={(event) => setSelectedStripColor(stripColorOptions.find((color) => color.id === event.target.value) ?? stripColorOptions[0])}
                 >
@@ -1797,6 +1860,8 @@ function App() {
               <button
                 type="button"
                 className={wallTone === 'white' ? 'menu-action active' : 'menu-action'}
+                data-cun-title="Wall"
+                data-cun="Set the preview wall to the white tone. This changes the display background, not the frame or artwork."
                 onClick={() => setWallTone('white')}
               >
                 Wall
@@ -1804,6 +1869,8 @@ function App() {
               <button
                 type="button"
                 className={wallTone === 'warm' ? 'menu-action active' : 'menu-action'}
+                data-cun-title="Light wall"
+                data-cun="Set the preview wall to the warm light tone. This changes the display background, not the frame or artwork."
                 onClick={() => setWallTone('warm')}
               >
                 Light
@@ -1816,6 +1883,8 @@ function App() {
               disabled={selectedFrameType === 'floating'}
               aria-label="Change standard frame size"
               title="Change standard frame size"
+              data-cun-title="Frame size"
+              data-cun="Choose a physical frame size from the Small, Medium, Large, or Square groups. Floating frames use their fixed size instead."
               value={standardFrameSizeIndex}
               onChange={(event) => {
                 autoFitDefaultArtworkRef.current = true
@@ -1839,7 +1908,7 @@ function App() {
               ))}
             </select>
 
-            <button type="button" className="gallery-center-button workspace-upload-action" onClick={openArtworkPicker}>
+            <button type="button" className="gallery-center-button workspace-upload-action" data-cun-title="Replace artwork" data-cun="Choose another image from your device. Your frame and mat selections stay in place." onClick={openArtworkPicker}>
               {artwork ? 'Replace artwork' : 'Upload artwork'}
             </button>
             {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
@@ -1849,7 +1918,7 @@ function App() {
             <div className="workspace-save-area">
               {saveMessage && <span className="save-message">{saveMessage}</span>}
               {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
-              <button type="button" className="workspace-save-button" onClick={saveProject} disabled={!accountReady}>
+              <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, choose a folder and PNG or JPG, then save the editable project and framed image." onClick={saveProject} disabled={!accountReady}>
                 Save Project
               </button>
             </div>
@@ -2004,6 +2073,8 @@ function App() {
                 className="menu-action"
                 aria-label="Adjust frame thickness"
                 title="Drag F to adjust frame thickness"
+                data-cun-title="F · Frame thickness"
+                data-cun="Press and drag this control vertically. Drag up to make the frame thicker; drag down to make it thinner."
                 onPointerDown={(event) => {
                   event.preventDefault()
                   event.currentTarget.setPointerCapture(event.pointerId)
@@ -2015,19 +2086,23 @@ function App() {
                 className="menu-action"
                 aria-label="Adjust mat size"
                 title="Drag M to adjust mat size"
+                data-cun-title="M · Mat width"
+                data-cun="Press and drag this control vertically. Drag up to widen the mat; drag down to narrow it."
                 onPointerDown={(event) => {
                   event.preventDefault()
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
               >M</button>
-              <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
-              <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
+              <button type="button" className="menu-action" aria-label="Zoom out artwork" data-cun-title="Zoom out" data-cun="Reduce the artwork zoom one step. Zoom cannot go below the cover size, so the mat opening stays filled." disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" data-cun-title="Zoom in" data-cun="Enlarge the artwork one step. Drag the image to reposition it within the mat opening." disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
               <button
                 type="button"
                 className="menu-action"
                 aria-label="Adjust strip size"
                 title="Drag S to adjust strip thickness"
+                data-cun-title="S · Offcut width"
+                data-cun="Press and drag this control vertically. Drag up to widen the Mat Offcut; drag down to narrow it."
                 onPointerDown={(event) => {
                   event.preventDefault()
                   event.currentTarget.setPointerCapture(event.pointerId)
@@ -2085,7 +2160,7 @@ function App() {
               <div className="gallery-info">
                 <strong>{item.title}</strong>
                 <span>{item.details}</span>
-                <button type="button" className="gallery-use-button" onClick={() => applyGalleryLook(item)} aria-label={`Use ${item.title} look`}>Use this look</button>
+                <button type="button" className="gallery-use-button" onClick={() => applyGalleryLook(item)} aria-label={`Use ${item.title} look`} data-cun-title={`Use ${item.title} look`} data-cun="Load this example artwork and its matching frame and mat settings into the workspace.">Use this look</button>
               </div>
             </article>
           )})}
@@ -2096,14 +2171,14 @@ function App() {
         <div className="project-list panel-block">
           <div className="saved-projects-heading">
             <h3>{t.savedProjects}</h3>
-            <button type="button" className="folder-plus-button" aria-label="Create folder" title="Create folder" onClick={() => setShowFolderDialog(true)}>+</button>
+            <button type="button" className="folder-plus-button" aria-label="Create folder" title="Create folder" data-cun-title="Create project folder" data-cun="Create a folder to organize saved framing projects." onClick={() => setShowFolderDialog(true)}>+</button>
           </div>
           <div className="folder-bar">
-            <select value={account.activeFolderId} onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })} aria-label="Project folder">
+            <select value={account.activeFolderId} onChange={(event) => setAccount({ ...account, activeFolderId: event.target.value })} aria-label="Project folder" data-cun-title="Project folder filter" data-cun="Choose which folder's saved projects to display.">
               {account.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
-            <button type="button" className="menu-action" onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
-            <button type="button" className="menu-action" onClick={deleteActiveFolder} disabled={account.activeFolderId === 'all'}>Delete</button>
+            <button type="button" className="menu-action" data-cun-title="Rename folder" data-cun="Rename the currently selected project folder." onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
+            <button type="button" className="menu-action" data-cun-title="Delete folder" data-cun="Delete the selected folder." onClick={deleteActiveFolder} disabled={account.activeFolderId === 'all'}>Delete</button>
           </div>
           {activeFolderProjects.length === 0 ? (
             <p>{t.noProjects}</p>
@@ -2114,6 +2189,8 @@ function App() {
                   <button
                     type="button"
                     className="project-select-button"
+                    data-cun-title={`Open ${project.name}`}
+                    data-cun="Select this saved project to restore its artwork, frame, and mat settings in the workspace."
                     onClick={() => loadProject(project)}
                   >
                     {project.artwork && <img className="saved-project-thumb" src={project.artwork} alt="" />}
@@ -2128,6 +2205,8 @@ function App() {
                       className="trash-button project-download-button"
                       aria-label={`Download ${project.name}`}
                       title="Download framed project"
+                      data-cun-title={`Download ${project.name}`}
+                      data-cun="Download this project's framed artwork image."
                       disabled={!project.artwork || pendingDownload !== null}
                       onClick={() => void downloadProject(project)}
                     >
@@ -2137,6 +2216,8 @@ function App() {
                       type="button"
                       className="trash-button project-trash-button"
                       aria-label={`Delete ${project.name}`}
+                      data-cun-title={`Delete ${project.name}`}
+                      data-cun="Remove this saved project from the project list."
                       onClick={() => deleteProject(project.id)}
                     >
                       🗑
@@ -2187,11 +2268,93 @@ function App() {
             onChange={(event) => setContactMessage(event.target.value)}
             placeholder={t.placeholder}
           />
-          <button type="button" className="primary-button" onClick={sendContactMessage}>
+          <button type="button" className="primary-button" data-cun-title="Send message" data-cun="Send the contact form message to the studio." onClick={sendContactMessage}>
             {t.send}
           </button>
         </div>
       </section>
+
+      {showCunManual && (
+        <div className="dialog-overlay university-overlay" onClick={() => setShowCunManual(false)}>
+          <section
+            className="dialog-box university-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cun-manual-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="dialog-header university-header">
+              <div>
+                <p className="university-eyebrow">Confessn University</p>
+                <h2 id="cun-manual-title">Framing Manual</h2>
+              </div>
+              <button type="button" aria-label="Close framing manual" onClick={() => setShowCunManual(false)}>×</button>
+            </div>
+            <p className="university-intro">Use the guide mode to identify any control. This manual covers the complete framing workflow.</p>
+
+            <div className="university-diagrams">
+              <div className="university-frame-diagram" role="img" aria-label="Frame, outer top mat, colored offcut, inner bottom mat, and artwork layers">
+                <div className="university-diagram-top-mat">
+                  <div className="university-diagram-offcut">
+                    <div className="university-diagram-bottom-mat">
+                      <div className="university-diagram-art">ART</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="university-layer-labels">
+                <span><i className="layer-swatch layer-frame" />Frame</span>
+                <span><i className="layer-swatch layer-top-mat" />Top Mat · outer</span>
+                <span><i className="layer-swatch layer-offcut" />Mat Offcut</span>
+                <span><i className="layer-swatch layer-bottom-mat" />Bottom Mat · inner</span>
+                <span><i className="layer-swatch layer-art" />Artwork</span>
+              </div>
+              <div className="university-gesture-guide" aria-label="Drag adjustment controls">
+                <div><kbd>F</kbd><span>Frame width</span></div>
+                <div><kbd>M</kbd><span>Mat width</span></div>
+                <div><kbd>S</kbd><span>Offcut width</span></div>
+                <p>Press and drag up to increase; drag down to decrease.</p>
+              </div>
+            </div>
+
+            <div className="university-manual-grid">
+              <section className="university-guide-section">
+                <h3>Start with artwork</h3>
+                <p>Choose <strong>Upload</strong> or <strong>Replace artwork</strong> to select an image from your device. From the gallery, select <strong>Use this look</strong> to load an example and its matching frame settings.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Choose frame</h3>
+                <p>Toggle <strong>Frame</strong> on or off. Choose Classic, Studio, Modern, or Floating, then choose a material. Use the size menu to select Small, Medium, Large, or Square dimensions; Floating uses its own dimensions.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Layer the mats</h3>
+                <p><strong>Top Mat</strong> is the outer layer. Choose Standard or Letter and a color. Enable <strong>Bottom Mat</strong> to add an inner layer and choose its color. <strong>Mat Offcut</strong> toggles the accent at the boundary between the mats; its adjacent menu changes the accent color.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Position and zoom</h3>
+                <p>Drag the artwork to reposition it. Use <strong>−</strong> and <strong>+</strong> to zoom with a mouse, or drag with one finger and pinch with two on a touch screen. The image covers the mat opening; zoom cannot go below the cover size.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Adjust the frame and mats</h3>
+                <p>Press and drag <strong>F</strong> for frame thickness, <strong>M</strong> for mat width, or <strong>S</strong> for offcut width. Drag upward to increase a value and downward to decrease it.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Set orientation and wall</h3>
+                <p>Choose <strong>↔</strong> for horizontal or <strong>↕</strong> for vertical artwork. <strong>Wall</strong> and <strong>Light</strong> choose the preview wall tone behind the frame.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Save and continue later</h3>
+                <p>Select <strong>Save Project</strong>, enter a name, choose a folder and PNG or JPG, then save. The editable project is kept in this browser and the framed artwork can be downloaded. In <strong>Projects</strong>, select an item to reopen it, use the down arrow to download, or the trash button to delete. Folder controls organize saved work.</p>
+              </section>
+            </div>
+
+            <div className="university-footer">
+              <span>Hover over or focus any control with guide mode on for a specific tip.</span>
+              <button type="button" className="primary-button" onClick={() => setShowCunManual(false)}>Back to guide</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {authMode && (
         <div className="dialog-overlay" onClick={() => setAuthMode(null)}>
