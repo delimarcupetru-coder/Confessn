@@ -701,13 +701,13 @@ function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
-  const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
+  const [bottomMatEnabled, setBottomMatEnabled] = useState(true)
   const [selectedStyle, setSelectedStyle] = useState('stainless')
-  const [selectedFrameType, setSelectedFrameType] = useState('modern')
-  const [selectedSize, setSelectedSize] = useState(sizeOptions[0].id)
+  const [selectedFrameType, setSelectedFrameType] = useState('studio')
+  const [selectedSize, setSelectedSize] = useState('letter')
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
-  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'burgundy')!)
+  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'warm-tan')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(galleryItems[3].image)
@@ -745,8 +745,8 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
-  const [frameThickness, setFrameThickness] = useState(10)
-  const [matMargin, setMatMargin] = useState(14)
+  const [frameThickness, setFrameThickness] = useState(14)
+  const [matMargin, setMatMargin] = useState(22)
   const [stripThickness, setStripThickness] = useState(2)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
   const [artDrag, setArtDrag] = useState<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
@@ -776,6 +776,7 @@ function App() {
   const pinchGestureRef = useRef<PinchGesture | null>(null)
   const artZoomRef = useRef(zoom)
   const artPositionRef = useRef(artPosition)
+  const autoFitDefaultArtworkRef = useRef(true)
   const restoringProjectRef = useRef(0)
 
   const [account, setAccount] = useState<Account>(() => {
@@ -1035,6 +1036,25 @@ function App() {
   const bottomMatMargin = 12
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
+  useEffect(() => {
+    if (!autoFitDefaultArtworkRef.current || !artwork) return
+    const opening = artworkOpeningRef.current
+    const image = opening?.querySelector<HTMLImageElement>('img.uploaded-artwork')
+    if (!opening || !image?.naturalWidth || !image.naturalHeight) return
+    const imageRatio = image.naturalWidth / image.naturalHeight
+    if (Math.abs(artworkRatio - imageRatio) > 0.001) return
+    const openingBounds = opening.getBoundingClientRect()
+    if (!openingBounds.width || !openingBounds.height) return
+    const openingRatio = openingBounds.width / openingBounds.height
+    const coverScale = Math.max(imageRatio / openingRatio, openingRatio / imageRatio)
+    const centeredZoom = Math.min(maxArtZoom, Math.max(minArtZoom, coverScale * 1.03))
+    autoFitDefaultArtworkRef.current = false
+    artZoomRef.current = centeredZoom
+    artPositionRef.current = { x: 0, y: 0 }
+    setArtPosition({ x: 0, y: 0 })
+    setZoom(centeredZoom)
+  }, [artwork, artworkRatio, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin])
+
   const moveArtwork = (position: { x: number; y: number }) => {
     artPositionRef.current = position
     setArtPosition(position)
@@ -1168,6 +1188,7 @@ function App() {
       const reader = new FileReader()
       reader.onload = () => {
         if (typeof reader.result === 'string') {
+          autoFitDefaultArtworkRef.current = false
           setArtwork(reader.result)
           artZoomRef.current = 1
           setZoom(1)
@@ -1319,6 +1340,7 @@ function App() {
     if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
+    autoFitDefaultArtworkRef.current = false
     setArtwork(project.artwork)
     setArtworkRatio(project.artworkRatio ?? 4 / 5)
     moveArtwork(project.artPosition ?? { x: 0, y: 0 })
@@ -1333,6 +1355,7 @@ function App() {
   const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
     restoringProjectRef.current = 2
     setSelectedProjectId(null)
+    autoFitDefaultArtworkRef.current = false
     setSelectedFrameType(item.profile)
     setSelectedStyle(item.material)
     setFrameThickness(item.frameWidth)
