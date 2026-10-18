@@ -754,18 +754,16 @@ function App() {
   const [artHeightInches, setArtHeightInches] = useState(15)
   const [frameWidthInches] = useState(16)
   const [frameHeightInches] = useState(20)
-  const standardFrameSizes = [
-    { width: 8, height: 10 },
-    { width: 11, height: 14 },
-    { width: 12, height: 16 },
-    { width: 16, height: 20 },
-    { width: 18, height: 24 },
-    { width: 20, height: 24 },
-    { width: 24, height: 30 },
-    { width: 24, height: 36 },
-    { width: 30, height: 40 },
+  const frameSizeGroups = [
+    { label: 'Small', sizes: [{ width: 4, height: 6 }, { width: 5, height: 7 }, { width: 8, height: 10 }] },
+    { label: 'Medium', sizes: [{ width: 11, height: 14 }, { width: 12, height: 16 }, { width: 14, height: 18 }, { width: 16, height: 20 }] },
+    { label: 'Large', sizes: [{ width: 18, height: 24 }, { width: 20, height: 24 }, { width: 20, height: 30 }, { width: 24, height: 36 }, { width: 30, height: 40 }] },
+    { label: 'Square', sizes: [8, 10, 12, 16, 20, 24, 30].map((size) => ({ width: size, height: size })) },
   ]
-  const [standardFrameSizeIndex, setStandardFrameSizeIndex] = useState(0)
+  const standardFrameSizes = frameSizeGroups.flatMap((group) => group.sizes)
+  const [standardFrameSizeIndex, setStandardFrameSizeIndex] = useState(
+    standardFrameSizes.findIndex((size) => size.width === 8 && size.height === 10),
+  )
   const [showDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
@@ -1761,10 +1759,17 @@ function App() {
               value={standardFrameSizeIndex}
               onChange={(event) => setStandardFrameSizeIndex(Number(event.target.value))}
             >
-              {standardFrameSizes.map((size, index) => (
-                <option key={`${size.width}x${size.height}`} value={index}>
-                  {size.width.toFixed(2)} in × {size.height.toFixed(2)} in
-                </option>
+              {frameSizeGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.sizes.map((size) => {
+                    const index = standardFrameSizes.indexOf(size)
+                    return (
+                      <option key={`${size.width}x${size.height}`} value={index}>
+                        {size.width.toFixed(2)} in × {size.height.toFixed(2)} in
+                      </option>
+                    )
+                  })}
+                </optgroup>
               ))}
             </select>
 
