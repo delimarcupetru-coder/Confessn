@@ -593,9 +593,8 @@ const frameTypeOptions: FrameOption[] = [
 ]
 
 const sizeOptions = [
-  { id: 'narrow', label: 'Narrow', description: 'Slim, delicate finish', icon: '▎' },
-  { id: 'medium', label: 'Medium', description: 'Balanced and versatile', icon: '▭' },
-  { id: 'large', label: 'Large', description: 'Bold statement borders', icon: '▮' },
+  { id: 'standard', label: 'Standard', description: 'Standard mat opening', icon: '▭' },
+  { id: 'letter', label: 'Letter', description: 'Letter-size mat opening', icon: '▮' },
 ]
 
 const colorOptions: ColorOption[] = [
@@ -637,28 +636,28 @@ const galleryItems = [
     title: 'Monochrome Morning',
     image:
       'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=900&q=80',
-    material: 'blackwood', profile: 'modern', frameWidth: 10, matColorId: 'pearl', matSize: 'narrow', matWidth: 8,
-    stripColorId: 'black', stripWidth: 2, details: 'Modern · Black Wood · narrow pearl mat',
+    material: 'blackwood', profile: 'modern', frameWidth: 10, matColorId: 'pearl', matSize: 'standard', matWidth: 8,
+    stripColorId: 'black', stripWidth: 2, details: 'Modern · Black Wood · standard pearl mat',
   },
   {
     title: 'Coastal Stillness',
     image:
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=900&q=80',
-    material: 'lightwood', profile: 'floating', frameWidth: 12, matColorId: 'light-blue', matSize: 'medium', matWidth: 18,
+    material: 'lightwood', profile: 'floating', frameWidth: 12, matColorId: 'light-blue', matSize: 'standard', matWidth: 18,
     stripColorId: 'blue', stripWidth: 2, details: 'Floating · Light Wood · blue mat',
   },
   {
     title: 'Hunter & Linen',
     image:
       'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=900&q=80',
-    material: 'darkwood', profile: 'studio', frameWidth: 18, matColorId: 'linen', matSize: 'large', matWidth: 26,
-    stripColorId: 'walnut', stripWidth: 3, details: 'Studio · Dark Wood · wide linen mat',
+    material: 'darkwood', profile: 'studio', frameWidth: 18, matColorId: 'linen', matSize: 'letter', matWidth: 26,
+    stripColorId: 'walnut', stripWidth: 3, details: 'Studio · Dark Wood · letter linen mat',
   },
   {
     title: 'Golden Hour',
     image:
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
-    material: 'stainless', profile: 'classic', frameWidth: 24, matColorId: 'warm-ivory', matSize: 'medium', matWidth: 12,
+    material: 'stainless', profile: 'classic', frameWidth: 24, matColorId: 'warm-ivory', matSize: 'standard', matWidth: 12,
     stripColorId: 'rust', stripWidth: 2, details: 'Classic · Stainless Steel · warm mat',
   },
 ] as const
@@ -690,7 +689,7 @@ function App() {
   const [matEnabled, setMatEnabled] = useState(true)
   const [selectedStyle, setSelectedStyle] = useState('stainless')
   const [selectedFrameType, setSelectedFrameType] = useState('modern')
-  const [selectedSize, setSelectedSize] = useState(sizeOptions[1].id)
+  const [selectedSize, setSelectedSize] = useState(sizeOptions[0].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
@@ -1016,7 +1015,7 @@ function App() {
   }
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
-  const defaultMatMargin = selectedSize === 'narrow' ? 8 : selectedSize === 'medium' ? 14 : 22
+  const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   const moveArtwork = (position: { x: number; y: number }) => {
@@ -1291,7 +1290,7 @@ function App() {
     setSelectedProjectId(project.id)
     setSelectedFrameType(frameTypeOptions.some((option) => option.id === savedFrameType) ? savedFrameType : 'modern')
     setSelectedStyle(materialOptions.some((option) => option.id === savedMaterial) ? savedMaterial : materialOptions[0].id)
-    setSelectedSize(project.size as typeof selectedSize)
+    setSelectedSize(project.size === 'letter' || project.size === 'large' ? 'letter' : 'standard')
     if (matchingColor) setSelectedColor(matchingColor)
     restoringProjectRef.current = 2
     setFrameEnabled(project.frameEnabled ?? true)
@@ -1938,7 +1937,7 @@ function App() {
                     {project.artwork && <img className="saved-project-thumb" src={project.artwork} alt="" />}
                     <strong>{project.name}</strong>
                     <span>
-                      {project.size} · {project.color}
+                      {project.size === 'letter' || project.size === 'large' ? 'Letter' : 'Standard'} · {project.color}
                     </span>
                   </button>
                   <div className="project-row-actions">
