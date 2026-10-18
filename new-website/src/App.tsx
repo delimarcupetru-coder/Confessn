@@ -1035,7 +1035,6 @@ function App() {
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const bottomMatMargin = 12
-  const visibleBottomMatMargin = bottomMatEnabled && (!matEnabled || bottomMatRevealEnabled) ? bottomMatMargin : 0
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   const moveArtwork = (position: { x: number; y: number }) => {
@@ -1848,8 +1847,16 @@ function App() {
                     className="mat-stack"
                     style={{
                       inset: `${frameThickness + frameGap}px`,
-                      padding: `${visibleBottomMatMargin}px`,
-                      background: bottomMatEnabled ? selectedBottomMatColor.hex : 'transparent',
+                      padding: `${matMargin}px`,
+                      background: matEnabled ? selectedMatColor.hex : selectedBottomMatColor.hex,
+                      pointerEvents: 'auto',
+                    }}
+                    onPointerDown={(event) => {
+                      if (event.pointerType !== 'touch') return
+                      event.preventDefault()
+                      event.stopPropagation()
+                      event.currentTarget.setPointerCapture(event.pointerId)
+                      setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                     }}
                   >
                     {matEnabled ? (
@@ -1861,15 +1868,8 @@ function App() {
                           width: '100%',
                           height: '100%',
                           boxSizing: 'border-box',
-                          padding: `${matMargin}px`,
-                          background: selectedMatColor.hex,
-                        }}
-                        onPointerDown={(event) => {
-                          if (event.pointerType !== 'touch') return
-                          event.preventDefault()
-                          event.stopPropagation()
-                          event.currentTarget.setPointerCapture(event.pointerId)
-                          setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                          padding: bottomMatEnabled && bottomMatRevealEnabled ? `${bottomMatMargin}px` : 0,
+                          background: bottomMatEnabled && bottomMatRevealEnabled ? selectedBottomMatColor.hex : 'transparent',
                         }}
                       >
                         <div
@@ -1879,6 +1879,7 @@ function App() {
                             borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
                             borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
                             boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
+                            background: bottomMatEnabled && bottomMatRevealEnabled ? selectedBottomMatColor.hex : selectedMatColor.hex,
                           }}
                         >
                           {artwork ? (
