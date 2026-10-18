@@ -1684,15 +1684,7 @@ function App() {
                 Light
               </button>
             </div>
-          </div>
 
-          <div
-            className="workspace-canvas"
-            onTouchStart={handlePinchStart}
-            onTouchMove={handlePinchMove}
-            onTouchEnd={handlePinchEnd}
-            onTouchCancel={handlePinchEnd}
-          >
             <select
               className="standard-size-control"
               data-screenshot-ignore
@@ -1708,11 +1700,8 @@ function App() {
                 </option>
               ))}
             </select>
-            <div
-              className="workspace-corner-tools"
-              data-screenshot-ignore
-              style={{ right: `calc(50% - ${(previewWidth + 48) / 2}px)`, bottom: '-48px' }}
-            >
+
+            <div className="workspace-corner-tools" data-screenshot-ignore>
               <button
                 type="button"
                 className="menu-action"
@@ -1723,9 +1712,7 @@ function App() {
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                 }}
-              >
-                F
-              </button>
+              >F</button>
               <button
                 type="button"
                 className="menu-action"
@@ -1737,13 +1724,8 @@ function App() {
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
-                onClick={() => {
-                  const step = 4
-                  setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + step)))
-                }}
-              >
-                M
-              </button>
+                onClick={() => setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + 4)))}
+              >M</button>
               <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
               <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
               <button
@@ -1756,10 +1738,32 @@ function App() {
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
                 }}
-              >
-                S
+              >S</button>
+            </div>
+
+            <button type="button" className="gallery-center-button" onClick={openArtworkPicker}>
+              {artwork ? 'Replace artwork' : 'Upload artwork'}
+            </button>
+            {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
+            <div className="workspace-scale" aria-label="Frame size">
+              {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(2)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(2)} in
+            </div>
+            <div className="workspace-save-area">
+              {saveMessage && <span className="save-message">{saveMessage}</span>}
+              {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
+              <button type="button" className="workspace-save-button" onClick={saveProject} disabled={!accountReady}>
+                Save Project
               </button>
             </div>
+          </div>
+
+          <div
+            className="workspace-canvas"
+            onTouchStart={handlePinchStart}
+            onTouchMove={handlePinchMove}
+            onTouchEnd={handlePinchEnd}
+            onTouchCancel={handlePinchEnd}
+          >
             <div
               ref={captureRef}
               className="art-capture-area"
@@ -1851,30 +1855,12 @@ function App() {
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            className="gallery-center-button"
-            onClick={openArtworkPicker}
-          >
-            {artwork ? 'Replace artwork' : 'Upload artwork'}
-          </button>
-          {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
-          <div className="workspace-scale" aria-label="Frame size">
-            {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(2)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(2)} in
-          </div>
           {showDimensions && (
             <div className="workspace-dimensions" aria-label="Artwork dimensions">
               <span className="dimension-width">{artWidthInches.toFixed(1)} in</span>
               <span className="dimension-height">{artHeightInches.toFixed(1)} in</span>
             </div>
           )}
-          <div className="workspace-save-area">
-            {saveMessage && <span className="save-message">{saveMessage}</span>}
-            {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
-            <button type="button" className="workspace-save-button" onClick={saveProject} disabled={!accountReady}>
-              Save Project
-            </button>
-          </div>
         </div>
 
       </section>

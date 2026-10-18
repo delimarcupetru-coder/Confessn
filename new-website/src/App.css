@@ -1700,3 +1700,250 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep workspace controls together in a compact left rail. */
+.stage-shell {
+  width: min(100%, 1080px);
+  aspect-ratio: auto;
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: 204px minmax(0, 1fr);
+}
+
+.workspace-menu-bar {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  width: auto;
+  max-height: 620px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 0;
+  border-width: 0 1px 0 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.workspace-menu-bar .menu-group,
+.workspace-menu-bar .menu-group.compact-group {
+  width: 100%;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 0 0 8px;
+  border-right: 0;
+  border-bottom: 1px solid rgba(17, 17, 24, 0.1);
+}
+
+.workspace-menu-bar .menu-group span {
+  font-size: 0.6rem;
+}
+
+.workspace-menu-bar .menu-select,
+.workspace-menu-bar .color-picker,
+.workspace-menu-bar .color-picker select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.workspace-menu-bar > .workspace-save-area {
+  align-self: stretch;
+  width: 100%;
+}
+
+.workspace-menu-bar .workspace-save-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.workspace-menu-bar .color-picker {
+  justify-content: flex-start;
+}
+
+.workspace-menu-bar .color-picker select {
+  flex: 1;
+}
+
+.menu-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  margin: 0;
+}
+
+.menu-actions .color-picker {
+  display: flex;
+  width: 100%;
+}
+
+.workspace-canvas {
+  position: relative;
+  inset: auto;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 620px;
+  padding: 48px 14px 58px;
+  box-sizing: border-box;
+}
+
+.standard-size-control,
+.workspace-corner-tools,
+.gallery-center-button,
+.upload-message,
+.workspace-scale,
+.workspace-save-area {
+  position: relative;
+  inset: auto;
+  transform: none;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.standard-size-control {
+  height: auto;
+  min-height: 34px;
+}
+
+.workspace-corner-tools {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-corner-tools .menu-action,
+.gallery-center-button,
+.workspace-save-button {
+  width: 100%;
+  min-height: 36px;
+}
+
+.gallery-center-button {
+  box-shadow: none;
+}
+
+.upload-message {
+  display: block;
+  color: #7f1d1d;
+}
+
+.workspace-scale {
+  color: #4b453d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.workspace-save-area {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+@media (max-width: 620px) {
+  .hero-stage {
+    padding: 12px 0 16px;
+  }
+
+  .stage-shell {
+    width: 100%;
+    height: min(520px, calc(100svh - 180px));
+    min-height: 420px;
+    grid-template-columns: 120px minmax(0, 1fr);
+    border-radius: 0;
+  }
+
+  .workspace-menu-bar {
+    grid-column: 1;
+    grid-row: 1;
+    width: 120px;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    padding: 8px 6px;
+    gap: 7px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  .workspace-menu-bar .menu-action,
+  .workspace-menu-bar .menu-chip,
+  .workspace-menu-bar .menu-select,
+  .workspace-menu-bar .color-picker select {
+    min-height: 32px;
+    padding: 0.3rem 0.32rem;
+    font-size: 0.64rem;
+  }
+
+  .workspace-menu-bar .swatch-mini {
+    width: 14px;
+    height: 14px;
+  }
+
+  .workspace-canvas {
+    grid-column: 2;
+    grid-row: 1;
+    height: 100%;
+    min-height: 0;
+    padding: 24px 4px;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
+  .workspace-corner-tools {
+    gap: 4px;
+  }
+
+  .workspace-corner-tools .menu-action {
+    min-height: 32px;
+    padding: 0.25rem;
+  }
+
+  .workspace-save-area {
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    padding: 0;
+  }
+
+  .workspace-save-area .workspace-save-button {
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+  }
+
+  .workspace-save-button {
+    min-height: 34px;
+    padding: 0.4rem;
+    font-size: 0.72rem;
+  }
+
+  .workspace-dimensions {
+    inset: 56px 8px 44px;
+  }
+}
