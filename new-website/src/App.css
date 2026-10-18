@@ -1665,10 +1665,6 @@
     touch-action: pan-y;
   }
 
-  .uploaded-artwork {
-    touch-action: pan-y;
-  }
-
   .workspace-save-area {
     position: relative;
     left: auto;

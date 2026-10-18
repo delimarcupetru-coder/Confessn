@@ -712,7 +712,7 @@ const portfolioIcons = {
   youtube: '▶',
 }
 
-const minArtZoom = 0.5
+const minArtZoom = 1
 const maxArtZoom = 4
 
 type PinchGesture = {
@@ -1081,8 +1081,21 @@ function App() {
   }, [artwork, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin, previewFrameRatio])
 
   const moveArtwork = (position: { x: number; y: number }) => {
-    artPositionRef.current = position
-    setArtPosition(position)
+    const opening = artworkOpeningRef.current
+    if (!opening) {
+      artPositionRef.current = position
+      setArtPosition(position)
+      return
+    }
+    const bounds = opening.getBoundingClientRect()
+    const maxX = Math.max(0, bounds.width * (artZoomRef.current - 1) / 2)
+    const maxY = Math.max(0, bounds.height * (artZoomRef.current - 1) / 2)
+    const clampedPosition = {
+      x: Math.max(-maxX, Math.min(maxX, position.x)),
+      y: Math.max(-maxY, Math.min(maxY, position.y)),
+    }
+    artPositionRef.current = clampedPosition
+    setArtPosition(clampedPosition)
   }
 
   const zoomArtworkAt = (
@@ -1099,11 +1112,11 @@ function App() {
     const centerY = rect.top + rect.height / 2
     const scale = Math.min(maxArtZoom, Math.max(minArtZoom, nextScale))
     const ratio = scale / fromScale
+    artZoomRef.current = scale
     moveArtwork({
       x: focus.x - centerX - (fromFocus.x - centerX - fromPosition.x) * ratio,
       y: focus.y - centerY - (fromFocus.y - centerY - fromPosition.y) * ratio,
     })
-    artZoomRef.current = scale
     setZoom(scale)
   }
 
@@ -1374,9 +1387,9 @@ function App() {
     autoFitDefaultArtworkRef.current = false
     setArtwork(project.artwork)
     setArtworkRatio(project.artworkRatio ?? 4 / 5)
-    moveArtwork(project.artPosition ?? { x: 0, y: 0 })
-    artZoomRef.current = project.zoom ?? 1
+    artZoomRef.current = Math.min(maxArtZoom, Math.max(minArtZoom, project.zoom ?? 1))
     setZoom(artZoomRef.current)
+    moveArtwork(project.artPosition ?? { x: 0, y: 0 })
     if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
     if (project.matMargin !== undefined) setMatMargin(project.matMargin)
     if (project.stripThickness !== undefined) setStripThickness(project.stripThickness)
@@ -1554,10 +1567,12 @@ function App() {
   }
 
   const handlePinchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (!artwork || event.touches.length !== 2 || !Array.from(event.touches).some(
-      (touch) => touch.target instanceof Node && artworkOpeningRef.current?.contains(touch.target),
+    const opening = artworkOpeningRef.current
+    const touches = Array.from(event.touches)
+    if (!artwork || !opening || touches.length !== 2 || touches.some(
+      (touch) => !(touch.target instanceof Node) || !opening.contains(touch.target),
     )) return
-    const [first, second] = Array.from(event.touches)
+    const [first, second] = touches
     const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
     if (!distance) return
     pinchGestureRef.current = {
