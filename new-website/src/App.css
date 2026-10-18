@@ -2336,3 +2336,128 @@
     flex-direction: column;
   }
 }
+
+.admin-dialog {
+  width: min(1180px, calc(100vw - 32px));
+  max-height: min(90vh, 880px);
+  overflow: auto;
+  border-radius: 8px;
+  padding: clamp(18px, 3vw, 30px);
+  background: #f7f5ef;
+  color: #262720;
+}
+
+.admin-dialog-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.admin-dialog-header button {
+  color: #262720;
+}
+
+.admin-disclosure,
+.admin-footnote {
+  color: #55574f;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) auto auto;
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+
+.admin-toolbar input {
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #c9c5ba;
+  border-radius: 5px;
+  background: #fff;
+  color: #262720;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.admin-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #ddd8cc;
+  border-bottom: 1px solid #ddd8cc;
+  color: #4c5149;
+  font-size: 0.78rem;
+}
+
+.admin-summary strong {
+  color: #263b35;
+}
+
+.admin-table-scroll {
+  max-height: 52vh;
+  overflow: auto;
+  margin-top: 12px;
+  border: 1px solid #d6d1c5;
+  background: #fff;
+}
+
+.admin-users-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  color: #30312c;
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.admin-users-table th,
+.admin-users-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #e8e4da;
+  vertical-align: top;
+}
+
+.admin-users-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #e9e7df;
+  color: #344b45;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.admin-users-table td:nth-child(1),
+.admin-users-table td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
+.admin-footnote {
+  margin: 12px 0 0;
+  font-size: 0.7rem;
+}
+
+.admin-error {
+  color: #8a2f25;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 620px) {
+  .admin-dialog {
+    width: calc(100vw - 16px);
+    max-height: 94vh;
+    padding: 16px;
+  }
+
+  .admin-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-toolbar input {
+    grid-column: 1 / -1;
+  }
+}

@@ -53,6 +53,18 @@ type Account = {
   projects: ProjectRecord[]
 }
 
+type AdminUserSummary = {
+  user_id: string
+  email: string
+  username: string
+  name: string
+  project_count: number
+  account_data_bytes: number
+  embedded_artwork_bytes: number
+  account_updated_at: string | null
+  user_created_at: string
+}
+
 function mergeProfileAccount(local: Account, remote: Account): Account {
   const localProjectIds = new Set(local.projects.map((project) => project.id))
   const localFolderIds = new Set(local.folders.map((folder) => folder.id))
@@ -835,6 +847,12 @@ function App() {
   const [accountReady, setAccountReady] = useState(false)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
+  const [showAdminDialog, setShowAdminDialog] = useState(false)
+  const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([])
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState('')
+  const [adminSearch, setAdminSearch] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -904,6 +922,23 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [accountReady])
+
+  useEffect(() => {
+    let mounted = true
+    if (!authReady) {
+      setIsConfessnAdmin(false)
+      return () => { mounted = false }
+    }
+    if (!authUserId) {
+      setIsConfessnAdmin(false)
+      setAdminUsers([])
+      return () => { mounted = false }
+    }
+    void supabase.rpc('is_confessn_admin').then(({ data, error }) => {
+      if (mounted) setIsConfessnAdmin(!error && data === true)
+    })
+    return () => { mounted = false }
+  }, [authReady, authUserId])
 
   const t = translations[language]
 
@@ -1653,6 +1688,63 @@ function App() {
     setCunMessage((current) => current.key === title ? current : { key: title, title, description })
   }
 
+  const loadAdminUsers = async () => {
+    setAdminLoading(true)
+    setAdminError('')
+    const { data, error } = await supabase.rpc('get_confessn_admin_user_metrics')
+    if (error) {
+      setAdminError('Could not load the user summary. Confirm the admin schema has been applied and access is authorized.')
+      setAdminLoading(false)
+      return
+    }
+    setAdminUsers((data ?? []) as AdminUserSummary[])
+    setAdminLoading(false)
+  }
+
+  const openAdminDialog = () => {
+    setShowAdminDialog(true)
+    void loadAdminUsers()
+  }
+
+  const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+    return `${(bytes / 1024 ** unitIndex).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+  }
+
+  const filteredAdminUsers = useMemo(() => {
+    const query = adminSearch.trim().toLowerCase()
+    if (!query) return adminUsers
+    return adminUsers.filter((user) => `${user.email} ${user.username} ${user.name}`.toLowerCase().includes(query))
+  }, [adminSearch, adminUsers])
+
+  const downloadAdminCsv = () => {
+    const headers = ['Email', 'Username', 'Name', 'Projects', 'Account JSONB bytes', 'Embedded artwork bytes (estimated)', 'Account updated', 'User created']
+    const csvCell = (value: string | number | null) => {
+      const text = value === null ? '' : String(value)
+      const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text
+      return `"${safeText.replace(/"/g, '""')}"`
+    }
+    const rows = filteredAdminUsers.map((user) => [
+      user.email,
+      user.username,
+      user.name,
+      user.project_count,
+      user.account_data_bytes,
+      user.embedded_artwork_bytes,
+      user.account_updated_at,
+      user.user_created_at,
+    ])
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'confessn-user-summary.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <main
       className={cunActive ? 'studio-shell cun-guide-active' : 'studio-shell'}
@@ -1669,6 +1761,7 @@ function App() {
         <nav className="nav">
           <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
           <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
+          {isConfessnAdmin && <a href="#admin" data-cun-title="Admin" data-cun="Open the restricted account summary for user identity, project counts, and storage estimates." onClick={(event) => { event.preventDefault(); openAdminDialog() }}>Admin</a>}
           <a
             href="#confessn-university"
             className="nav-university-link"
@@ -2319,6 +2412,79 @@ function App() {
           </button>
         </div>
       </section>
+
+      {showAdminDialog && isConfessnAdmin && (
+        <div className="dialog-overlay admin-overlay" onClick={() => setShowAdminDialog(false)}>
+          <section
+            className="dialog-box admin-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="dialog-header admin-dialog-header">
+              <div>
+                <p className="university-eyebrow">Restricted access</p>
+                <h2 id="admin-dialog-title">User account summary</h2>
+              </div>
+              <button type="button" aria-label="Close admin summary" onClick={() => setShowAdminDialog(false)}>×</button>
+            </div>
+            <p className="admin-disclosure">Summary only. User artwork, project notes, and full profile JSON are not returned.</p>
+            <div className="admin-toolbar">
+              <input
+                type="search"
+                aria-label="Search users"
+                placeholder="Search email, username, or name"
+                value={adminSearch}
+                onChange={(event) => setAdminSearch(event.target.value)}
+              />
+              <button type="button" className="menu-action" onClick={() => void loadAdminUsers()} disabled={adminLoading}>
+                {adminLoading ? 'Loading' : 'Refresh'}
+              </button>
+              <button type="button" className="primary-button" onClick={downloadAdminCsv} disabled={adminLoading || filteredAdminUsers.length === 0}>
+                Export CSV
+              </button>
+            </div>
+            <div className="admin-summary" aria-live="polite">
+              <span><strong>{adminUsers.length}</strong> accounts</span>
+              <span><strong>{adminUsers.reduce((total, user) => total + user.project_count, 0)}</strong> projects</span>
+              <span><strong>{formatBytes(adminUsers.reduce((total, user) => total + user.account_data_bytes, 0))}</strong> account payload</span>
+            </div>
+            {adminError && <p className="admin-error" role="alert">{adminError}</p>}
+            <div className="admin-table-scroll">
+              <table className="admin-users-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Projects</th>
+                    <th scope="col">Account data</th>
+                    <th scope="col">Embedded artwork</th>
+                    <th scope="col">Last account update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminLoading && <tr><td colSpan={7}>Loading account summaries…</td></tr>}
+                  {!adminLoading && filteredAdminUsers.map((user) => (
+                    <tr key={user.user_id}>
+                      <td>{user.name || 'Not provided'}</td>
+                      <td>{user.username || 'Not provided'}</td>
+                      <td>{user.email || 'Not provided'}</td>
+                      <td>{user.project_count.toLocaleString()}</td>
+                      <td>{formatBytes(user.account_data_bytes)}</td>
+                      <td>{formatBytes(user.embedded_artwork_bytes)}</td>
+                      <td>{user.account_updated_at ? new Date(user.account_updated_at).toLocaleString() : 'No profile record'}</td>
+                    </tr>
+                  ))}
+                  {!adminLoading && !adminError && filteredAdminUsers.length === 0 && <tr><td colSpan={7}>No matching accounts.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <p className="admin-footnote">Account data is the PostgreSQL JSONB payload size estimate; embedded artwork estimates decoded base64 image bytes. Estimates exclude row, index, and storage-engine overhead. Browser-only data not synced to Supabase is not included.</p>
+          </section>
+        </div>
+      )}
 
       {showCunManual && (
         <div className="dialog-overlay university-overlay" onClick={() => setShowCunManual(false)}>
