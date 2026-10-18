@@ -1073,19 +1073,12 @@ function App() {
     const opening = artworkOpeningRef.current
     const image = opening?.querySelector<HTMLImageElement>('img.uploaded-artwork')
     if (!opening || !image?.naturalWidth || !image.naturalHeight) return
-    const imageRatio = image.naturalWidth / image.naturalHeight
-    if (Math.abs(artworkRatio - imageRatio) > 0.001) return
-    const openingBounds = opening.getBoundingClientRect()
-    if (!openingBounds.width || !openingBounds.height) return
-    const openingRatio = openingBounds.width / openingBounds.height
-    const coverScale = Math.max(imageRatio / openingRatio, openingRatio / imageRatio)
-    const centeredZoom = Math.min(maxArtZoom, Math.max(minArtZoom, coverScale * 1.03))
     autoFitDefaultArtworkRef.current = false
-    artZoomRef.current = centeredZoom
+    artZoomRef.current = 1
     artPositionRef.current = { x: 0, y: 0 }
     setArtPosition({ x: 0, y: 0 })
-    setZoom(centeredZoom)
-  }, [artwork, artworkRatio, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin, previewFrameRatio])
+    setZoom(1)
+  }, [artwork, matEnabled, bottomMatEnabled, frameThickness, frameGap, matMargin, bottomMatMargin, previewFrameRatio])
 
   const moveArtwork = (position: { x: number; y: number }) => {
     artPositionRef.current = position
