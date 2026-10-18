@@ -655,6 +655,34 @@ const galleryItems = [
     stripColorId: 'black', stripWidth: 2, details: 'Modern · Black Wood · standard pearl mat',
   },
   {
+    title: 'Jack-O-Lantern Decor',
+    image:
+      'https://images.unsplash.com/photo-1571931468289-38ebb2c5a1c2?auto=format&fit=crop&w=900&q=80',
+    material: 'blackwood', profile: 'modern', frameWidth: 12, matColorId: 'warm-ivory', matSize: 'standard', matWidth: 12,
+    stripColorId: 'rust', stripWidth: 2, details: 'Halloween · Jack-o-lantern · Black Wood',
+  },
+  {
+    title: 'Pumpkin at Dusk',
+    image:
+      'https://images.unsplash.com/photo-1541550353839-95e417a9f95b?auto=format&fit=crop&w=900&q=80',
+    material: 'darkwood', profile: 'studio', frameWidth: 16, matColorId: 'linen', matSize: 'standard', matWidth: 10,
+    stripColorId: 'rust', stripWidth: 2, details: 'Halloween · Glowing Pumpkin · Dark Wood',
+  },
+  {
+    title: 'Golden Hour Pumpkins',
+    image:
+      'https://images.unsplash.com/photo-1569511850437-6dfab062c00b?auto=format&fit=crop&w=900&q=80',
+    material: 'lightwood', profile: 'floating', frameWidth: 12, matColorId: 'warm-ivory', matSize: 'standard', matWidth: 12,
+    stripColorId: 'rust', stripWidth: 2, details: 'Harvest · Autumn Pumpkins · Light Wood',
+  },
+  {
+    title: 'Pumpkin Harvest',
+    image:
+      'https://images.unsplash.com/photo-1725951751033-d9bfc8a9aab8?auto=format&fit=crop&w=900&q=80',
+    material: 'lightwood', profile: 'classic', frameWidth: 16, matColorId: 'linen', matSize: 'standard', matWidth: 10,
+    stripColorId: 'rust', stripWidth: 2, details: 'Harvest · Pumpkins in the Field · Light Wood',
+  },
+  {
     title: 'Coastal Stillness',
     image:
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=900&q=80',
