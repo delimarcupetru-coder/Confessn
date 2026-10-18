@@ -702,16 +702,16 @@ function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
-  const [bottomMatEnabled, setBottomMatEnabled] = useState(true)
-  const [selectedStyle, setSelectedStyle] = useState('stainless')
-  const [selectedFrameType, setSelectedFrameType] = useState('studio')
-  const [selectedSize, setSelectedSize] = useState('letter')
+  const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
+  const [selectedStyle, setSelectedStyle] = useState('blackwood')
+  const [selectedFrameType, setSelectedFrameType] = useState('modern')
+  const [selectedSize, setSelectedSize] = useState('standard')
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
-  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
+  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'pearl')!)
   const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'warm-tan')!)
-  const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
+  const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions.find((color) => color.id === 'black')!)
   const [stripEnabled, setStripEnabled] = useState(true)
-  const [artwork, setArtwork] = useState<string | null>(galleryItems[3].image)
+  const [artwork, setArtwork] = useState<string | null>(galleryItems[0].image)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
@@ -746,8 +746,8 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
-  const [frameThickness, setFrameThickness] = useState(14)
-  const [matMargin, setMatMargin] = useState(22)
+  const [frameThickness, setFrameThickness] = useState(10)
+  const [matMargin, setMatMargin] = useState(8)
   const [stripThickness, setStripThickness] = useState(2)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
   const [artDrag, setArtDrag] = useState<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
@@ -777,7 +777,8 @@ function App() {
   const artZoomRef = useRef(zoom)
   const artPositionRef = useRef(artPosition)
   const autoFitDefaultArtworkRef = useRef(true)
-  const restoringProjectRef = useRef(0)
+  const previousMatSizeRef = useRef(selectedSize)
+  const restoringProjectRef = useRef(2)
 
   const [account, setAccount] = useState<Account>(() => {
     const saved = window.localStorage.getItem(accountStorageKey)
@@ -1100,12 +1101,14 @@ function App() {
   }, [defaultFrameThickness])
 
   useEffect(() => {
+    if (previousMatSizeRef.current === selectedSize) return
+    previousMatSizeRef.current = selectedSize
     if (restoringProjectRef.current > 0) {
       restoringProjectRef.current -= 1
       return
     }
     setMatMargin(defaultMatMargin)
-  }, [defaultMatMargin])
+  }, [defaultMatMargin, selectedSize])
 
   useEffect(() => {
     if (!resizeDrag) return
