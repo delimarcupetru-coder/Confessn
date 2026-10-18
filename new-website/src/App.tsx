@@ -2002,11 +2002,9 @@ function App() {
                 title="Drag M to adjust mat size"
                 onPointerDown={(event) => {
                   event.preventDefault()
-                  if (event.pointerType === 'touch') return
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
-                onClick={() => setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + 4)))}
               >M</button>
               <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
               <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
