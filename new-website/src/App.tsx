@@ -30,6 +30,10 @@ type ProjectRecord = {
   stripEnabled?: boolean
   frameSizeIndex?: number
   artworkRatio?: number
+  artWidthInches?: number
+  artHeightInches?: number
+  dimensionsConfirmed?: boolean
+  frameOrientation?: 'horizontal' | 'vertical'
   zoom?: number
   artPosition?: { x: number; y: number }
   frameThickness?: number
@@ -749,6 +753,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [projectNotes, setProjectNotes] = useState('')
   const [cunActive, setCunActive] = useState(false)
   const [showCunManual, setShowCunManual] = useState(false)
   const [cunMessage, setCunMessage] = useState({
@@ -788,6 +793,7 @@ function App() {
   const [artDrag, setArtDrag] = useState<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [artWidthInches, setArtWidthInches] = useState(12)
   const [artHeightInches, setArtHeightInches] = useState(15)
+  const [dimensionsConfirmed, setDimensionsConfirmed] = useState(false)
   const [frameWidthInches] = useState(16)
   const [frameHeightInches] = useState(20)
   const frameSizeGroups = [
@@ -801,7 +807,7 @@ function App() {
     standardFrameSizes.findIndex((size) => size.width === 8 && size.height === 10),
   )
   const selectedFrameSize = standardFrameSizes[standardFrameSizeIndex]
-  const [showDimensions] = useState(false)
+  const [showDimensions, setShowDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
   const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1070,9 +1076,13 @@ function App() {
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const bottomMatMargin = 12
-  const previewFrameRatio = selectedFrameType === 'floating'
-    ? frameWidthInches / frameHeightInches
-    : selectedFrameSize.width / selectedFrameSize.height
+  const displayFrameWidthInches = selectedFrameType === 'floating'
+    ? frameOrientation === 'horizontal' ? frameHeightInches : frameWidthInches
+    : frameOrientation === 'horizontal' ? selectedFrameSize.height : selectedFrameSize.width
+  const displayFrameHeightInches = selectedFrameType === 'floating'
+    ? frameOrientation === 'horizontal' ? frameWidthInches : frameHeightInches
+    : frameOrientation === 'horizontal' ? selectedFrameSize.width : selectedFrameSize.height
+  const previewFrameRatio = displayFrameWidthInches / displayFrameHeightInches
   const previewWidth = Math.min(380, 480 * previewFrameRatio)
 
   useEffect(() => {
@@ -1236,6 +1246,10 @@ function App() {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           autoFitDefaultArtworkRef.current = false
+          setArtWidthInches(12)
+          setArtHeightInches(15)
+          setDimensionsConfirmed(false)
+          setShowDimensions(false)
           setArtwork(reader.result)
           artZoomRef.current = 1
           setZoom(1)
@@ -1257,18 +1271,21 @@ function App() {
   }
 
   const applyArtworkDimensions = () => {
-    const safeWidth = Math.max(1, artWidthInches)
-    const safeHeight = Math.max(1, artHeightInches)
+    const safeWidth = Math.max(0.1, artWidthInches)
+    const safeHeight = Math.max(0.1, artHeightInches)
     setArtWidthInches(safeWidth)
     setArtHeightInches(safeHeight)
     setArtworkRatio(safeWidth / safeHeight)
     setFrameOrientation(safeWidth >= safeHeight ? 'horizontal' : 'vertical')
+    setDimensionsConfirmed(true)
+    setShowDimensions(true)
     setShowDimensionsDialog(false)
   }
 
   const saveProject = () => {
     if (!accountReady) return
     setSaveError('')
+    setProjectNotes('')
     setShowSaveDialog(true)
   }
 
@@ -1280,7 +1297,7 @@ function App() {
       size: selectedSize,
       style: `${selectedFrameType}-${selectedStyle}`,
       color: selectedColor.name,
-      notes: '',
+      notes: projectNotes.trim(),
       folderId: account.activeFolderId,
       artwork,
       createdAt: new Date().toISOString(),
@@ -1292,7 +1309,11 @@ function App() {
       stripColorId: selectedStripColor.id,
       stripEnabled,
       frameSizeIndex: standardFrameSizeIndex,
+      frameOrientation,
       artworkRatio,
+      artWidthInches,
+      artHeightInches,
+      dimensionsConfirmed,
       zoom,
       artPosition,
       frameThickness,
@@ -1392,8 +1413,16 @@ function App() {
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     autoFitDefaultArtworkRef.current = false
+    const savedArtworkRatio = project.artworkRatio ?? 4 / 5
+    const savedArtWidth = project.artWidthInches ?? 12
+    const savedArtHeight = project.artHeightInches ?? savedArtWidth / savedArtworkRatio
     setArtwork(project.artwork)
-    setArtworkRatio(project.artworkRatio ?? 4 / 5)
+    setArtworkRatio(savedArtworkRatio)
+    setFrameOrientation(project.frameOrientation ?? (savedArtworkRatio >= 1 ? 'horizontal' : 'vertical'))
+    setArtWidthInches(savedArtWidth)
+    setArtHeightInches(savedArtHeight)
+    setDimensionsConfirmed(project.dimensionsConfirmed ?? false)
+    setShowDimensions(project.artWidthInches !== undefined && project.artHeightInches !== undefined)
     artZoomRef.current = Math.min(maxArtZoom, Math.max(minArtZoom, project.zoom ?? 1))
     setZoom(artZoomRef.current)
     moveArtwork(project.artPosition ?? { x: 0, y: 0 })
@@ -1419,6 +1448,10 @@ function App() {
     setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
     setStripThickness(item.stripWidth)
     setStripEnabled(true)
+    setArtWidthInches(12)
+    setArtHeightInches(15)
+    setDimensionsConfirmed(false)
+    setShowDimensions(false)
     setArtwork(item.image)
     setArtworkRatio(1)
     artZoomRef.current = 1
@@ -1807,14 +1840,22 @@ function App() {
               </button>
               <button
                 type="button"
+                className="menu-action"
+                aria-label="Enter artwork dimensions"
+                title="Enter artwork dimensions"
+                data-cun-title="Artwork dimensions"
+                data-cun="Enter the artwork's measured width and height in inches. Image-ratio values are estimates until you apply your physical measurements; confirmed values are stored with the project."
+                onClick={() => setShowDimensionsDialog(true)}
+              >Dimensions</button>
+              <button
+                type="button"
                 className={frameOrientation === 'horizontal' ? 'menu-action active' : 'menu-action'}
                 aria-label="Horizontal frame"
                 title="Horizontal frame"
                 data-cun-title="Horizontal orientation"
-                data-cun="Set the artwork orientation to horizontal. The image will remain centered in the mat opening."
+                data-cun="Orient the physical frame horizontally. The displayed outer frame dimensions reverse; measured artwork dimensions remain unchanged."
                 onClick={() => {
                   setFrameOrientation('horizontal')
-                  setArtworkRatio((current) => Math.max(1.35, current >= 1 ? current : 1 / current))
                 }}
               >
                 ↔
@@ -1825,10 +1866,9 @@ function App() {
                 aria-label="Vertical frame"
                 title="Vertical frame"
                 data-cun-title="Vertical orientation"
-                data-cun="Set the artwork orientation to vertical. The image will remain centered in the mat opening."
+                data-cun="Orient the physical frame vertically. The displayed outer frame dimensions reverse; measured artwork dimensions remain unchanged."
                 onClick={() => {
                   setFrameOrientation('vertical')
-                  setArtworkRatio((current) => Math.min(0.75, current <= 1 ? current : 1 / current))
                 }}
               >
                 ↕
@@ -1898,9 +1938,11 @@ function App() {
                 <optgroup key={group.label} label={group.label}>
                   {group.sizes.map((size) => {
                     const index = standardFrameSizes.indexOf(size)
+                    const optionWidth = frameOrientation === 'horizontal' ? size.height : size.width
+                    const optionHeight = frameOrientation === 'horizontal' ? size.width : size.height
                     return (
                       <option key={`${size.width}x${size.height}`} value={index}>
-                        {size.width.toFixed(2)} in × {size.height.toFixed(2)} in
+                        {optionWidth.toFixed(2)} in × {optionHeight.toFixed(2)} in
                       </option>
                     )
                   })}
@@ -1913,12 +1955,12 @@ function App() {
             </button>
             {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
             <div className="workspace-scale" aria-label="Frame size">
-              {(selectedFrameType === 'floating' ? frameWidthInches : standardFrameSizes[standardFrameSizeIndex].width).toFixed(2)} in × {(selectedFrameType === 'floating' ? frameHeightInches : standardFrameSizes[standardFrameSizeIndex].height).toFixed(2)} in
+              {displayFrameWidthInches.toFixed(2)} in × {displayFrameHeightInches.toFixed(2)} in
             </div>
             <div className="workspace-save-area">
               {saveMessage && <span className="save-message">{saveMessage}</span>}
               {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
-              <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, choose a folder and PNG or JPG, then save the editable project and framed image." onClick={saveProject} disabled={!accountReady}>
+              <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, record optional notes, choose a folder and PNG or JPG, then save its framing settings and measured artwork dimensions." onClick={saveProject} disabled={!accountReady}>
                 Save Project
               </button>
             </div>
@@ -1998,7 +2040,7 @@ function App() {
                               onPointerDown={handleArtworkPointerDown}
                               onLoad={(event) => {
                                 const image = event.currentTarget
-                                if (image.naturalWidth && image.naturalHeight) {
+                                if (image.naturalWidth && image.naturalHeight && !dimensionsConfirmed) {
                                   const naturalRatio = image.naturalWidth / image.naturalHeight
                                   setArtworkRatio(naturalRatio)
                                   setArtHeightInches(artWidthInches / naturalRatio)
@@ -2113,6 +2155,7 @@ function App() {
           </div>
           {showDimensions && (
             <div className="workspace-dimensions" aria-label="Artwork dimensions">
+              <span className="dimension-status">{dimensionsConfirmed ? 'MEASURED' : 'ESTIMATE'}</span>
               <span className="dimension-width">{artWidthInches.toFixed(1)} in</span>
               <span className="dimension-height">{artHeightInches.toFixed(1)} in</span>
             </div>
@@ -2195,9 +2238,12 @@ function App() {
                   >
                     {project.artwork && <img className="saved-project-thumb" src={project.artwork} alt="" />}
                     <strong>{project.name}</strong>
-                    <span>
-                      {project.size === 'letter' || project.size === 'large' ? 'Letter' : 'Standard'} · {project.color}
+                    <span className="project-audit-summary" title={`Saved ${new Date(project.createdAt).toLocaleString()}`}>
+                      Artwork {project.artWidthInches !== undefined && project.artHeightInches !== undefined ? `${project.artWidthInches.toFixed(1)} × ${project.artHeightInches.toFixed(1)} in (${project.dimensionsConfirmed ? 'measured' : 'estimate'})` : 'size not recorded'} ·{' '}
+                      {project.style.startsWith('floating-') ? project.frameOrientation === 'horizontal' ? 'Frame 20 × 16 in' : 'Frame 16 × 20 in' : project.frameSizeIndex !== undefined && standardFrameSizes[project.frameSizeIndex] ? `Frame ${project.frameOrientation === 'horizontal' ? standardFrameSizes[project.frameSizeIndex].height : standardFrameSizes[project.frameSizeIndex].width} × ${project.frameOrientation === 'horizontal' ? standardFrameSizes[project.frameSizeIndex].width : standardFrameSizes[project.frameSizeIndex].height} in` : 'frame size not recorded'} ·{' '}
+                      {project.size === 'letter' || project.size === 'large' ? 'Letter' : 'Standard'} mat · {project.color} · Saved {new Date(project.createdAt).toLocaleDateString()}
                     </span>
+                    {project.notes && <span className="project-notes-preview">Notes: {project.notes}</span>}
                   </button>
                   <div className="project-row-actions">
                     <button
@@ -2323,8 +2369,12 @@ function App() {
                 <p>Choose <strong>Upload</strong> or <strong>Replace artwork</strong> to select an image from your device. From the gallery, select <strong>Use this look</strong> to load an example and its matching frame settings.</p>
               </section>
               <section className="university-guide-section">
-                <h3>Choose frame</h3>
-                <p>Toggle <strong>Frame</strong> on or off. Choose Classic, Studio, Modern, or Floating, then choose a material. Use the size menu to select Small, Medium, Large, or Square dimensions; Floating uses its own dimensions.</p>
+                <h3>Choose frame dimensions</h3>
+                <p>Toggle <strong>Frame</strong> on or off. Choose a profile and material, then select the physical outer size in inches from Small, Medium, Large, or Square. Floating frames use their fixed 16 × 20 in size.</p>
+              </section>
+              <section className="university-guide-section">
+                <h3>Measure the artwork</h3>
+                <p>Measure the artwork edge-to-edge, excluding any frame or mat. Select <strong>Dimensions</strong>, enter width and height in inches to the nearest tenth, and apply. The preview shows those measurements and sets orientation from the values. An image-ratio value remains an estimate until you apply physical measurements; the saved record preserves that distinction.</p>
               </section>
               <section className="university-guide-section">
                 <h3>Layer the mats</h3>
@@ -2340,11 +2390,11 @@ function App() {
               </section>
               <section className="university-guide-section">
                 <h3>Set orientation and wall</h3>
-                <p>Choose <strong>↔</strong> for horizontal or <strong>↕</strong> for vertical artwork. <strong>Wall</strong> and <strong>Light</strong> choose the preview wall tone behind the frame.</p>
+                <p>Choose <strong>↔</strong> or <strong>↕</strong> to reverse the physical frame orientation and its displayed width and height. This does not change the artwork's measured dimensions. <strong>Wall</strong> and <strong>Light</strong> choose the preview wall tone behind the frame.</p>
               </section>
               <section className="university-guide-section">
                 <h3>Save and continue later</h3>
-                <p>Select <strong>Save Project</strong>, enter a name, choose a folder and PNG or JPG, then save. The editable project is kept in this browser and the framed artwork can be downloaded. In <strong>Projects</strong>, select an item to reopen it, use the down arrow to download, or the trash button to delete. Folder controls organize saved work.</p>
+                <p>Select <strong>Save Project</strong>, enter a name, add optional source, condition, or handling notes, choose a folder and PNG or JPG, then save. The editable settings, measured artwork dimensions, notes, and creation date are retained with the project. In <strong>Projects</strong>, select an item to reopen it, use the down arrow to download, or the trash button to delete. Folder controls organize saved work.</p>
               </section>
             </div>
 
@@ -2399,6 +2449,18 @@ function App() {
                 value={projectFileName}
                 onChange={(event) => setProjectFileName(event.target.value)}
                 placeholder="my-framing-project"
+              />
+            </div>
+            <div className="field-group">
+              <label htmlFor="project-notes">Project notes (optional)</label>
+              <textarea
+                id="project-notes"
+                rows={3}
+                value={projectNotes}
+                onChange={(event) => setProjectNotes(event.target.value)}
+                placeholder="Source, condition, preferences, or handling details"
+                data-cun-title="Project notes"
+                data-cun="Record useful context for later review, such as image source, artwork condition, color preferences, or installation requirements."
               />
             </div>
             <div className="field-group">
@@ -2485,19 +2547,21 @@ function App() {
         <div className="dialog-overlay" onClick={() => setShowDimensionsDialog(false)}>
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
-              <h4>Artwork dimensions</h4>
+              <h4>Actual artwork dimensions</h4>
               <button type="button" onClick={() => setShowDimensionsDialog(false)}>×</button>
             </div>
+            <p className="dialog-hint">Measure the artwork edge-to-edge. Exclude the mat and frame. Enter inches; applied measurements are saved as confirmed with the project.</p>
             <div className="details-row">
               <div className="field-group">
                 <label htmlFor="art-width">Width (in)</label>
-                <input id="art-width" type="number" min="1" step="0.1" value={artWidthInches} onChange={(event) => setArtWidthInches(Number(event.target.value) || 1)} />
+                <input id="art-width" type="number" min="0.1" step="0.1" value={artWidthInches} aria-describedby="artwork-dimension-help" data-cun-title="Artwork width" data-cun="Enter the physical width of the artwork only, measured edge-to-edge in inches." onChange={(event) => { setDimensionsConfirmed(false); setArtWidthInches(Number(event.target.value) || 0.1) }} />
               </div>
               <div className="field-group">
                 <label htmlFor="art-height">Height (in)</label>
-                <input id="art-height" type="number" min="1" step="0.1" value={artHeightInches} onChange={(event) => setArtHeightInches(Number(event.target.value) || 1)} />
+                <input id="art-height" type="number" min="0.1" step="0.1" value={artHeightInches} aria-describedby="artwork-dimension-help" data-cun-title="Artwork height" data-cun="Enter the physical height of the artwork only, measured edge-to-edge in inches." onChange={(event) => { setDimensionsConfirmed(false); setArtHeightInches(Number(event.target.value) || 0.1) }} />
               </div>
             </div>
+            <p className="dimension-help" id="artwork-dimension-help">Selected outer frame: {displayFrameWidthInches.toFixed(1)} × {displayFrameHeightInches.toFixed(1)} in. Mat layers occupy part of this frame; artwork dimensions refer to the image only.</p>
             <button type="button" className="primary-button full-width-button" onClick={applyArtworkDimensions}>Apply dimensions</button>
           </div>
         </div>
