@@ -24,6 +24,8 @@ type ProjectRecord = {
   frameEnabled?: boolean
   matEnabled?: boolean
   matColorId?: string
+  bottomMatEnabled?: boolean
+  bottomMatColorId?: string
   stripColorId?: string
   stripEnabled?: boolean
   artworkRatio?: number
@@ -622,6 +624,18 @@ const matColorOptions: ColorOption[] = [
   { id: 'chromium-phosphate', name: 'Chromium Phosphate', hex: '#76948c' },
 ]
 
+const bottomMatColorOptions: ColorOption[] = [
+  { id: 'black', name: 'Black', hex: '#17171b' },
+  { id: 'charcoal-gray', name: 'Charcoal Gray', hex: '#45464a' },
+  { id: 'navy-blue', name: 'Navy Blue', hex: '#172b4d' },
+  { id: 'burgundy', name: 'Burgundy', hex: '#722f3b' },
+  { id: 'forest-green', name: 'Forest Green', hex: '#294b3b' },
+  { id: 'gold', name: 'Gold', hex: '#c4a24d' },
+  { id: 'silver', name: 'Silver', hex: '#b7bbbe' },
+  { id: 'cream', name: 'Cream', hex: '#f1e8d4' },
+  { id: 'warm-tan', name: 'Warm Tan', hex: '#bd956a' },
+]
+
 const stripColorOptions: ColorOption[] = [
   { id: 'red', name: 'Red', hex: '#c94242' },
   { id: 'blue', name: 'Blue', hex: '#356bc1' },
@@ -687,11 +701,13 @@ function App() {
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
+  const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
   const [selectedStyle, setSelectedStyle] = useState('stainless')
   const [selectedFrameType, setSelectedFrameType] = useState('modern')
   const [selectedSize, setSelectedSize] = useState(sizeOptions[0].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
+  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions[0])
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(galleryItems[3].image)
@@ -1016,6 +1032,7 @@ function App() {
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
+  const bottomMatMargin = 12
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   const moveArtwork = (position: { x: number; y: number }) => {
@@ -1202,6 +1219,8 @@ function App() {
       frameEnabled,
       matEnabled,
       matColorId: selectedMatColor.id,
+      bottomMatEnabled,
+      bottomMatColorId: selectedBottomMatColor.id,
       stripColorId: selectedStripColor.id,
       stripEnabled,
       artworkRatio,
@@ -1296,6 +1315,8 @@ function App() {
     setFrameEnabled(project.frameEnabled ?? true)
     setMatEnabled(project.matEnabled ?? true)
     if (project.matColorId) setSelectedMatColor(matColorOptions.find((color) => color.id === project.matColorId) ?? selectedMatColor)
+    setBottomMatEnabled(project.bottomMatEnabled ?? false)
+    if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     setArtwork(project.artwork)
@@ -1320,6 +1341,7 @@ function App() {
     setMatMargin(item.matWidth)
     setSelectedMatColor(matColorOptions.find((color) => color.id === item.matColorId)!)
     setMatEnabled(true)
+    setBottomMatEnabled(false)
     setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
     setStripThickness(item.stripWidth)
     setStripEnabled(true)
@@ -1598,24 +1620,41 @@ function App() {
             </div>
 
             <div className="menu-group">
-              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle mat" onClick={() => setMatEnabled((current) => !current)}>
-                Mat
+              <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle top mat" onClick={() => setMatEnabled((current) => !current)}>
+                Top Mat
               </button>
-              <select className="menu-select" aria-label="Mat size" value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
+              <select className="menu-select" aria-label="Top mat size" value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
                 {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
             </div>
 
             <div className="menu-group compact-group">
-              <span>Mat color</span>
+              <span>Top Mat color</span>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
                 <select
-                  aria-label="Mat color"
+                  aria-label="Top mat color"
                   value={selectedMatColor.id}
                   onChange={(event) => setSelectedMatColor(matColorOptions.find((color) => color.id === event.target.value) ?? matColorOptions[0])}
                 >
                   {matColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="menu-group compact-group">
+              <button type="button" className={bottomMatEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle bottom mat" aria-pressed={bottomMatEnabled} onClick={() => setBottomMatEnabled((current) => !current)}>
+                Bottom Mat
+              </button>
+              <label className="color-picker">
+                <span className="swatch-mini" style={{ background: selectedBottomMatColor.hex }}></span>
+                <select
+                  aria-label="Bottom mat color"
+                  value={selectedBottomMatColor.id}
+                  disabled={!bottomMatEnabled}
+                  onChange={(event) => setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === event.target.value) ?? bottomMatColorOptions[0])}
+                >
+                  {bottomMatColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
                 </select>
               </label>
             </div>
@@ -1769,7 +1808,7 @@ function App() {
               style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: artworkRatio }}
             >
               <div
-                ref={!matEnabled ? artworkOpeningRef : undefined}
+                ref={!matEnabled && !bottomMatEnabled ? artworkOpeningRef : undefined}
                 className="art-preview"
                 style={{
                   borderColor: selectedColor.hex,
@@ -1777,80 +1816,112 @@ function App() {
                   aspectRatio: artworkRatio,
                 }}
               >
-              {matEnabled && <div
-                className="art-mat"
-                style={{
-                  inset: `${frameThickness + frameGap}px`,
-                  padding: `${matMargin}px`,
-                  background: selectedMatColor.hex,
-                }}
-                onPointerDown={(event) => {
-                  if (event.pointerType !== 'touch') return
-                  event.preventDefault()
-                  event.stopPropagation()
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
-                }}
-              >
-                <div
-                  ref={artworkOpeningRef}
-                  className="mat-cut-edge"
+                {(matEnabled || bottomMatEnabled) && (
+                  <div
+                    className="mat-stack"
+                    style={{
+                      inset: `${frameThickness + frameGap}px`,
+                      padding: bottomMatEnabled ? `${bottomMatMargin}px` : 0,
+                      background: bottomMatEnabled ? selectedBottomMatColor.hex : 'transparent',
+                    }}
+                  >
+                    {matEnabled ? (
+                      <div
+                        className="art-mat"
+                        style={{
+                          position: 'relative',
+                          inset: 'auto',
+                          width: '100%',
+                          height: '100%',
+                          boxSizing: 'border-box',
+                          padding: `${matMargin}px`,
+                          background: selectedMatColor.hex,
+                        }}
+                        onPointerDown={(event) => {
+                          if (event.pointerType !== 'touch') return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          event.currentTarget.setPointerCapture(event.pointerId)
+                          setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                        }}
+                      >
+                        <div
+                          ref={artworkOpeningRef}
+                          className="mat-cut-edge"
+                          style={{
+                            borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
+                            borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
+                            boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
+                          }}
+                        >
+                          {artwork ? (
+                            <img
+                              key={artwork}
+                              className="uploaded-artwork"
+                              src={artwork}
+                              alt="Uploaded artwork preview"
+                              style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                              onPointerDown={handleArtworkPointerDown}
+                              onLoad={(event) => {
+                                const image = event.currentTarget
+                                if (image.naturalWidth && image.naturalHeight) {
+                                  const naturalRatio = image.naturalWidth / image.naturalHeight
+                                  setArtworkRatio(naturalRatio)
+                                  setArtHeightInches(artWidthInches / naturalRatio)
+                                  setFrameOrientation(naturalRatio >= 1 ? 'horizontal' : 'vertical')
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="art-placeholder">Your artwork</div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div ref={artworkOpeningRef} className="mat-cut-edge bottom-mat-opening" style={{ background: selectedBottomMatColor.hex }}>
+                        {artwork ? (
+                          <img
+                            key={artwork}
+                            className="uploaded-artwork"
+                            src={artwork}
+                            alt="Uploaded artwork preview"
+                            style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                            onPointerDown={handleArtworkPointerDown}
+                          />
+                        ) : (
+                          <div className="art-placeholder">Your artwork</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!matEnabled && !bottomMatEnabled && artwork && <img
+                  className="uploaded-artwork artwork-without-mat"
+                  src={artwork}
+                  alt="Uploaded artwork preview"
+                  style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                  onPointerDown={handleArtworkPointerDown}
+                />}
+                {frameEnabled && <div
+                  className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                   style={{
-                    borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
-                    borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
-                    boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
+                    '--frame-width': `${frameThickness}px`,
+                    '--frame-texture-horizontal': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].horizontal}")` : undefined,
+                    '--frame-texture-vertical': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].vertical}")` : undefined,
+                  } as React.CSSProperties}
+                  onPointerDown={(event) => {
+                    if (event.pointerType !== 'touch') return
+                    event.preventDefault()
+                    event.stopPropagation()
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
                   }}
                 >
-                  {artwork ? (
-                    <img
-                      key={artwork}
-                      className="uploaded-artwork"
-                      src={artwork}
-                      alt="Uploaded artwork preview"
-                      style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
-                      onPointerDown={handleArtworkPointerDown}
-                      onLoad={(event) => {
-                        const image = event.currentTarget
-                        if (image.naturalWidth && image.naturalHeight) {
-                          const naturalRatio = image.naturalWidth / image.naturalHeight
-                          setArtworkRatio(naturalRatio)
-                          setArtHeightInches(artWidthInches / naturalRatio)
-                          setFrameOrientation(naturalRatio >= 1 ? 'horizontal' : 'vertical')
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="art-placeholder">Your artwork</div>
-                  )}
-                </div>
-              </div>}
-              {!matEnabled && artwork && <img
-                className="uploaded-artwork artwork-without-mat"
-                src={artwork}
-                alt="Uploaded artwork preview"
-                style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
-                onPointerDown={handleArtworkPointerDown}
-              />}
-              {frameEnabled && <div
-                className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
-                style={{
-                  '--frame-width': `${frameThickness}px`,
-                  '--frame-texture-horizontal': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].horizontal}")` : undefined,
-                  '--frame-texture-vertical': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].vertical}")` : undefined,
-                } as React.CSSProperties}
-                onPointerDown={(event) => {
-                  if (event.pointerType !== 'touch') return
-                  event.preventDefault()
-                  event.stopPropagation()
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
-                }}
-              >
-                <span className="frame-side frame-side-top" />
-                <span className="frame-side frame-side-right" />
-                <span className="frame-side frame-side-bottom" />
-                <span className="frame-side frame-side-left" />
-              </div>}
+                  <span className="frame-side frame-side-top" />
+                  <span className="frame-side frame-side-right" />
+                  <span className="frame-side frame-side-bottom" />
+                  <span className="frame-side frame-side-left" />
+                </div>}
               </div>
             </div>
           </div>
