@@ -739,7 +739,7 @@ function App() {
   const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'warm-tan')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions.find((color) => color.id === 'black')!)
   const [stripEnabled, setStripEnabled] = useState(true)
-  const [artwork, setArtwork] = useState<string | null>(galleryItems[0].image)
+  const [artwork, setArtwork] = useState<string | null>(galleryItems.find((item) => item.title === 'Golden Hour Pumpkins')!.image)
   const [artworkRatio, setArtworkRatio] = useState(4 / 5)
   const [frameOrientation, setFrameOrientation] = useState<'vertical' | 'horizontal'>('vertical')
   const [uploadMessage, setUploadMessage] = useState('')
