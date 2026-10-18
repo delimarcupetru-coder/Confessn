@@ -1873,15 +1873,18 @@ function App() {
                           boxSizing: 'border-box',
                           padding: bottomMatEnabled ? `${bottomMatMargin}px` : 0,
                           background: bottomMatEnabled ? selectedBottomMatColor.hex : 'transparent',
+                          borderColor: stripEnabled ? selectedStripColor.hex : 'transparent',
+                          borderStyle: 'solid',
+                          borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
                         }}
                       >
                         <div
                           ref={artworkOpeningRef}
                           className="mat-cut-edge"
                           style={{
-                            borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
-                            borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
-                            boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
+                            borderColor: selectedMatColor.hex,
+                            borderWidth: 0,
+                            boxShadow: 'none',
                             background: selectedMatColor.hex,
                           }}
                         >
@@ -1909,7 +1912,16 @@ function App() {
                         </div>
                       </div>
                     ) : (
-                      <div ref={artworkOpeningRef} className="mat-cut-edge bottom-mat-opening" style={{ background: selectedBottomMatColor.hex }}>
+                      <div
+                        ref={artworkOpeningRef}
+                        className="mat-cut-edge bottom-mat-opening"
+                        style={{
+                          borderColor: stripEnabled ? selectedStripColor.hex : selectedBottomMatColor.hex,
+                          borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
+                          boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
+                          background: selectedBottomMatColor.hex,
+                        }}
+                      >
                         {artwork ? (
                           <img
                             key={artwork}
