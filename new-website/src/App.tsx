@@ -1768,46 +1768,6 @@ function App() {
               ))}
             </select>
 
-            <div className="workspace-corner-tools" data-screenshot-ignore>
-              <button
-                type="button"
-                className="menu-action"
-                aria-label="Adjust frame thickness"
-                title="Drag F to adjust frame thickness"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
-                }}
-              >F</button>
-              <button
-                type="button"
-                className="menu-action"
-                aria-label="Adjust mat size"
-                title="Drag M to adjust mat size"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  if (event.pointerType === 'touch') return
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
-                }}
-                onClick={() => setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + 4)))}
-              >M</button>
-              <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
-              <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
-              <button
-                type="button"
-                className="menu-action"
-                aria-label="Adjust strip size"
-                title="Drag S to adjust strip thickness"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                  setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
-                }}
-              >S</button>
-            </div>
-
             <button type="button" className="gallery-center-button workspace-upload-action" onClick={openArtworkPicker}>
               {artwork ? 'Replace artwork' : 'Upload artwork'}
             </button>
@@ -1966,6 +1926,45 @@ function App() {
                   <span className="frame-side frame-side-left" />
                 </div>}
               </div>
+            </div>
+            <div className="workspace-adjust-tools" data-screenshot-ignore>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust frame thickness"
+                title="Drag F to adjust frame thickness"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'frame', startY: event.clientY, startValue: frameThickness })
+                }}
+              >F</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust mat size"
+                title="Drag M to adjust mat size"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  if (event.pointerType === 'touch') return
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                }}
+                onClick={() => setMatMargin((current) => (current >= 80 ? 0 : Math.min(80, current + 4)))}
+              >M</button>
+              <button type="button" className="menu-action" aria-label="Zoom out artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
+              <button type="button" className="menu-action" aria-label="Zoom in artwork" disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust strip size"
+                title="Drag S to adjust strip thickness"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
+                }}
+              >S</button>
             </div>
           </div>
           {showDimensions && (

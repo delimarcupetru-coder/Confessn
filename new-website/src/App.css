@@ -542,21 +542,6 @@
   gap: 10px;
 }
 
-.workspace-corner-tools {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px;
-  border: 1px solid rgba(17, 17, 24, 0.12);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8px 18px rgba(12, 12, 22, 0.14);
-}
-
 .standard-size-control {
   position: absolute;
   left: calc(50% - min(190px, 45%));
@@ -1221,10 +1206,6 @@
 }
 
 @media (pointer: coarse) {
-  .workspace-corner-tools {
-    display: none !important;
-  }
-
   .frame-side,
   .art-mat {
     pointer-events: auto;
@@ -1708,14 +1689,6 @@
     margin: 4px auto;
   }
 
-  .workspace-corner-tools {
-    left: auto !important;
-    right: 10px !important;
-    bottom: 8px !important;
-    transform: translateY(-45px) scale(0.88);
-    transform-origin: bottom right;
-  }
-
   .menu-actions {
     width: 100%;
     margin-left: 0;
@@ -1837,14 +1810,18 @@
   inset: auto;
   grid-column: 2;
   grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-width: 0;
-  min-height: 620px;
-  padding: 48px 14px 58px;
+  min-height: 640px;
+  padding: 14px;
   box-sizing: border-box;
 }
 
 .standard-size-control,
-.workspace-corner-tools,
 .gallery-center-button,
 .upload-message,
 .workspace-scale,
@@ -1863,22 +1840,30 @@
   min-height: 34px;
 }
 
-.workspace-corner-tools {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+.workspace-adjust-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 380px;
 }
 
-.workspace-corner-tools .menu-action,
+.workspace-adjust-tools .menu-action,
 .gallery-center-button,
 .workspace-save-button {
   width: 100%;
-  min-height: 36px;
+  min-height: 44px;
+}
+
+.workspace-adjust-tools .menu-action {
+  display: grid;
+  flex: 1 1 0;
+  min-width: 0;
+  place-items: center;
+  padding: 0.4rem;
+  touch-action: none;
 }
 
 .gallery-center-button {
@@ -1949,18 +1934,21 @@
     grid-row: 1;
     height: 100%;
     min-height: 0;
-    padding: 24px 4px;
+    padding: 14px 4px;
     overflow: hidden;
     touch-action: pan-y;
   }
 
-  .workspace-corner-tools {
+  .workspace-adjust-tools {
     gap: 4px;
+    width: 100%;
   }
 
-  .workspace-corner-tools .menu-action {
-    min-height: 32px;
-    padding: 0.25rem;
+  .workspace-adjust-tools .menu-action {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.25rem 0;
+    font-size: 0.72rem;
   }
 
   .workspace-save-area {
