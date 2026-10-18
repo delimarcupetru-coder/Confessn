@@ -1652,12 +1652,12 @@ function App() {
               <button
                 type="button"
                 className={stripEnabled ? 'menu-action active' : 'menu-action'}
-                aria-label="Toggle mat strip"
+                aria-label="Mat Offcut"
                 aria-pressed={stripEnabled}
-                title="Toggle mat strip"
+                title="Mat Offcut"
                 onClick={() => setStripEnabled((current) => !current)}
               >
-                Strip
+                Mat Offcut
               </button>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedStripColor.hex }}></span>
