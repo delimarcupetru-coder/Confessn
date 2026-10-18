@@ -364,6 +364,33 @@
   color: #fff;
 }
 
+.workspace-upload-action {
+  background: #d9efff;
+  border-color: #a9d9f5;
+  color: #173d58;
+  font-weight: 700;
+}
+
+.workspace-upload-action:hover,
+.workspace-upload-action:focus-visible {
+  background: #c4e7ff;
+  border-color: #79c4ee;
+  color: #102f45;
+}
+
+.gallery-center-button.workspace-upload-action {
+  background: #d9efff;
+  border-color: #a9d9f5;
+  color: #173d58;
+}
+
+.gallery-center-button.workspace-upload-action:hover,
+.gallery-center-button.workspace-upload-action:focus-visible {
+  background: #c4e7ff;
+  border-color: #79c4ee;
+  color: #102f45;
+}
+
 .compact-group {
   padding-right: 7px;
 }

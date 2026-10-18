@@ -26,7 +26,6 @@ type ProjectRecord = {
   matColorId?: string
   bottomMatEnabled?: boolean
   bottomMatColorId?: string
-  bottomMatRevealEnabled?: boolean
   stripColorId?: string
   stripEnabled?: boolean
   artworkRatio?: number
@@ -703,7 +702,6 @@ function App() {
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
   const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
-  const [bottomMatRevealEnabled, setBottomMatRevealEnabled] = useState(false)
   const [selectedStyle, setSelectedStyle] = useState('stainless')
   const [selectedFrameType, setSelectedFrameType] = useState('modern')
   const [selectedSize, setSelectedSize] = useState(sizeOptions[0].id)
@@ -1223,7 +1221,6 @@ function App() {
       matColorId: selectedMatColor.id,
       bottomMatEnabled,
       bottomMatColorId: selectedBottomMatColor.id,
-      bottomMatRevealEnabled,
       stripColorId: selectedStripColor.id,
       stripEnabled,
       artworkRatio,
@@ -1320,7 +1317,6 @@ function App() {
     if (project.matColorId) setSelectedMatColor(matColorOptions.find((color) => color.id === project.matColorId) ?? selectedMatColor)
     setBottomMatEnabled(project.bottomMatEnabled ?? false)
     if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
-    setBottomMatRevealEnabled(project.bottomMatRevealEnabled ?? (project.bottomMatEnabled ?? false))
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     setArtwork(project.artwork)
@@ -1346,7 +1342,6 @@ function App() {
     setSelectedMatColor(matColorOptions.find((color) => color.id === item.matColorId)!)
     setMatEnabled(true)
     setBottomMatEnabled(false)
-    setBottomMatRevealEnabled(false)
     setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
     setStripThickness(item.stripWidth)
     setStripEnabled(true)
@@ -1653,11 +1648,7 @@ function App() {
                 className={bottomMatEnabled ? 'menu-chip active' : 'menu-chip'}
                 aria-label="Toggle bottom mat"
                 aria-pressed={bottomMatEnabled}
-                onClick={() => {
-                  const next = !bottomMatEnabled
-                  setBottomMatEnabled(next)
-                  if (next) setBottomMatRevealEnabled(true)
-                }}
+                onClick={() => setBottomMatEnabled((current) => !current)}
               >
                 Bottom Mat
               </button>
@@ -1672,21 +1663,10 @@ function App() {
                   {bottomMatColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
                 </select>
               </label>
-              <button
-                type="button"
-                className={bottomMatRevealEnabled ? 'menu-chip active' : 'menu-chip'}
-                aria-label="Reveal"
-                aria-pressed={bottomMatRevealEnabled}
-                title="Toggle Bottom Mat reveal"
-                disabled={!bottomMatEnabled || !matEnabled}
-                onClick={() => setBottomMatRevealEnabled((current) => !current)}
-              >
-                Reveal
-              </button>
             </div>
 
             <div className="menu-actions">
-              <button type="button" className="menu-action" onClick={openArtworkPicker}>
+              <button type="button" className="menu-action workspace-upload-action" onClick={openArtworkPicker}>
                 Upload
               </button>
               <button
@@ -1805,7 +1785,7 @@ function App() {
               >S</button>
             </div>
 
-            <button type="button" className="gallery-center-button" onClick={openArtworkPicker}>
+            <button type="button" className="gallery-center-button workspace-upload-action" onClick={openArtworkPicker}>
               {artwork ? 'Replace artwork' : 'Upload artwork'}
             </button>
             {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
@@ -1868,8 +1848,8 @@ function App() {
                           width: '100%',
                           height: '100%',
                           boxSizing: 'border-box',
-                          padding: bottomMatEnabled && bottomMatRevealEnabled ? `${bottomMatMargin}px` : 0,
-                          background: bottomMatEnabled && bottomMatRevealEnabled ? selectedBottomMatColor.hex : 'transparent',
+                          padding: bottomMatEnabled ? `${bottomMatMargin}px` : 0,
+                          background: bottomMatEnabled ? selectedBottomMatColor.hex : 'transparent',
                         }}
                       >
                         <div
@@ -1879,7 +1859,7 @@ function App() {
                             borderColor: stripEnabled ? selectedStripColor.hex : selectedMatColor.hex,
                             borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
                             boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
-                            background: bottomMatEnabled && bottomMatRevealEnabled ? selectedBottomMatColor.hex : selectedMatColor.hex,
+                            background: selectedMatColor.hex,
                           }}
                         >
                           {artwork ? (
