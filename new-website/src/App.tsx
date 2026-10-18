@@ -26,6 +26,7 @@ type ProjectRecord = {
   matColorId?: string
   bottomMatEnabled?: boolean
   bottomMatColorId?: string
+  bottomMatRevealEnabled?: boolean
   stripColorId?: string
   stripEnabled?: boolean
   artworkRatio?: number
@@ -702,12 +703,13 @@ function App() {
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
   const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
+  const [bottomMatRevealEnabled, setBottomMatRevealEnabled] = useState(false)
   const [selectedStyle, setSelectedStyle] = useState('stainless')
   const [selectedFrameType, setSelectedFrameType] = useState('modern')
   const [selectedSize, setSelectedSize] = useState(sizeOptions[0].id)
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
   const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'cristal-zinc-nickel-phosphate')!)
-  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions[0])
+  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'burgundy')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions[0])
   const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(galleryItems[3].image)
@@ -1033,6 +1035,7 @@ function App() {
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const bottomMatMargin = 12
+  const visibleBottomMatMargin = bottomMatEnabled && (!matEnabled || bottomMatRevealEnabled) ? bottomMatMargin : 0
   const previewWidth = Math.min(380, 480 * artworkRatio)
 
   const moveArtwork = (position: { x: number; y: number }) => {
@@ -1221,6 +1224,7 @@ function App() {
       matColorId: selectedMatColor.id,
       bottomMatEnabled,
       bottomMatColorId: selectedBottomMatColor.id,
+      bottomMatRevealEnabled,
       stripColorId: selectedStripColor.id,
       stripEnabled,
       artworkRatio,
@@ -1317,6 +1321,7 @@ function App() {
     if (project.matColorId) setSelectedMatColor(matColorOptions.find((color) => color.id === project.matColorId) ?? selectedMatColor)
     setBottomMatEnabled(project.bottomMatEnabled ?? false)
     if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
+    setBottomMatRevealEnabled(project.bottomMatRevealEnabled ?? (project.bottomMatEnabled ?? false))
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     setArtwork(project.artwork)
@@ -1342,6 +1347,7 @@ function App() {
     setSelectedMatColor(matColorOptions.find((color) => color.id === item.matColorId)!)
     setMatEnabled(true)
     setBottomMatEnabled(false)
+    setBottomMatRevealEnabled(false)
     setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
     setStripThickness(item.stripWidth)
     setStripEnabled(true)
@@ -1643,7 +1649,17 @@ function App() {
             </div>
 
             <div className="menu-group compact-group">
-              <button type="button" className={bottomMatEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle bottom mat" aria-pressed={bottomMatEnabled} onClick={() => setBottomMatEnabled((current) => !current)}>
+              <button
+                type="button"
+                className={bottomMatEnabled ? 'menu-chip active' : 'menu-chip'}
+                aria-label="Toggle bottom mat"
+                aria-pressed={bottomMatEnabled}
+                onClick={() => {
+                  const next = !bottomMatEnabled
+                  setBottomMatEnabled(next)
+                  if (next) setBottomMatRevealEnabled(true)
+                }}
+              >
                 Bottom Mat
               </button>
               <label className="color-picker">
@@ -1657,6 +1673,17 @@ function App() {
                   {bottomMatColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
                 </select>
               </label>
+              <button
+                type="button"
+                className={bottomMatRevealEnabled ? 'menu-chip active' : 'menu-chip'}
+                aria-label="Reveal"
+                aria-pressed={bottomMatRevealEnabled}
+                title="Toggle Bottom Mat reveal"
+                disabled={!bottomMatEnabled || !matEnabled}
+                onClick={() => setBottomMatRevealEnabled((current) => !current)}
+              >
+                Reveal
+              </button>
             </div>
 
             <div className="menu-actions">
@@ -1821,7 +1848,7 @@ function App() {
                     className="mat-stack"
                     style={{
                       inset: `${frameThickness + frameGap}px`,
-                      padding: bottomMatEnabled ? `${bottomMatMargin}px` : 0,
+                      padding: `${visibleBottomMatMargin}px`,
                       background: bottomMatEnabled ? selectedBottomMatColor.hex : 'transparent',
                     }}
                   >
