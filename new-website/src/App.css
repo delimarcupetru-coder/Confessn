@@ -2590,6 +2590,89 @@
   font-size: 0.8rem;
 }
 
+.admin-notifications {
+  margin: 14px 0 18px;
+  border-top: 1px solid #d6d1c5;
+  border-bottom: 1px solid #d6d1c5;
+}
+
+.admin-notifications-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 8px;
+}
+
+.admin-notifications-heading h3 {
+  margin: 0;
+  color: #344b45;
+  font-size: 0.92rem;
+}
+
+.admin-notifications-heading span,
+.admin-notifications-empty {
+  color: #65665f;
+  font-size: 0.72rem;
+}
+
+.admin-notifications ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-notifications li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-top: 1px solid #e3dfd5;
+}
+
+.admin-notification-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: #52544d;
+  font-size: 0.76rem;
+}
+
+.admin-notification-main strong {
+  color: #2d403a;
+}
+
+.admin-notification-main span,
+.admin-notification-main p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-notification-meta {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+  gap: 5px;
+  color: #65665f;
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.delivery-status {
+  text-transform: capitalize;
+}
+
+.delivery-sent { color: #2f7051; }
+.delivery-pending { color: #8a6820; }
+.delivery-failed { color: #9b342c; }
+
+.admin-notifications-empty {
+  margin: 0;
+  padding: 10px 0;
+}
+
 .email-preference-options {
   display: grid;
   gap: 8px;
@@ -2721,6 +2804,18 @@
 
   .admin-toolbar input {
     grid-column: 1 / -1;
+  }
+
+  .admin-notifications li {
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .admin-notification-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-items: start;
+    text-align: left;
   }
 }
 

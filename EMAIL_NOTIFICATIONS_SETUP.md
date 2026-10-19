@@ -7,7 +7,8 @@ In Supabase SQL Editor, run `supabase-email-preferences.sql` after `supabase-pro
 - Per-user, per-category email preferences with row-level security.
 - Signup-time consent capture from the unchecked-by-default questionnaire.
 - An admin-only RPC for consent reporting.
-- A locked outbox row for each newly created Auth account.
+- A locked outbox row for each newly created Auth account and each changed preference save.
+- An admin-only notifications feed in the Admin account showing recent events and delivery status.
 
 Users can change their own preferences from Account settings. Preferences only record consent; they do not send community, contest, or news campaigns.
 
@@ -41,6 +42,6 @@ The notification function sends new-account summaries to the configured administ
    Add header `x-confessn-webhook-secret` with the same random secret set above. The function disables JWT verification only for this webhook endpoint and validates that secret on every request.
 
 5. Create a second Database Webhook for `public.confessn_email_preference_outbox`, event `INSERT`, with the same POST URL and `x-confessn-webhook-secret` header. This sends an admin notification only when a user explicitly presses **Save email preferences**.
-6. Create a test Auth account and save a preference change. Confirm the admin receives the signup and preference-change notifications. Both outboxes track sent/failed state and provider message IDs; Resend idempotency keys protect against duplicate webhook delivery.
+6. Create a test Auth account and save a preference change. Confirm both events appear in the **Admin → Notifications** feed; after the webhooks are configured, confirm the administrator email receives both messages. Both outboxes track sent/failed state and provider message IDs; Resend idempotency keys protect against duplicate webhook delivery.
 
 Supabase provides the service-role key to Edge Functions as a server-side environment variable for updating the outbox. Never put it in `supabase.js` or any browser bundle.

@@ -71,6 +71,17 @@ type AdminUserSummary = {
   response_source: string | null
 }
 
+type AdminNotification = {
+  notification_id: string
+  event_type: 'new_account' | 'email_preferences'
+  email: string | null
+  username: string
+  summary: string
+  created_at: string
+  delivery_status: 'pending' | 'sent' | 'failed'
+  delivered_at: string | null
+}
+
 type EmailPreferenceValues = {
   community_events: boolean
   contests: boolean
@@ -200,7 +211,7 @@ const translations = {
     quote: 'See your art in a new light.',
     follow: 'Follow us',
     contactTitle: 'Contact us',
-    contactName: 'Your name',
+    contactEmail: 'Your email',
     send: 'Send',
     languages: 'Languages',
     placeholder: 'Tell us about your space and the mood you want for the frame.',
@@ -259,7 +270,7 @@ const translations = {
     quote: 'Voyez votre art sous un nouveau jour.',
     follow: 'Suivez-nous',
     contactTitle: 'Contactez-nous',
-    contactName: 'Votre nom',
+    contactEmail: 'Votre e-mail',
     send: 'Envoyer',
     languages: 'Langues',
     placeholder: 'Parlez-nous de votre espace et de l’ambiance que vous souhaitez pour le cadre.',
@@ -317,7 +328,7 @@ const translations = {
     quote: '让你的艺术焕发新光彩。',
     follow: '关注我们',
     contactTitle: '联系我们',
-    contactName: '您的姓名',
+    contactEmail: '您的电子邮箱',
     send: '发送',
     languages: '语言',
     placeholder: '告诉我们您想要的空间氛围和画框风格。',
@@ -376,7 +387,7 @@ const translations = {
     quote: 'Sehen Sie Ihre Kunst in neuem Licht.',
     follow: 'Folgen Sie uns',
     contactTitle: 'Kontaktieren Sie uns',
-    contactName: 'Ihr Name',
+    contactEmail: 'Ihre E-Mail',
     send: 'Senden',
     languages: 'Sprachen',
     placeholder: 'Erzählen Sie uns von Ihrem Raum und der Stimmung, die Sie für den Rahmen wünschen.',
@@ -435,7 +446,7 @@ const translations = {
     quote: 'Vedi la tua arte sotto una nuova luce.',
     follow: 'Seguici',
     contactTitle: 'Contattaci',
-    contactName: 'Il tuo nome',
+    contactEmail: 'La tua email',
     send: 'Invia',
     languages: 'Lingue',
     placeholder: 'Parlaci dello spazio e dell’atmosfera che vuoi per la cornice.',
@@ -494,7 +505,7 @@ const translations = {
     quote: 'Ve tu arte con otra luz.',
     follow: 'Síguenos',
     contactTitle: 'Contáctanos',
-    contactName: 'Tu nombre',
+    contactEmail: 'Tu correo electrónico',
     send: 'Enviar',
     languages: 'Idiomas',
     placeholder: 'Cuéntanos sobre tu espacio y el ambiente que quieres para el marco.',
@@ -552,7 +563,7 @@ const translations = {
     quote: 'あなたのアートを新しい光で見てください。',
     follow: 'フォローする',
     contactTitle: 'お問い合わせ',
-    contactName: 'お名前',
+    contactEmail: 'メールアドレス',
     send: '送信',
     languages: '言語',
     placeholder: '部屋の雰囲気や、希望する額縁の印象を教えてください。',
@@ -833,7 +844,7 @@ function App() {
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
   const [exportFormat, setExportFormat] = useState<ImageFormat>('png')
-  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
@@ -891,9 +902,11 @@ function App() {
   const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
   const [showAdminDialog, setShowAdminDialog] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([])
+  const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([])
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
   const [adminPreferencesError, setAdminPreferencesError] = useState('')
+  const [adminNotificationsError, setAdminNotificationsError] = useState('')
   const [adminSearch, setAdminSearch] = useState('')
 
   useEffect(() => {
@@ -1101,14 +1114,14 @@ function App() {
     setEmailPreferencesSaving(true)
     setEmailPreferencesMessage('')
     try {
-      const { error } = await supabase.rpc('save_confessn_email_preferences', {
+      const { data, error } = await supabase.rpc('save_confessn_email_preferences', {
         p_community_events_opt_in: emailPreferences.community_events,
         p_contests_opt_in: emailPreferences.contests,
         p_confessn_news_opt_in: emailPreferences.confessn_news,
       })
       if (error) throw error
       setEmailPreferencesDirty(false)
-      setEmailPreferencesMessage('Preferences saved. Administrator notification queued.')
+      setEmailPreferencesMessage(data ? 'Preferences saved. Administrator notification queued.' : 'No preference changes to save.')
     } catch {
       setEmailPreferencesMessage('Preferences were not saved. Check that the email preference schema is installed, then retry.')
     } finally {
@@ -1729,8 +1742,12 @@ function App() {
   }
 
   const sendContactMessage = () => {
-    const subject = encodeURIComponent(`Framing project inquiry from ${contactName || 'customer'}`)
-    const body = encodeURIComponent(contactMessage || 'Hello, I would like to discuss a custom frame order.')
+    const emailInput = document.getElementById('contact-email') as HTMLInputElement | null
+    if (!emailInput?.reportValidity()) return
+    const email = contactEmail.trim().toLowerCase()
+    const subject = encodeURIComponent(`Framing project inquiry from ${email}`)
+    const message = contactMessage.trim() || 'Hello, I would like to discuss a custom frame order.'
+    const body = encodeURIComponent(`Reply to: ${email}\n\n${message}`)
     window.location.href = `mailto:hello@virtualartframingstudio.com?subject=${subject}&body=${body}`
   }
 
@@ -1839,9 +1856,11 @@ function App() {
     setAdminLoading(true)
     setAdminError('')
     setAdminPreferencesError('')
-    const [summaryResult, preferencesResult] = await Promise.all([
+    setAdminNotificationsError('')
+    const [summaryResult, preferencesResult, notificationsResult] = await Promise.all([
       supabase.rpc('get_confessn_admin_user_metrics'),
       supabase.rpc('get_confessn_admin_email_preferences'),
+      supabase.rpc('get_confessn_admin_notifications'),
     ])
     if (summaryResult.error) {
       setAdminError('Could not load the user summary. Confirm the admin schema has been applied and access is authorized.')
@@ -1849,6 +1868,8 @@ function App() {
       return
     }
     if (preferencesResult.error) setAdminPreferencesError('Email preference reporting is unavailable until the email preference schema is applied.')
+    if (notificationsResult.error) setAdminNotificationsError('Administrator notifications are unavailable until the email outbox schema is applied.')
+    setAdminNotifications((notificationsResult.data ?? []) as AdminNotification[])
     const preferencesByUserId = new Map<string, Partial<AdminUserSummary>>(
       (preferencesResult.data ?? []).map((preference: Partial<AdminUserSummary> & { user_id: string }) => [preference.user_id, preference]),
     )
@@ -2638,9 +2659,14 @@ function App() {
         </div>
         <div className="contact-form">
           <input
-            value={contactName}
-            onChange={(event) => setContactName(event.target.value)}
-            placeholder={t.contactName}
+            id="contact-email"
+            type="email"
+            autoComplete="email"
+            required
+            value={contactEmail}
+            onChange={(event) => setContactEmail(event.target.value)}
+            placeholder={t.contactEmail}
+            aria-label={t.contactEmail}
           />
           <textarea
             value={contactMessage}
@@ -2692,6 +2718,32 @@ function App() {
             </div>
             {adminError && <p className="admin-error" role="alert">{adminError}</p>}
             {adminPreferencesError && <p className="admin-error" role="status">{adminPreferencesError}</p>}
+            <section className="admin-notifications" aria-labelledby="admin-notifications-title">
+              <div className="admin-notifications-heading">
+                <h3 id="admin-notifications-title">Notifications</h3>
+                <span>{adminNotifications.length} recent</span>
+              </div>
+              {adminNotificationsError && <p className="admin-error" role="status">{adminNotificationsError}</p>}
+              {adminNotifications.length === 0 ? (
+                <p className="admin-notifications-empty">No account or preference notifications yet.</p>
+              ) : (
+                <ul>
+                  {adminNotifications.map((notification) => (
+                    <li key={notification.notification_id}>
+                      <div className="admin-notification-main">
+                        <strong>{notification.event_type === 'new_account' ? 'New account' : 'Email preferences saved'}</strong>
+                        <span>{notification.email || 'Email unavailable'}{notification.username ? ` · ${notification.username}` : ''}</span>
+                        <p>{notification.summary}</p>
+                      </div>
+                      <div className="admin-notification-meta">
+                        <time dateTime={notification.created_at}>{new Date(notification.created_at).toLocaleString()}</time>
+                        <span className={`delivery-status delivery-${notification.delivery_status}`}>{notification.delivery_status}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             <div className="admin-table-scroll">
               <table className="admin-users-table">
                 <thead>
