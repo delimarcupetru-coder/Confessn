@@ -40,6 +40,7 @@ The notification function sends new-account summaries to the configured administ
 
    Add header `x-confessn-webhook-secret` with the same random secret set above. The function disables JWT verification only for this webhook endpoint and validates that secret on every request.
 
-5. Create a test Auth account and confirm one notification arrives. The outbox tracks sent/failed state and the provider message ID. Its unique user constraint and Resend idempotency key protect against duplicate webhook delivery.
+5. Create a second Database Webhook for `public.confessn_email_preference_outbox`, event `INSERT`, with the same POST URL and `x-confessn-webhook-secret` header. This sends an admin notification only when a user explicitly presses **Save email preferences**.
+6. Create a test Auth account and save a preference change. Confirm the admin receives the signup and preference-change notifications. Both outboxes track sent/failed state and provider message IDs; Resend idempotency keys protect against duplicate webhook delivery.
 
 Supabase provides the service-role key to Edge Functions as a server-side environment variable for updating the outbox. Never put it in `supabase.js` or any browser bundle.

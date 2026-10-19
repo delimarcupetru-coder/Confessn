@@ -42,6 +42,28 @@ create table if not exists public.confessn_signup_email_outbox (
 alter table public.confessn_signup_email_outbox enable row level security;
 revoke all on public.confessn_signup_email_outbox from public, anon, authenticated;
 
+create table if not exists public.confessn_email_preference_outbox (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  email text,
+  username text not null default '',
+  community_events_opt_in boolean not null,
+  contests_opt_in boolean not null,
+  confessn_news_opt_in boolean not null,
+  consent_prompted boolean not null default true,
+  response_recorded_at timestamptz not null default now(),
+  response_source text not null default 'account',
+  created_at timestamptz not null default now(),
+  delivery_status text not null default 'pending'
+    check (delivery_status in ('pending', 'sent', 'failed')),
+  delivered_at timestamptz,
+  provider_message_id text,
+  last_error text
+);
+
+alter table public.confessn_email_preference_outbox enable row level security;
+revoke all on public.confessn_email_preference_outbox from public, anon, authenticated;
+
 create or replace function public.record_confessn_signup_events()
 returns trigger
 language plpgsql
@@ -150,6 +172,28 @@ begin
     response_recorded_at = now(),
     response_source = 'account',
     updated_at = now();
+
+  insert into public.confessn_email_preference_outbox (
+    user_id,
+    email,
+    username,
+    community_events_opt_in,
+    contests_opt_in,
+    confessn_news_opt_in,
+    response_recorded_at,
+    response_source
+  )
+  select
+    signed_in_user_id,
+    auth_user.email,
+    coalesce(auth_user.raw_user_meta_data ->> 'username', ''),
+    p_community_events_opt_in,
+    p_contests_opt_in,
+    p_confessn_news_opt_in,
+    now(),
+    'account'
+  from auth.users as auth_user
+  where auth_user.id = signed_in_user_id;
 end;
 $function$;
 

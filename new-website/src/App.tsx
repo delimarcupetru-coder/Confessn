@@ -813,7 +813,9 @@ function App() {
   const [signupEmailPreferences, setSignupEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
   const [emailPreferences, setEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
   const [emailPreferencesLoading, setEmailPreferencesLoading] = useState(false)
+  const [emailPreferencesSaving, setEmailPreferencesSaving] = useState(false)
   const [emailPreferencesLoadFailed, setEmailPreferencesLoadFailed] = useState(false)
+  const [emailPreferencesDirty, setEmailPreferencesDirty] = useState(false)
   const [emailPreferencesMessage, setEmailPreferencesMessage] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [authSuccessMessage, setAuthSuccessMessage] = useState('')
@@ -1064,6 +1066,7 @@ function App() {
       } else {
         setEmailPreferences(defaultEmailPreferences)
       }
+      setEmailPreferencesDirty(false)
     } catch {
       setEmailPreferencesLoadFailed(true)
       setEmailPreferencesMessage('Could not load email preferences. Apply the email preference schema, then retry.')
@@ -1081,35 +1084,43 @@ function App() {
     setEmailPreferences(defaultEmailPreferences)
     setEmailPreferencesMessage('')
     setEmailPreferencesLoadFailed(false)
+    setEmailPreferencesDirty(false)
     setShowAccountDialog(true)
     void loadEmailPreferences()
+  }
+
+  const saveEmailPreferences = async () => {
+    if (!authUserId) {
+      setEmailPreferencesMessage('Sign in to save email preferences.')
+      return
+    }
+    if (emailPreferencesLoading || emailPreferencesLoadFailed) {
+      setEmailPreferencesMessage('Load your current preferences successfully before saving.')
+      return
+    }
+    setEmailPreferencesSaving(true)
+    setEmailPreferencesMessage('')
+    try {
+      const { error } = await supabase.rpc('save_confessn_email_preferences', {
+        p_community_events_opt_in: emailPreferences.community_events,
+        p_contests_opt_in: emailPreferences.contests,
+        p_confessn_news_opt_in: emailPreferences.confessn_news,
+      })
+      if (error) throw error
+      setEmailPreferencesDirty(false)
+      setEmailPreferencesMessage('Preferences saved. Administrator notification queued.')
+    } catch {
+      setEmailPreferencesMessage('Preferences were not saved. Check that the email preference schema is installed, then retry.')
+    } finally {
+      setEmailPreferencesSaving(false)
+    }
   }
 
   const saveAccountChanges = async () => {
     const username = profileUsername.trim()
     const email = profileEmail.trim().toLowerCase()
     if (!username || !email) return
-    let preferenceSaveFailed = false
-    if (authUserId) {
-      setEmailPreferencesMessage('')
-      if (emailPreferencesLoadFailed) {
-        setEmailPreferencesMessage('Email preferences were not loaded, so they were not changed. Use Retry and save again.')
-        preferenceSaveFailed = true
-      } else {
-        const { error } = await supabase.rpc('save_confessn_email_preferences', {
-          p_community_events_opt_in: emailPreferences.community_events,
-          p_contests_opt_in: emailPreferences.contests,
-          p_confessn_news_opt_in: emailPreferences.confessn_news,
-        })
-        if (error) {
-          setEmailPreferencesMessage('Profile saved locally, but email preferences were not saved. Apply the email preference schema and try again.')
-          preferenceSaveFailed = true
-        }
-      }
-    } else {
-      setEmailPreferencesMessage('Sign in to save email preferences to your account.')
-      preferenceSaveFailed = true
-    }
+    const preferencesPending = emailPreferencesDirty
     let savedAvatar = profileAvatar
     if (profileAvatar && profileAvatarZoom !== 1) {
       const image = new Image()
@@ -1144,7 +1155,10 @@ function App() {
         // Keep the profile update local even if an old auth record is malformed.
       }
     }
-    if (preferenceSaveFailed) return
+    if (preferencesPending) {
+      setEmailPreferencesMessage('Profile saved. Save your email preference changes separately before closing this account window.')
+      return
+    }
     setShowAccountDialog(false)
   }
 
@@ -2278,9 +2292,18 @@ function App() {
             onTouchCancel={handlePinchEnd}
           >
             <div
+              className="workspace-art-stack"
+              style={{ width: `min(100%, ${renderedPreviewWidth + capturePadding}px)` }}
+            >
+              {showDimensions && (
+                <div className="workspace-dimension-label dimension-width">
+                  Width {artWidthInches.toFixed(1)} in · {dimensionsConfirmed ? 'Measured' : 'Estimate'}
+                </div>
+              )}
+            <div
               ref={captureRef}
               className="art-capture-area"
-              style={{ width: `min(100%, ${renderedPreviewWidth + capturePadding}px)`, aspectRatio: previewFrameRatio }}
+              style={{ width: '100%', aspectRatio: previewFrameRatio }}
             >
               <div
                 className={selectedFrameType === 'floating' ? 'art-preview art-preview-floating' : 'art-preview'}
@@ -2420,6 +2443,12 @@ function App() {
                 </div>}
               </div>
             </div>
+              {showDimensions && (
+                <div className="workspace-dimension-label dimension-height">
+                  Height {artHeightInches.toFixed(1)} in
+                </div>
+              )}
+            </div>
             <div className="workspace-adjust-tools" data-screenshot-ignore>
               <button
                 type="button"
@@ -2464,13 +2493,6 @@ function App() {
               >S</button>
             </div>
           </div>
-          {showDimensions && (
-            <div className="workspace-dimensions" aria-label="Artwork dimensions">
-              <span className="dimension-status">{dimensionsConfirmed ? 'MEASURED' : 'ESTIMATE'}</span>
-              <span className="dimension-width">{artWidthInches.toFixed(1)} in</span>
-              <span className="dimension-height">{artHeightInches.toFixed(1)} in</span>
-            </div>
-          )}
         </div>
 
       </section>
@@ -2933,16 +2955,22 @@ function App() {
               <label htmlFor="profile-password">Password</label>
               <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
-            <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesLoadFailed}>
+            <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesLoadFailed || emailPreferencesSaving}>
               <legend>Email preferences</legend>
               <p>Manage optional emails about community events, contests, and Confessn news.</p>
-              <label><input type="checkbox" checked={emailPreferences.community_events} onChange={(event) => setEmailPreferences((current) => ({ ...current, community_events: event.target.checked }))} /> Community events</label>
-              <label><input type="checkbox" checked={emailPreferences.contests} onChange={(event) => setEmailPreferences((current) => ({ ...current, contests: event.target.checked }))} /> Contests</label>
-              <label><input type="checkbox" checked={emailPreferences.confessn_news} onChange={(event) => setEmailPreferences((current) => ({ ...current, confessn_news: event.target.checked }))} /> Confessn news</label>
+              <label><input type="checkbox" checked={emailPreferences.community_events} onChange={(event) => { setEmailPreferences((current) => ({ ...current, community_events: event.target.checked })); setEmailPreferencesDirty(true) }} /> Community events</label>
+              <label><input type="checkbox" checked={emailPreferences.contests} onChange={(event) => { setEmailPreferences((current) => ({ ...current, contests: event.target.checked })); setEmailPreferencesDirty(true) }} /> Contests</label>
+              <label><input type="checkbox" checked={emailPreferences.confessn_news} onChange={(event) => { setEmailPreferences((current) => ({ ...current, confessn_news: event.target.checked })); setEmailPreferencesDirty(true) }} /> Confessn news</label>
             </fieldset>
             {emailPreferencesMessage && <p className="dialog-hint" role="status">{emailPreferencesMessage}</p>}
             {emailPreferencesLoadFailed && <button type="button" className="menu-action" onClick={() => void loadEmailPreferences()}>Retry loading preferences</button>}
-            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading || emailPreferencesLoading} onClick={() => void saveAccountChanges()}>Save Changes</button>
+            <button
+              type="button"
+              className="primary-button full-width-button"
+              disabled={!authUserId || emailPreferencesLoading || emailPreferencesLoadFailed || emailPreferencesSaving}
+              onClick={() => void saveEmailPreferences()}
+            >{emailPreferencesSaving ? 'Saving preferences…' : 'Save email preferences'}</button>
+            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading} onClick={() => void saveAccountChanges()}>Save Profile</button>
           </div>
         </div>
       )}

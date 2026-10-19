@@ -10,11 +10,25 @@ type SignupOutboxRecord = {
   delivery_status: 'pending' | 'sent' | 'failed'
 }
 
+type PreferenceOutboxRecord = {
+  id: string
+  email: string | null
+  username: string
+  community_events_opt_in: boolean
+  contests_opt_in: boolean
+  confessn_news_opt_in: boolean
+  response_recorded_at: string
+  response_source: string
+  delivery_status: 'pending' | 'sent' | 'failed'
+}
+
+type OutboxRecord = SignupOutboxRecord | PreferenceOutboxRecord
+
 type DatabaseWebhookPayload = {
   type?: string
   schema?: string
   table?: string
-  record?: SignupOutboxRecord
+  record?: OutboxRecord
 }
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(
@@ -31,13 +45,13 @@ const constantTimeEqual = (left: string, right: string) => {
   return difference === 0
 }
 
-const updateOutbox = async (recordId: string, values: Record<string, unknown>) => {
+const updateOutbox = async (table: 'confessn_signup_email_outbox' | 'confessn_email_preference_outbox', recordId: string, values: Record<string, unknown>) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !serviceRoleKey) throw new Error('Supabase service configuration is missing')
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/confessn_signup_email_outbox?id=eq.${encodeURIComponent(recordId)}`,
+    `${supabaseUrl}/rest/v1/${table}?id=eq.${encodeURIComponent(recordId)}`,
     {
       method: 'PATCH',
       headers: {
@@ -75,26 +89,43 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Invalid webhook payload' }, 400)
   }
 
-  if (payload.type !== 'INSERT' || payload.schema !== 'public' || payload.table !== 'confessn_signup_email_outbox' || !payload.record?.id) {
+  const isSignupEvent = payload.table === 'confessn_signup_email_outbox'
+  const isPreferenceEvent = payload.table === 'confessn_email_preference_outbox'
+  if (payload.type !== 'INSERT' || payload.schema !== 'public' || (!isSignupEvent && !isPreferenceEvent) || !payload.record?.id) {
     return jsonResponse({ error: 'Unexpected webhook event' }, 400)
   }
 
   const record = payload.record
   if (record.delivery_status === 'sent') return jsonResponse({ delivered: true, duplicate: true })
 
-  const text = [
-    'A new Confessn account was created.',
-    '',
-    `Email: ${record.email || 'Not provided'}`,
-    `Username: ${record.username || 'Not provided'}`,
-    `Name: ${record.name || 'Not provided'}`,
-    `Account created: ${record.created_at}`,
-    `Projects at signup: ${record.project_count}`,
-    `Account data bytes at signup: ${record.account_data_bytes}`,
-    `Profile status: ${record.profile_status}`,
-    '',
-    'Project and storage figures are initial signup values. Review the restricted Admin report for current synced account metrics.',
-  ].join('\n')
+  const preferenceRecord = isPreferenceEvent ? record as PreferenceOutboxRecord : null
+  const signupRecord = isSignupEvent ? record as SignupOutboxRecord : null
+  const text = preferenceRecord
+    ? [
+        'A Confessn user saved their email preferences.',
+        '',
+        `Email: ${preferenceRecord.email || 'Not provided'}`,
+        `Username: ${preferenceRecord.username || 'Not provided'}`,
+        `Community events: ${preferenceRecord.community_events_opt_in ? 'Opted in' : 'Opted out'}`,
+        `Contests: ${preferenceRecord.contests_opt_in ? 'Opted in' : 'Opted out'}`,
+        `Confessn news: ${preferenceRecord.confessn_news_opt_in ? 'Opted in' : 'Opted out'}`,
+        `Response recorded: ${preferenceRecord.response_recorded_at}`,
+        `Response source: ${preferenceRecord.response_source}`,
+      ].join('\n')
+    : [
+        'A new Confessn account was created.',
+        '',
+        `Email: ${signupRecord?.email || 'Not provided'}`,
+        `Username: ${signupRecord?.username || 'Not provided'}`,
+        `Name: ${signupRecord?.name || 'Not provided'}`,
+        `Account created: ${signupRecord?.created_at}`,
+        `Projects at signup: ${signupRecord?.project_count}`,
+        `Account data bytes at signup: ${signupRecord?.account_data_bytes}`,
+        `Profile status: ${signupRecord?.profile_status}`,
+        '',
+        'Project and storage figures are initial signup values. Review the restricted Admin report for current synced account metrics.',
+      ].join('\n')
+  const outboxTable = isPreferenceEvent ? 'confessn_email_preference_outbox' : 'confessn_signup_email_outbox'
 
   try {
     const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -102,26 +133,26 @@ Deno.serve(async (request) => {
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
-        'Idempotency-Key': `confessn-new-account-${record.id}`,
+        'Idempotency-Key': `confessn-${outboxTable}-${record.id}`,
       },
       body: JSON.stringify({
         from: senderEmail,
         to: [adminEmail],
-        subject: 'New Confessn account',
+        subject: preferenceRecord ? 'Confessn email preferences updated' : 'New Confessn account',
         text,
       }),
     })
 
     const providerResult = await emailResponse.json().catch(() => ({})) as { id?: string }
     if (!emailResponse.ok) {
-      await updateOutbox(record.id, {
+      await updateOutbox(outboxTable, record.id, {
         delivery_status: 'failed',
         last_error: `Resend returned HTTP ${emailResponse.status}`,
       })
       return jsonResponse({ error: 'Email provider rejected the notification' }, 502)
     }
 
-    await updateOutbox(record.id, {
+    await updateOutbox(outboxTable, record.id, {
       delivery_status: 'sent',
       delivered_at: new Date().toISOString(),
       provider_message_id: providerResult.id ?? null,
@@ -130,7 +161,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ delivered: true })
   } catch {
     try {
-      await updateOutbox(record.id, { delivery_status: 'failed', last_error: 'Email delivery failed; webhook retry is safe.' })
+      await updateOutbox(outboxTable, record.id, { delivery_status: 'failed', last_error: 'Email delivery failed; webhook retry is safe.' })
     } catch {
       // Preserve the original delivery failure response for the webhook retry.
     }
