@@ -761,6 +761,18 @@ function App() {
     document.title = 'VAFS'
   }, [])
 
+  const [viewportDimensions, setViewportDimensions] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }))
+
+  useEffect(() => {
+    const updateViewportDimensions = () => setViewportDimensions({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', updateViewportDimensions)
+    window.visualViewport?.addEventListener('resize', updateViewportDimensions)
+    return () => {
+      window.removeEventListener('resize', updateViewportDimensions)
+      window.visualViewport?.removeEventListener('resize', updateViewportDimensions)
+    }
+  }, [])
+
   const [language, setLanguage] = useState<Language>('en')
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
@@ -787,6 +799,7 @@ function App() {
   const [cunActive, setCunActive] = useState(false)
   const [showCunManual, setShowCunManual] = useState(false)
   const [showMobileNav, setShowMobileNav] = useState(false)
+  const [showMobileAccountMenu, setShowMobileAccountMenu] = useState(false)
   const [cunMessage, setCunMessage] = useState({
     key: 'ready',
     title: 'Guide mode is ready',
@@ -852,6 +865,7 @@ function App() {
   const saveHandleRef = useRef<ExportSelection | null>(null)
   const artworkOpeningRef = useRef<HTMLDivElement | null>(null)
   const pinchGestureRef = useRef<PinchGesture | null>(null)
+  const cunAnchorRef = useRef<{ x: number; y: number } | null>(null)
   const artZoomRef = useRef(zoom)
   const artPositionRef = useRef(artPosition)
   const autoFitDefaultArtworkRef = useRef(true)
@@ -1203,6 +1217,15 @@ function App() {
     : frameOrientation === 'horizontal' ? selectedFrameSize.width : selectedFrameSize.height
   const previewFrameRatio = displayFrameWidthInches / displayFrameHeightInches
   const previewWidth = Math.min(480, 560 * Math.min(previewFrameRatio, 1))
+  const capturePadding = viewportDimensions.width <= 620 ? 8 : 48
+  const collapsedStageHeight = Math.min(620, Math.max(0, viewportDimensions.height - 130))
+  const collapsedAdjustToolsSpace = 52
+  const collapsedCanvasHeight = Math.max(0, collapsedStageHeight - 42 - collapsedAdjustToolsSpace)
+  const collapsedCaptureHeight = Math.max(0, Math.min(collapsedCanvasHeight, viewportDimensions.height - 150))
+  const collapsedCaptureWidth = Math.min(previewWidth + capturePadding, collapsedCaptureHeight * previewFrameRatio)
+  const renderedPreviewWidth = mobileToolsCollapsed && viewportDimensions.width <= 620
+    ? Math.max(0, collapsedCaptureWidth - capturePadding)
+    : previewWidth
 
   useEffect(() => {
     if (!autoFitDefaultArtworkRef.current || !artwork) return
@@ -1762,15 +1785,41 @@ function App() {
     if (event.touches.length < 2) pinchGestureRef.current = null
   }
 
-  const updateCunMessage = (target: EventTarget | null) => {
+  const positionCunNotification = (x: number, y: number) => {
+    cunAnchorRef.current = { x, y }
+    const notification = document.getElementById('cun-notification')
+    if (!notification) return
+    const bounds = notification.getBoundingClientRect()
+    const margin = 8
+    const left = Math.max(margin, Math.min(x + 14, window.innerWidth - bounds.width - margin))
+    const top = Math.max(margin, Math.min(y + 14, window.innerHeight - bounds.height - margin))
+    notification.style.left = `${left}px`
+    notification.style.top = `${top}px`
+    notification.style.right = 'auto'
+    notification.style.bottom = 'auto'
+  }
+
+  const updateCunMessage = (target: EventTarget | null, pointer?: { x: number; y: number }) => {
     if (!cunActive || !(target instanceof Element)) return
     const control = target.closest<HTMLElement>('[data-cun-title][data-cun]')
     if (!control) return
+    if (pointer) {
+      positionCunNotification(pointer.x, pointer.y)
+    } else {
+      const bounds = control.getBoundingClientRect()
+      positionCunNotification(bounds.left + Math.min(bounds.width / 2, 24), bounds.bottom)
+    }
     const title = control.dataset.cunTitle ?? 'Control'
     const description = control.dataset.cun ?? ''
     if (!description) return
     setCunMessage((current) => current.key === title ? current : { key: title, title, description })
   }
+
+  useEffect(() => {
+    if (cunActive && cunAnchorRef.current) {
+      positionCunNotification(cunAnchorRef.current.x, cunAnchorRef.current.y)
+    }
+  }, [cunActive, cunMessage])
 
   const loadAdminUsers = async () => {
     setAdminLoading(true)
@@ -1855,7 +1904,8 @@ function App() {
   return (
     <main
       className={cunActive ? 'studio-shell cun-guide-active' : 'studio-shell'}
-      onPointerOverCapture={(event) => updateCunMessage(event.target)}
+      onPointerOverCapture={(event) => updateCunMessage(event.target, event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : undefined)}
+      onPointerMoveCapture={(event) => updateCunMessage(event.target, event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : undefined)}
       onFocusCapture={(event) => updateCunMessage(event.target)}
     >
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
@@ -1871,7 +1921,10 @@ function App() {
             className="mobile-nav-toggle"
             aria-expanded={showMobileNav}
             aria-controls="mobile-nav-dropdown"
-            onClick={() => setShowMobileNav((open) => !open)}
+            onClick={() => {
+              setShowMobileAccountMenu(false)
+              setShowMobileNav((open) => !open)
+            }}
           >
             Menu <span aria-hidden="true">{showMobileNav ? '−' : '+'}</span>
           </button>
@@ -1888,26 +1941,13 @@ function App() {
             onClick={(event) => {
               event.preventDefault()
               setCunActive(true)
+              cunAnchorRef.current = null
               setShowCunManual(false)
               setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
             }}
           >Confessn University</a>
           <a href="#about" data-cun-title="About" data-cun="Read about Confessn and the framing studio.">{t.navAbout}</a>
           <a href="#contact" data-cun-title="Contact" data-cun="Use the contact form to send a message to the studio.">{t.navContact}</a>
-          <select
-            aria-label={t.languages}
-            value={language}
-            onChange={(event) => setLanguage(event.target.value as Language)}
-            className="mobile-lang-select"
-          >
-            <option value="en">EN</option>
-            <option value="fr">FR</option>
-            <option value="zh">中文</option>
-            <option value="de">DE</option>
-            <option value="it">IT</option>
-            <option value="es">ES</option>
-            <option value="ja">日本語</option>
-          </select>
           {showMobileNav && (
             <div id="mobile-nav-dropdown" className="mobile-nav-dropdown">
               <a href="#workspace" onClick={() => setShowMobileNav(false)}>{t.navWork}</a>
@@ -1919,6 +1959,7 @@ function App() {
                   event.preventDefault()
                   setShowMobileNav(false)
                   setCunActive(true)
+                  cunAnchorRef.current = null
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
@@ -1930,6 +1971,31 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          <button
+            type="button"
+            className="mobile-account-toggle"
+            aria-expanded={showMobileAccountMenu}
+            aria-controls="mobile-account-dropdown"
+            onClick={() => {
+              setShowMobileNav(false)
+              setShowMobileAccountMenu((open) => !open)
+            }}
+          >Account <span aria-hidden="true">{showMobileAccountMenu ? '−' : '+'}</span></button>
+          {showMobileAccountMenu && (
+            <div id="mobile-account-dropdown" className="mobile-account-dropdown">
+              {isLoggedIn ? (
+                <>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>Profile</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); logOut() }}>Log out</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setAuthMode('login'); setAuthMessage('') }}>Log in</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setSignupEmailPreferences(defaultEmailPreferences); setAuthMode('create'); setAuthMessage('') }}>Create account</button>
+                </>
+              )}
+            </div>
+          )}
           {isLoggedIn ? (
             <>
               <button type="button" className="profile-badge" aria-label={`Open account for ${account.name}`} data-cun-title="Account profile" data-cun="Open your account to update the profile name, email, password, or profile photo." onClick={openAccountDialog}>
@@ -2214,13 +2280,13 @@ function App() {
             <div
               ref={captureRef}
               className="art-capture-area"
-              style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: previewFrameRatio }}
+              style={{ width: `min(100%, ${renderedPreviewWidth + capturePadding}px)`, aspectRatio: previewFrameRatio }}
             >
               <div
                 className={selectedFrameType === 'floating' ? 'art-preview art-preview-floating' : 'art-preview'}
                 style={{
                   borderColor: selectedColor.hex,
-                  width: `min(100%, ${previewWidth}px)`,
+                  width: `min(100%, ${renderedPreviewWidth}px)`,
                   aspectRatio: previewFrameRatio,
                 }}
               >
