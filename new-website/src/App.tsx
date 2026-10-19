@@ -1096,12 +1096,13 @@ function App() {
     setProfilePassword('')
     setProfileAvatar(account.avatar)
     setProfileAvatarZoom(1)
-    setEmailPreferences(defaultEmailPreferences)
-    setEmailPreferencesMessage('')
-    setEmailPreferencesLoadFailed(false)
-    setEmailPreferencesDirty(false)
     setShowAccountDialog(true)
-    void loadEmailPreferences()
+    if (!emailPreferencesDirty) {
+      setEmailPreferences(defaultEmailPreferences)
+      setEmailPreferencesMessage('')
+      setEmailPreferencesLoadFailed(false)
+      void loadEmailPreferences()
+    }
   }
 
   const saveEmailPreferences = async () => {
@@ -1135,7 +1136,6 @@ function App() {
     const username = profileUsername.trim()
     const email = profileEmail.trim().toLowerCase()
     if (!username || !email) return
-    const preferencesPending = emailPreferencesDirty
     let savedAvatar = profileAvatar
     if (profileAvatar && profileAvatarZoom !== 1) {
       const image = new Image()
@@ -1169,10 +1169,6 @@ function App() {
       } catch {
         // Keep the profile update local even if an old auth record is malformed.
       }
-    }
-    if (preferencesPending) {
-      setEmailPreferencesMessage('Profile saved. Save your email preference changes separately before closing this account window.')
-      return
     }
     setShowAccountDialog(false)
   }
@@ -1255,6 +1251,7 @@ function App() {
   const renderedPreviewWidth = mobileToolsCollapsed && viewportDimensions.width <= 620
     ? Math.max(0, collapsedCaptureWidth - capturePadding)
     : previewWidth
+  const dimensionSideWidth = showDimensions ? 24 : 0
 
   useEffect(() => {
     if (!autoFitDefaultArtworkRef.current || !artwork) return
@@ -2315,8 +2312,8 @@ function App() {
             onTouchCancel={handlePinchEnd}
           >
             <div
-              className="workspace-art-stack"
-              style={{ width: `min(100%, ${renderedPreviewWidth + capturePadding}px)` }}
+              className={showDimensions ? 'workspace-art-stack dimensions-visible' : 'workspace-art-stack'}
+              style={{ width: `min(100%, ${renderedPreviewWidth + capturePadding + dimensionSideWidth}px)` }}
             >
               {showDimensions && (
                 <div className="workspace-dimension-label dimension-width">

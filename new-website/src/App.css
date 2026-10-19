@@ -528,6 +528,14 @@
   max-width: 100%;
 }
 
+.workspace-art-stack.dimensions-visible {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  grid-template-rows: auto auto;
+  column-gap: 4px;
+  row-gap: 4px;
+}
+
 .workspace-dimension-label {
   max-width: 100%;
   padding: 2px 7px;
@@ -540,10 +548,24 @@
   overflow-wrap: anywhere;
 }
 
-.dimension-width,
-.dimension-height {
-  position: static;
-  transform: none;
+.workspace-dimension-label.dimension-width {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: center;
+  white-space: nowrap;
+}
+
+.workspace-dimension-label.dimension-height {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  width: max-content;
+  max-width: none;
+  padding: 5px 3px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
 }
 
 .workspace-save-area {
