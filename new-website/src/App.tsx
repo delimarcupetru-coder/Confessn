@@ -786,6 +786,7 @@ function App() {
   const [projectNotes, setProjectNotes] = useState('')
   const [cunActive, setCunActive] = useState(false)
   const [showCunManual, setShowCunManual] = useState(false)
+  const [showMobileNav, setShowMobileNav] = useState(false)
   const [cunMessage, setCunMessage] = useState({
     key: 'ready',
     title: 'Guide mode is ready',
@@ -1864,6 +1865,15 @@ function App() {
         </div>
 
         <nav className="nav">
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-expanded={showMobileNav}
+            aria-controls="mobile-nav-dropdown"
+            onClick={() => setShowMobileNav((open) => !open)}
+          >
+            Menu <span aria-hidden="true">{showMobileNav ? '−' : '+'}</span>
+          </button>
           <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
           <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
           {isConfessnAdmin && <a href="#admin" data-cun-title="Admin" data-cun="Open the restricted account summary for user identity, project counts, and storage estimates." onClick={(event) => { event.preventDefault(); openAdminDialog() }}>Admin</a>}
@@ -1897,6 +1907,25 @@ function App() {
             <option value="es">ES</option>
             <option value="ja">日本語</option>
           </select>
+          {showMobileNav && (
+            <div id="mobile-nav-dropdown" className="mobile-nav-dropdown">
+              <a href="#workspace" onClick={() => setShowMobileNav(false)}>{t.navWork}</a>
+              <a href="#projects" onClick={() => setShowMobileNav(false)}>{t.navProjects}</a>
+              {isConfessnAdmin && <a href="#admin" onClick={(event) => { event.preventDefault(); setShowMobileNav(false); openAdminDialog() }}>Admin</a>}
+              <a
+                href="#confessn-university"
+                onClick={(event) => {
+                  event.preventDefault()
+                  setShowMobileNav(false)
+                  setCunActive(true)
+                  setShowCunManual(false)
+                  setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
+                }}
+              >Confessn University</a>
+              <a href="#about" onClick={() => setShowMobileNav(false)}>{t.navAbout}</a>
+              <a href="#contact" onClick={() => setShowMobileNav(false)}>{t.navContact}</a>
+            </div>
+          )}
         </nav>
 
         <div className="header-actions">
