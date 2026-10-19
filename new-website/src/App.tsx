@@ -1071,15 +1071,17 @@ function App() {
         .maybeSingle()
       if (error) throw error
       if (data) {
-        setEmailPreferences({
-          community_events: data.community_events_opt_in,
-          contests: data.contests_opt_in,
-          confessn_news: data.confessn_news_opt_in,
-        })
-      } else {
+        if (!emailPreferencesDirty) {
+          setEmailPreferences({
+            community_events: data.community_events_opt_in,
+            contests: data.contests_opt_in,
+            confessn_news: data.confessn_news_opt_in,
+          })
+        }
+      } else if (!emailPreferencesDirty) {
         setEmailPreferences(defaultEmailPreferences)
       }
-      setEmailPreferencesDirty(false)
+      if (!emailPreferencesDirty) setEmailPreferencesDirty(false)
     } catch {
       setEmailPreferencesLoadFailed(true)
       setEmailPreferencesMessage('Could not load email preferences. Apply the email preference schema, then retry.')
@@ -3007,7 +3009,7 @@ function App() {
               <label htmlFor="profile-password">Password</label>
               <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
-            <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesLoadFailed || emailPreferencesSaving}>
+            <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesSaving}>
               <legend>Email preferences</legend>
               <p>Manage optional emails about community events, contests, and Confessn news.</p>
               <label><input type="checkbox" checked={emailPreferences.community_events} onChange={(event) => { setEmailPreferences((current) => ({ ...current, community_events: event.target.checked })); setEmailPreferencesDirty(true) }} /> Community events</label>
