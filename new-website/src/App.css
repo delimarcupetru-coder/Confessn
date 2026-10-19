@@ -2046,14 +2046,21 @@
     min-height: 32px;
     place-items: center;
     padding: 0;
-    border: 1px solid rgba(17, 17, 24, 0.12);
+    border: 1px solid #a9d9f5;
     border-radius: 4px;
-    background: #fff;
-    color: #282820;
+    background: #d9efff;
+    color: #173d58;
     font-size: 1rem;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .mobile-tools-toggle:hover,
+  .mobile-tools-toggle:focus-visible {
+    background: #c4e7ff;
+    color: #102f45;
   }
 
   .workspace-menu-bar.mobile-tools-collapsed {
