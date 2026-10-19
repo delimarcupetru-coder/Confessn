@@ -822,6 +822,7 @@ function App() {
   const [contactMessage, setContactMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [wallTone, setWallTone] = useState<'white' | 'warm'>('white')
+  const [mobileToolsCollapsed, setMobileToolsCollapsed] = useState(false)
   const [frameThickness, setFrameThickness] = useState(10)
   const [matMargin, setMatMargin] = useState(8)
   const [stripThickness, setStripThickness] = useState(2)
@@ -1201,7 +1202,7 @@ function App() {
     ? frameOrientation === 'horizontal' ? frameWidthInches : frameHeightInches
     : frameOrientation === 'horizontal' ? selectedFrameSize.width : selectedFrameSize.height
   const previewFrameRatio = displayFrameWidthInches / displayFrameHeightInches
-  const previewWidth = Math.min(380, 480 * previewFrameRatio)
+  const previewWidth = Math.min(480, 560 * Math.min(previewFrameRatio, 1))
 
   useEffect(() => {
     if (!autoFitDefaultArtworkRef.current || !artwork) return
@@ -1967,7 +1968,7 @@ function App() {
 
       <section id="workspace" className="hero-stage">
         <div
-          className={`stage-shell stage-${wallTone}`}
+          className={`stage-shell stage-${wallTone}${mobileToolsCollapsed ? ' tools-collapsed' : ''}`}
           aria-label="Workspace staging area"
         >
           <input
@@ -1978,7 +1979,17 @@ function App() {
             onChange={handleArtworkUpload}
           />
 
-          <div className="workspace-menu-bar">
+          <div className={mobileToolsCollapsed ? 'workspace-menu-bar mobile-tools-collapsed' : 'workspace-menu-bar'}>
+            <button
+              type="button"
+              className="mobile-tools-toggle"
+              aria-label={mobileToolsCollapsed ? 'Show workspace tools' : 'Hide workspace tools'}
+              aria-expanded={!mobileToolsCollapsed}
+              title={mobileToolsCollapsed ? 'Show workspace tools' : 'Hide workspace tools'}
+              data-cun-title="Toggle workspace tools"
+              data-cun="Hide the left tool rail to enlarge the preview, or expand it again to adjust the frame and mats."
+              onClick={() => setMobileToolsCollapsed((collapsed) => !collapsed)}
+            >{mobileToolsCollapsed ? '›' : '‹'}</button>
             <div className="menu-group">
               <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" data-cun-title="Frame on or off" data-cun="Toggle the decorative frame without changing the artwork or mat settings." onClick={() => setFrameEnabled((current) => !current)}>
                 Frame
