@@ -1035,6 +1035,18 @@
   z-index: 0;
 }
 
+.art-preview-floating {
+  background: transparent;
+}
+
+.artwork-opening {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  z-index: 4;
+}
+
 .art-preview img {
   display: block;
   width: 100%;

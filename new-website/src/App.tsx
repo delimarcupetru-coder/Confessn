@@ -2177,8 +2177,7 @@ function App() {
               style={{ width: `min(100%, ${previewWidth + 48}px)`, aspectRatio: previewFrameRatio }}
             >
               <div
-                ref={!matEnabled && !bottomMatEnabled ? artworkOpeningRef : undefined}
-                className="art-preview"
+                className={selectedFrameType === 'floating' ? 'art-preview art-preview-floating' : 'art-preview'}
                 style={{
                   borderColor: selectedColor.hex,
                   width: `min(100%, ${previewWidth}px)`,
@@ -2278,13 +2277,21 @@ function App() {
                     )}
                   </div>
                 )}
-                {!matEnabled && !bottomMatEnabled && artwork && <img
-                  className="uploaded-artwork artwork-without-mat"
-                  src={artwork}
-                  alt="Uploaded artwork preview"
-                  style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
-                  onPointerDown={handleArtworkPointerDown}
-                />}
+                {!matEnabled && !bottomMatEnabled && artwork && (
+                  <div
+                    ref={artworkOpeningRef}
+                    className="artwork-opening"
+                    style={{ inset: frameEnabled && selectedFrameType === 'floating' ? `${frameThickness + frameGap}px` : 0 }}
+                  >
+                    <img
+                      className="uploaded-artwork artwork-without-mat"
+                      src={artwork}
+                      alt="Uploaded artwork preview"
+                      style={{ transform: `translate(${artPosition.x}px, ${artPosition.y}px) scale(${zoom})` }}
+                      onPointerDown={handleArtworkPointerDown}
+                    />
+                  </div>
+                )}
                 {frameEnabled && <div
                   className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
                   style={{
