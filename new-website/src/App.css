@@ -2446,6 +2446,63 @@
   font-size: 0.8rem;
 }
 
+.email-preference-options {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  color: #f0eee8;
+}
+
+.email-preference-options legend {
+  padding: 0 5px;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.email-preference-options p {
+  margin: 0 0 3px;
+  color: #d2d0ca;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.email-preference-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: inherit;
+  font-size: 0.77rem;
+  line-height: 1.4;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.email-preference-options input[type='checkbox'] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: #cf694e;
+}
+
+.account-dialog {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.account-email-preferences {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.email-preference-options:disabled {
+  opacity: 0.65;
+}
+
 @media (max-width: 620px) {
   .admin-dialog {
     width: calc(100vw - 16px);

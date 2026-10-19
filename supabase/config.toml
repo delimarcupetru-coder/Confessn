@@ -1,0 +1,2 @@
+[functions.notify-new-account]
+verify_jwt = false

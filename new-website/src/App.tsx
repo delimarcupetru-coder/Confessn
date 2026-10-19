@@ -63,6 +63,24 @@ type AdminUserSummary = {
   embedded_artwork_bytes: number
   account_updated_at: string | null
   user_created_at: string
+  community_events_opt_in: boolean
+  contests_opt_in: boolean
+  confessn_news_opt_in: boolean
+  consent_prompted: boolean
+  response_recorded_at: string | null
+  response_source: string | null
+}
+
+type EmailPreferenceValues = {
+  community_events: boolean
+  contests: boolean
+  confessn_news: boolean
+}
+
+const defaultEmailPreferences: EmailPreferenceValues = {
+  community_events: false,
+  contests: false,
+  confessn_news: false,
 }
 
 function mergeProfileAccount(local: Account, remote: Account): Account {
@@ -778,6 +796,11 @@ function App() {
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [signupEmailPreferences, setSignupEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
+  const [emailPreferences, setEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
+  const [emailPreferencesLoading, setEmailPreferencesLoading] = useState(false)
+  const [emailPreferencesLoadFailed, setEmailPreferencesLoadFailed] = useState(false)
+  const [emailPreferencesMessage, setEmailPreferencesMessage] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [authSuccessMessage, setAuthSuccessMessage] = useState('')
   const [showAccountDialog, setShowAccountDialog] = useState(false)
@@ -852,6 +875,7 @@ function App() {
   const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([])
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
+  const [adminPreferencesError, setAdminPreferencesError] = useState('')
   const [adminSearch, setAdminSearch] = useState('')
 
   useEffect(() => {
@@ -964,7 +988,11 @@ function App() {
         email,
         password: authPassword,
         options: {
-          data: { username },
+          data: {
+            username,
+            email_preferences: signupEmailPreferences,
+            email_preferences_prompted: true,
+          },
           emailRedirectTo: window.location.origin,
         },
       })
@@ -1000,19 +1028,72 @@ function App() {
     setIsLoggedIn(false)
   }
 
+  const loadEmailPreferences = async () => {
+    if (!authUserId) return
+    setEmailPreferencesLoading(true)
+    setEmailPreferencesLoadFailed(false)
+    setEmailPreferencesMessage('')
+    try {
+      const { data, error } = await supabase.from('confessn_email_preferences')
+        .select('community_events_opt_in, contests_opt_in, confessn_news_opt_in')
+        .eq('user_id', authUserId)
+        .maybeSingle()
+      if (error) throw error
+      if (data) {
+        setEmailPreferences({
+          community_events: data.community_events_opt_in,
+          contests: data.contests_opt_in,
+          confessn_news: data.confessn_news_opt_in,
+        })
+      } else {
+        setEmailPreferences(defaultEmailPreferences)
+      }
+    } catch {
+      setEmailPreferencesLoadFailed(true)
+      setEmailPreferencesMessage('Could not load email preferences. Apply the email preference schema, then retry.')
+    } finally {
+      setEmailPreferencesLoading(false)
+    }
+  }
+
   const openAccountDialog = () => {
     setProfileUsername(account.name)
     setProfileEmail(account.email)
     setProfilePassword('')
     setProfileAvatar(account.avatar)
     setProfileAvatarZoom(1)
+    setEmailPreferences(defaultEmailPreferences)
+    setEmailPreferencesMessage('')
+    setEmailPreferencesLoadFailed(false)
     setShowAccountDialog(true)
+    void loadEmailPreferences()
   }
 
   const saveAccountChanges = async () => {
     const username = profileUsername.trim()
     const email = profileEmail.trim().toLowerCase()
     if (!username || !email) return
+    let preferenceSaveFailed = false
+    if (authUserId) {
+      setEmailPreferencesMessage('')
+      if (emailPreferencesLoadFailed) {
+        setEmailPreferencesMessage('Email preferences were not loaded, so they were not changed. Use Retry and save again.')
+        preferenceSaveFailed = true
+      } else {
+        const { error } = await supabase.rpc('save_confessn_email_preferences', {
+          p_community_events_opt_in: emailPreferences.community_events,
+          p_contests_opt_in: emailPreferences.contests,
+          p_confessn_news_opt_in: emailPreferences.confessn_news,
+        })
+        if (error) {
+          setEmailPreferencesMessage('Profile saved locally, but email preferences were not saved. Apply the email preference schema and try again.')
+          preferenceSaveFailed = true
+        }
+      }
+    } else {
+      setEmailPreferencesMessage('Sign in to save email preferences to your account.')
+      preferenceSaveFailed = true
+    }
     let savedAvatar = profileAvatar
     if (profileAvatar && profileAvatarZoom !== 1) {
       const image = new Image()
@@ -1047,6 +1128,7 @@ function App() {
         // Keep the profile update local even if an old auth record is malformed.
       }
     }
+    if (preferenceSaveFailed) return
     setShowAccountDialog(false)
   }
 
@@ -1691,13 +1773,31 @@ function App() {
   const loadAdminUsers = async () => {
     setAdminLoading(true)
     setAdminError('')
-    const { data, error } = await supabase.rpc('get_confessn_admin_user_metrics')
-    if (error) {
+    setAdminPreferencesError('')
+    const [summaryResult, preferencesResult] = await Promise.all([
+      supabase.rpc('get_confessn_admin_user_metrics'),
+      supabase.rpc('get_confessn_admin_email_preferences'),
+    ])
+    if (summaryResult.error) {
       setAdminError('Could not load the user summary. Confirm the admin schema has been applied and access is authorized.')
       setAdminLoading(false)
       return
     }
-    setAdminUsers((data ?? []) as AdminUserSummary[])
+    if (preferencesResult.error) setAdminPreferencesError('Email preference reporting is unavailable until the email preference schema is applied.')
+    const preferencesByUserId = new Map<string, Partial<AdminUserSummary>>(
+      (preferencesResult.data ?? []).map((preference: Partial<AdminUserSummary> & { user_id: string }) => [preference.user_id, preference]),
+    )
+    setAdminUsers(((summaryResult.data ?? []) as AdminUserSummary[]).map((user) => ({
+      ...user,
+      ...(preferencesByUserId.get(user.user_id) ?? {
+        community_events_opt_in: false,
+        contests_opt_in: false,
+        confessn_news_opt_in: false,
+        consent_prompted: false,
+        response_recorded_at: null,
+        response_source: null,
+      }),
+    })))
     setAdminLoading(false)
   }
 
@@ -1720,7 +1820,7 @@ function App() {
   }, [adminSearch, adminUsers])
 
   const downloadAdminCsv = () => {
-    const headers = ['Email', 'Username', 'Name', 'Projects', 'Account JSONB bytes', 'Embedded artwork bytes (estimated)', 'Account updated', 'User created']
+    const headers = ['Email', 'Username', 'Name', 'Projects', 'Account JSONB bytes', 'Embedded artwork bytes (estimated)', 'Community events opt-in', 'Contests opt-in', 'Confessn news opt-in', 'Consent response', 'Response source', 'Account updated', 'User created']
     const csvCell = (value: string | number | null) => {
       const text = value === null ? '' : String(value)
       const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text
@@ -1733,6 +1833,11 @@ function App() {
       user.project_count,
       user.account_data_bytes,
       user.embedded_artwork_bytes,
+      user.consent_prompted ? (user.community_events_opt_in ? 'Yes' : 'No') : 'No response',
+      user.consent_prompted ? (user.contests_opt_in ? 'Yes' : 'No') : 'No response',
+      user.consent_prompted ? (user.confessn_news_opt_in ? 'Yes' : 'No') : 'No response',
+      user.response_recorded_at,
+      user.response_source,
       user.account_updated_at,
       user.user_created_at,
     ])
@@ -1808,7 +1913,7 @@ function App() {
               <button type="button" className="header-link-button" data-cun-title="Log in" data-cun="Open the sign-in form to access an existing account." onClick={() => { setAuthMode('login'); setAuthMessage('') }}>
                 {t.logIn}
               </button>
-              <button type="button" className="primary-button compact-button" data-cun-title="Create account" data-cun="Create an account to manage your profile and saved framing projects." onClick={() => { setAuthMode('create'); setAuthMessage('') }}>
+              <button type="button" className="primary-button compact-button" data-cun-title="Create account" data-cun="Create an account to manage your profile and saved framing projects." onClick={() => { setSignupEmailPreferences(defaultEmailPreferences); setAuthMode('create'); setAuthMessage('') }}>
                 {t.createAccount}
               </button>
             </>
@@ -2451,6 +2556,7 @@ function App() {
               <span><strong>{formatBytes(adminUsers.reduce((total, user) => total + user.account_data_bytes, 0))}</strong> account payload</span>
             </div>
             {adminError && <p className="admin-error" role="alert">{adminError}</p>}
+            {adminPreferencesError && <p className="admin-error" role="status">{adminPreferencesError}</p>}
             <div className="admin-table-scroll">
               <table className="admin-users-table">
                 <thead>
@@ -2461,11 +2567,15 @@ function App() {
                     <th scope="col">Projects</th>
                     <th scope="col">Account data</th>
                     <th scope="col">Embedded artwork</th>
+                    <th scope="col">Events emails</th>
+                    <th scope="col">Contests emails</th>
+                    <th scope="col">News emails</th>
+                    <th scope="col">Consent response</th>
                     <th scope="col">Last account update</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {adminLoading && <tr><td colSpan={7}>Loading account summaries…</td></tr>}
+                  {adminLoading && <tr><td colSpan={11}>Loading account summaries…</td></tr>}
                   {!adminLoading && filteredAdminUsers.map((user) => (
                     <tr key={user.user_id}>
                       <td>{user.name || 'Not provided'}</td>
@@ -2474,10 +2584,14 @@ function App() {
                       <td>{user.project_count.toLocaleString()}</td>
                       <td>{formatBytes(user.account_data_bytes)}</td>
                       <td>{formatBytes(user.embedded_artwork_bytes)}</td>
+                      <td>{user.consent_prompted ? (user.community_events_opt_in ? 'Yes' : 'No') : 'No response'}</td>
+                      <td>{user.consent_prompted ? (user.contests_opt_in ? 'Yes' : 'No') : 'No response'}</td>
+                      <td>{user.consent_prompted ? (user.confessn_news_opt_in ? 'Yes' : 'No') : 'No response'}</td>
+                      <td>{user.response_recorded_at ? `${new Date(user.response_recorded_at).toLocaleString()} · ${user.response_source}` : 'No response'}</td>
                       <td>{user.account_updated_at ? new Date(user.account_updated_at).toLocaleString() : 'No profile record'}</td>
                     </tr>
                   ))}
-                  {!adminLoading && !adminError && filteredAdminUsers.length === 0 && <tr><td colSpan={7}>No matching accounts.</td></tr>}
+                  {!adminLoading && !adminError && filteredAdminUsers.length === 0 && <tr><td colSpan={11}>No matching accounts.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -2593,6 +2707,24 @@ function App() {
               <label htmlFor="auth-password">Password</label>
               <input id="auth-password" type="password" autoComplete={authMode === 'create' ? 'new-password' : 'current-password'} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
             </div>
+            {authMode === 'create' && (
+              <fieldset className="email-preference-options">
+                <legend>Email preferences (optional)</legend>
+                <p>Select only the updates you want. All options start off.</p>
+                <label>
+                  <input type="checkbox" checked={signupEmailPreferences.community_events} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, community_events: event.target.checked }))} />
+                  Community events
+                </label>
+                <label>
+                  <input type="checkbox" checked={signupEmailPreferences.contests} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, contests: event.target.checked }))} />
+                  Contests
+                </label>
+                <label>
+                  <input type="checkbox" checked={signupEmailPreferences.confessn_news} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, confessn_news: event.target.checked }))} />
+                  Confessn news
+                </label>
+              </fieldset>
+            )}
             {authMessage && <p className="dialog-hint" role="status">{authMessage}</p>}
             <button type="button" className="primary-button full-width-button" onClick={() => void submitAuth()}>
               {authMode === 'create' ? 'Create account' : 'Log in'}
@@ -2659,7 +2791,7 @@ function App() {
 
       {showAccountDialog && (
         <div className="dialog-overlay" onClick={() => setShowAccountDialog(false)}>
-          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+          <div className="dialog-box small-dialog account-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>Account</h4>
               <button type="button" onClick={() => setShowAccountDialog(false)}>×</button>
@@ -2688,7 +2820,16 @@ function App() {
               <label htmlFor="profile-password">Password</label>
               <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
-            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading} onClick={() => void saveAccountChanges()}>Save Changes</button>
+            <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesLoadFailed}>
+              <legend>Email preferences</legend>
+              <p>Manage optional emails about community events, contests, and Confessn news.</p>
+              <label><input type="checkbox" checked={emailPreferences.community_events} onChange={(event) => setEmailPreferences((current) => ({ ...current, community_events: event.target.checked }))} /> Community events</label>
+              <label><input type="checkbox" checked={emailPreferences.contests} onChange={(event) => setEmailPreferences((current) => ({ ...current, contests: event.target.checked }))} /> Contests</label>
+              <label><input type="checkbox" checked={emailPreferences.confessn_news} onChange={(event) => setEmailPreferences((current) => ({ ...current, confessn_news: event.target.checked }))} /> Confessn news</label>
+            </fieldset>
+            {emailPreferencesMessage && <p className="dialog-hint" role="status">{emailPreferencesMessage}</p>}
+            {emailPreferencesLoadFailed && <button type="button" className="menu-action" onClick={() => void loadEmailPreferences()}>Retry loading preferences</button>}
+            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading || emailPreferencesLoading} onClick={() => void saveAccountChanges()}>Save Changes</button>
           </div>
         </div>
       )}
