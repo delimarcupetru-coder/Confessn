@@ -1251,7 +1251,7 @@ function App() {
   const renderedPreviewWidth = mobileToolsCollapsed && viewportDimensions.width <= 620
     ? Math.max(0, collapsedCaptureWidth - capturePadding)
     : previewWidth
-  const dimensionSideWidth = showDimensions ? 24 : 0
+  const dimensionSideWidth = showDimensions ? 56 : 0
 
   useEffect(() => {
     if (!autoFitDefaultArtworkRef.current || !artwork) return
