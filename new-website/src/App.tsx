@@ -806,6 +806,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [pendingDownload, setPendingDownload] = useState<ProjectRecord | null>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saveAfterAuth, setSaveAfterAuth] = useState(false)
   const [projectNotes, setProjectNotes] = useState('')
   const [cunActive, setCunActive] = useState(false)
   const [showCunManual, setShowCunManual] = useState(false)
@@ -977,6 +978,13 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [accountReady])
+
+  useEffect(() => {
+    if (!saveAfterAuth || !authReady || !authUserId || !isLoggedIn) return
+    setSaveAfterAuth(false)
+    setAuthMode(null)
+    setShowSaveDialog(true)
+  }, [saveAfterAuth, authReady, authUserId, isLoggedIn])
 
   useEffect(() => {
     let mounted = true
@@ -1451,13 +1459,27 @@ function App() {
   }
 
   const saveProject = () => {
-    if (!accountReady) return
+    if (!accountReady || !authReady) return
     setSaveError('')
     setProjectNotes('')
+    if (!authUserId || !isLoggedIn) {
+      setSaveAfterAuth(true)
+      setAuthMessage('')
+      setAuthMode('create')
+      return
+    }
     setShowSaveDialog(true)
   }
 
   const confirmSaveProject = async () => {
+    if (!accountReady || !authReady) return
+    if (!authUserId || !isLoggedIn) {
+      setShowSaveDialog(false)
+      setSaveAfterAuth(true)
+      setAuthMessage('')
+      setAuthMode('create')
+      return
+    }
     const safeFileName = projectFileName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'my-framing-project'
     const nextProject: ProjectRecord = {
       id: crypto.randomUUID(),
@@ -2298,7 +2320,7 @@ function App() {
             <div className="workspace-save-area">
               {saveMessage && <span className="save-message">{saveMessage}</span>}
               {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
-              <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, record optional notes, choose a folder and PNG or JPG, then save its framing settings and measured artwork dimensions." onClick={saveProject} disabled={!accountReady}>
+              <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, record optional notes, choose a folder and PNG or JPG, then save its framing settings and measured artwork dimensions." onClick={saveProject} disabled={!accountReady || !authReady}>
                 Save Project
               </button>
             </div>
@@ -2873,11 +2895,11 @@ function App() {
       )}
 
       {authMode && (
-        <div className="dialog-overlay" onClick={() => setAuthMode(null)}>
+        <div className="dialog-overlay" onClick={() => { setAuthMode(null); setSaveAfterAuth(false) }}>
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>{authMode === 'create' ? 'Create account' : 'Log in'}</h4>
-              <button type="button" onClick={() => setAuthMode(null)}>×</button>
+              <button type="button" onClick={() => { setAuthMode(null); setSaveAfterAuth(false) }}>×</button>
             </div>
             {authMode === 'create' && (
               <div className="field-group">
