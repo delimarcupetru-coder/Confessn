@@ -1,4 +1,24 @@
-# React + TypeScript + Vite
+# FRAME
+
+## TZOL Wallet Setup
+
+Run [supabase-tzol-wallet.sql](../supabase-tzol-wallet.sql) in the SQL Editor of the Supabase project used by this app before enabling wallets in production. No service-role key should be added to the frontend.
+
+New accounts created after applying the SQL receive one wallet and a one-time 50-Tzol welcome bonus from an account-creation database trigger. Existing members are not retroactively credited; if they have no wallet, their first authenticated wallet request creates one with 0 Tzols. Re-running the SQL does not award more tokens. The gold oval balance button opens the wallet. Guests cannot create or access wallets. Loading failures show a retry action, not a fabricated balance.
+
+The welcome notification appears about 1.2 seconds after the credited member's authenticated wallet loads. For email-confirmed sign-ups, it appears after confirmation and sign-in. A server-side atomic claim prevents repeated notifications across refreshes and devices. The notification remains visible until dismissed.
+
+TZOL is an in-app token, not a blockchain asset or cryptocurrency. This implementation awards only the welcome bonus; it does not accept money or implement transfers. Balances are stored separately from editable account profiles. Members can read only their own wallet; only trusted server-side administration can otherwise modify balances.
+
+Verification after applying the SQL:
+
+1. Create a new account, sign in, and check that the gold button displays `50 Tzols`, opens your wallet, and the welcome notification appears.
+2. Refresh the page and confirm the wallet ID and balance remain unchanged and the welcome notification does not repeat.
+3. Sign out and confirm the wallet button and wallet dialog disappear.
+4. Sign into another account and confirm it has a different wallet ID.
+5. Confirm anonymous calls to `get_tzol_wallet` and direct member balance updates are rejected.
+
+## Development
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

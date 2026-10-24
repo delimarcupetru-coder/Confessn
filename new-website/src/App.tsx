@@ -53,6 +53,14 @@ type Account = {
   projects: ProjectRecord[]
 }
 
+type TzolWallet = {
+  id: string
+  user_id: string
+  balance: string
+  created_at: string
+  welcome_bonus_pending?: boolean
+}
+
 type AdminUserSummary = {
   user_id: string
   email: string
@@ -902,6 +910,12 @@ function App() {
   const [accountReady, setAccountReady] = useState(false)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [wallet, setWallet] = useState<TzolWallet | null>(null)
+  const [walletLoading, setWalletLoading] = useState(false)
+  const [walletError, setWalletError] = useState('')
+  const [walletRequest, setWalletRequest] = useState(0)
+  const [showWalletDialog, setShowWalletDialog] = useState(false)
+  const [welcomeBonusUserId, setWelcomeBonusUserId] = useState<string | null>(null)
   const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
   const [showAdminDialog, setShowAdminDialog] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([])
@@ -989,6 +1003,39 @@ function App() {
   }, [saveAfterAuth, authReady, authUserId, isLoggedIn])
 
   useEffect(() => {
+    if (!authUserId || !isLoggedIn) {
+      setWallet(null)
+      setWalletError('')
+      setWalletLoading(false)
+      setShowWalletDialog(false)
+      setWelcomeBonusUserId(null)
+      return
+    }
+    if (!authReady) return
+    let mounted = true
+    setWalletLoading(true)
+    setWalletError('')
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_tzol_wallet')
+        if (error) throw error
+        if (!data || data.user_id !== authUserId || typeof data.id !== 'string' || typeof data.balance !== 'string' || !/^\d+$/.test(data.balance)) {
+          throw new Error('Invalid wallet response')
+        }
+        if (mounted) setWallet(data as TzolWallet)
+      } catch {
+        if (mounted) {
+          setWallet(null)
+          setWalletError('Your TZOL wallet could not be loaded. Please try again.')
+        }
+      } finally {
+        if (mounted) setWalletLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [authReady, authUserId, isLoggedIn, walletRequest])
+
+  useEffect(() => {
     let mounted = true
     if (!authReady) {
       setIsConfessnAdmin(false)
@@ -1006,6 +1053,25 @@ function App() {
   }, [authReady, authUserId])
 
   const t = translations[language]
+  const memberWallet = wallet?.user_id === authUserId ? wallet : null
+  const tzolBalance = memberWallet ? BigInt(memberWallet.balance).toLocaleString('en-US') : null
+  const welcomeBonusPending = memberWallet?.welcome_bonus_pending === true
+
+  useEffect(() => {
+    if (!authReady || !authUserId || !isLoggedIn || !welcomeBonusPending) return
+    let mounted = true
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data, error } = await supabase.rpc('claim_tzol_welcome_notification')
+          if (mounted && !error && data === true) setWelcomeBonusUserId(authUserId)
+        } catch {
+          return
+        }
+      })()
+    }, 1200)
+    return () => { mounted = false; window.clearTimeout(timer) }
+  }, [authReady, authUserId, isLoggedIn, welcomeBonusPending, walletRequest])
 
   const hashPassword = async (password: string) => {
     const data = new TextEncoder().encode(password)
@@ -1976,6 +2042,16 @@ function App() {
       onFocusCapture={(event) => updateCunMessage(event.target)}
     >
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
+      {welcomeBonusUserId === authUserId && authUserId && isLoggedIn && (
+        <aside className="cun-notification tzol-welcome-notification" aria-label="FRAME Bank notification">
+          <div className="cun-notification-heading">
+            <span>FRAME Bank</span>
+            <button type="button" aria-label="Dismiss FRAME Bank notification" title="Dismiss notification" onClick={() => setWelcomeBonusUserId(null)}>×</button>
+          </div>
+          <p role="status"><span aria-hidden="true">&#127873;</span> Welcome to FRAME! We've credited your account with <strong>50 Tzols</strong> as a welcome bonus. Enjoy exploring the platform!</p>
+          <button type="button" className="cun-manual-button" onClick={() => { setWelcomeBonusUserId(null); setShowWalletDialog(true) }}>Open wallet</button>
+        </aside>
+      )}
       <header className="topbar">
         <div className="brand-wrap">
           <img className="brand-mark" src={`${import.meta.env.BASE_URL}frame.svg`} width="48" height="48" alt="" />
@@ -2038,6 +2114,17 @@ function App() {
             </div>
           )}
         </nav>
+
+        {authReady && authUserId && isLoggedIn && (
+          <button
+            type="button"
+            className="tzol-wallet-button"
+            aria-label={tzolBalance !== null ? `Open TZOL wallet, ${tzolBalance} Tzols` : 'Open TZOL wallet'}
+            aria-haspopup="dialog"
+            title="Open your TZOL wallet"
+            onClick={() => { setShowMobileAccountMenu(false); setShowWalletDialog(true) }}
+          >{tzolBalance !== null ? `${tzolBalance} Tzols` : walletLoading ? 'Loading Tzols' : 'TZOL wallet'}</button>
+        )}
 
         <div className="header-actions">
           <button
@@ -3044,6 +3131,29 @@ function App() {
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
               Save
             </button>
+          </div>
+        </div>
+      )}
+
+      {showWalletDialog && authReady && authUserId && isLoggedIn && (
+        <div className="dialog-overlay" onClick={() => setShowWalletDialog(false)} onKeyDown={(event) => { if (event.key === 'Escape') setShowWalletDialog(false) }}>
+          <div className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" onClick={(event) => event.stopPropagation()}>
+            <div className="dialog-header">
+              <h4 id="tzol-wallet-title">TZOL wallet</h4>
+              <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>
+            </div>
+            <p className="tzol-wallet-owner">{account.name}</p>
+            <div className="tzol-wallet-balance" aria-live="polite" aria-busy={walletLoading}>
+              {tzolBalance !== null ? <><strong>{tzolBalance}</strong><span>Tzols</span></> : <span>{walletLoading ? 'Loading balance...' : 'Balance unavailable'}</span>}
+            </div>
+            {memberWallet && (
+              <dl className="tzol-wallet-details">
+                <div><dt>Token</dt><dd>TZOL</dd></div>
+                <div><dt>Wallet ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
+              </dl>
+            )}
+            {walletError && <p className="dialog-hint" role="alert">{walletError}</p>}
+            <button type="button" className="primary-button full-width-button" disabled={walletLoading} onClick={() => setWalletRequest((current) => current + 1)}>{walletLoading ? 'Loading...' : walletError ? 'Try again' : 'Refresh balance'}</button>
           </div>
         </div>
       )}
