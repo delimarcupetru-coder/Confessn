@@ -6,7 +6,7 @@ import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
 import './App.css'
 
-type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
+type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja' | 'ro' | 'ru'
 
 type Folder = {
   id: string
@@ -556,6 +556,46 @@ const translations = {
     newFolder: 'Nueva carpeta',
     saveFolder: 'Guardar',
     projectCreated: 'Carpeta creada',
+  },
+  ro: {
+    brand: 'FRAME',
+    navWork: 'Atelier', navProjects: 'Proiecte', navAbout: 'Despre noi', navContact: 'Contact',
+    logIn: 'Autentificare', createAccount: 'Creează un cont', cta: 'Programează o consultație',
+    heroTag: 'Înrămare la comandă • Artă protejată • Pentru pereții tăi',
+    heroTitle: 'Creează rama potrivită pentru lucrarea ta.',
+    heroText: 'Încarcă lucrarea, alege profilul ramei, compară finisajele și salvează variantele preferate înainte de comandă.',
+    browse: 'Vezi galeria', start: 'Începe proiectul', folderTitle: 'Dosare de proiecte',
+    folderName: 'Numele dosarului nou', folderAdd: 'Adaugă dosar', uploadTitle: 'Încarcă lucrarea', uploadHint: 'PNG, JPG sau HEIC',
+    styleTitle: 'Profilul ramei', sizeTitle: 'Dimensiunea câmpului', sizeNarrow: 'Profil îngust', sizeMedium: 'Profil mediu', sizeLarge: 'Profil lat',
+    colorTitle: 'Culoarea ramei', projectTitle: 'Titlul proiectului', notesTitle: 'Note de design',
+    notesHint: 'Descrie atmosfera, camera sau finisajul dorit.', save: 'Salvează proiectul', share: 'Distribuie pentru feedback', submit: 'Trimite comanda',
+    saved: 'Proiect salvat pe dispozitiv', shared: 'Linkul a fost copiat', galleryTitle: 'Lucrări înrămate recent',
+    quote: 'Vezi arta ta într-o lumină nouă.', follow: 'Urmărește-ne', contactTitle: 'Contactează-ne', contactEmail: 'Adresa ta de e-mail', send: 'Trimite',
+    languages: 'Limbi', placeholder: 'Descrie spațiul tău și atmosfera dorită pentru ramă.', customerProjects: 'Proiectele mele',
+    market: 'Un atelier de înrămare pentru colecționari, amenajări interioare și cadouri cu semnificație.',
+    orderSummary: 'Rezumatul comenzii', template: 'Șablon', noProjects: 'Nu ai încă proiecte salvate.', savedProjects: 'Proiecte salvate',
+    frame: 'Ramă', mat: 'Paspartu', allFolders: 'Toate proiectele', loadedProject: 'Previzualizare încărcată', whiteWall: 'Perete alb', warmLight: 'Lumină caldă',
+    delete: 'Șterge dosarul', newFolder: 'Dosar nou', saveFolder: 'Salvează dosarul', projectCreated: 'Dosar de proiect creat',
+  },
+  ru: {
+    brand: 'FRAME',
+    navWork: 'Мастерская', navProjects: 'Проекты', navAbout: 'О нас', navContact: 'Контакты',
+    logIn: 'Войти', createAccount: 'Создать аккаунт', cta: 'Записаться на консультацию',
+    heroTag: 'Рамы на заказ • Сохранение искусства • Для ваших стен',
+    heroTitle: 'Создайте подходящую раму для своей работы.',
+    heroText: 'Загрузите работу, выберите профиль рамы, сравните отделку и сохраните понравившиеся варианты перед заказом.',
+    browse: 'Открыть галерею', start: 'Начать проект', folderTitle: 'Папки проектов',
+    folderName: 'Название новой папки', folderAdd: 'Добавить папку', uploadTitle: 'Загрузить работу', uploadHint: 'PNG, JPG или HEIC',
+    styleTitle: 'Профиль рамы', sizeTitle: 'Размер поля', sizeNarrow: 'Узкий профиль', sizeMedium: 'Средний профиль', sizeLarge: 'Широкий профиль',
+    colorTitle: 'Цвет рамы', projectTitle: 'Название проекта', notesTitle: 'Заметки о дизайне',
+    notesHint: 'Опишите нужное настроение, помещение или отделку.', save: 'Сохранить проект', share: 'Поделиться для обсуждения', submit: 'Отправить заказ',
+    saved: 'Проект сохранён на устройстве', shared: 'Ссылка скопирована', galleryTitle: 'Недавно оформленные работы',
+    quote: 'Посмотрите на своё искусство в новом свете.', follow: 'Подписывайтесь', contactTitle: 'Связаться с нами', contactEmail: 'Ваша электронная почта', send: 'Отправить',
+    languages: 'Языки', placeholder: 'Расскажите о помещении и желаемом настроении оформления.', customerProjects: 'Мои проекты',
+    market: 'Мастерская оформления для коллекционеров, интерьеров и подарков со смыслом.',
+    orderSummary: 'Состав заказа', template: 'Шаблон', noProjects: 'Сохранённых проектов пока нет.', savedProjects: 'Сохранённые проекты',
+    frame: 'Рама', mat: 'Паспарту', allFolders: 'Все проекты', loadedProject: 'Предпросмотр загружен', whiteWall: 'Белая стена', warmLight: 'Тёплый свет',
+    delete: 'Удалить папку', newFolder: 'Новая папка', saveFolder: 'Сохранить папку', projectCreated: 'Папка проекта создана',
   },
   ja: {
     brand: 'FRAME',
@@ -2611,7 +2651,7 @@ function App() {
             </>
           )}
           <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="lang-select">
-            <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option>
+            <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option><option value="ro">Română</option><option value="ru">Русский</option>
           </select>
         </div>
       </header>
