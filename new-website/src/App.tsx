@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
 import { supabase } from './supabase'
+import { guideLessonByControl, interfaceCopy } from './interface-copy'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja'
@@ -814,7 +815,23 @@ function App() {
     }
   }, [])
 
-  const [language, setLanguage] = useState<Language>('en')
+  const [language, setLanguage] = useState<Language>(() => {
+    try {
+      const stored = window.localStorage.getItem('frame-language')
+      return stored && Object.hasOwn(translations, stored) ? stored as Language : 'en'
+    } catch {
+      return 'en'
+    }
+  })
+
+  useEffect(() => {
+    document.documentElement.lang = language
+    try {
+      window.localStorage.setItem('frame-language', language)
+    } catch {
+      return
+    }
+  }, [language])
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
   const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
@@ -1142,6 +1159,8 @@ function App() {
   }, [authReady, authUserId])
 
   const t = translations[language]
+  const ui = interfaceCopy[language]
+  const guideLesson = ui.lessons[guideLessonByControl[cunMessage.key]]
   const memberWallet = wallet?.user_id === authUserId ? wallet : null
   const memberSummary = walletSummary?.user_id === authUserId ? walletSummary : null
   const tzolBalance = memberSummary ? BigInt(memberSummary.balance).toLocaleString('en-US') : null
@@ -2482,7 +2501,7 @@ function App() {
               setShowMobileNav((open) => !open)
             }}
           >
-            Menu <span aria-hidden="true">{showMobileNav ? '−' : '+'}</span>
+            {ui.menu} <span aria-hidden="true">{showMobileNav ? '−' : '+'}</span>
           </button>
           <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
           <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
@@ -2557,18 +2576,18 @@ function App() {
               setShowMobileNav(false)
               setShowMobileAccountMenu((open) => !open)
             }}
-          >Account <span aria-hidden="true">{showMobileAccountMenu ? '−' : '+'}</span></button>
+          >{ui.account} <span aria-hidden="true">{showMobileAccountMenu ? '−' : '+'}</span></button>
           {showMobileAccountMenu && (
             <div id="mobile-account-dropdown" className="mobile-account-dropdown">
               {isLoggedIn ? (
                 <>
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>Profile</button>
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); logOut() }}>Log out</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>{ui.profile}</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); logOut() }}>{ui.logOut}</button>
                 </>
               ) : (
                 <>
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setAuthMode('login'); setAuthMessage('') }}>Log in</button>
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setSignupEmailPreferences(defaultEmailPreferences); setAuthMode('create'); setAuthMessage('') }}>Create account</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setAuthMode('login'); setAuthMessage('') }}>{t.logIn}</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); setSignupEmailPreferences(defaultEmailPreferences); setAuthMode('create'); setAuthMessage('') }}>{t.createAccount}</button>
                 </>
               )}
             </div>
@@ -2579,7 +2598,7 @@ function App() {
                 {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>}
                 <span className="profile-name">{account.name}</span>
               </button>
-              <button type="button" className="header-link-button" data-cun-title="Log out" data-cun="Sign out of the current account on this device." onClick={logOut}>Log out</button>
+              <button type="button" className="header-link-button" data-cun-title="Log out" data-cun="Sign out of the current account on this device." onClick={logOut}>{ui.logOut}</button>
             </>
           ) : (
             <>
@@ -2642,9 +2661,9 @@ function App() {
             <span>Confessn University</span>
             <button type="button" aria-label="Close university guide" title="Close guide" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
-          <strong>{cunMessage.title}</strong>
-          <p>{cunMessage.description}</p>
-          <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>Framing manual</button>
+          <strong>{cunMessage.key === 'ready' ? ui.guideReady : language !== 'en' && guideLesson ? guideLesson.title : cunMessage.title}</strong>
+          <p>{cunMessage.key === 'ready' ? ui.guideReadyBody : language !== 'en' && guideLesson ? guideLesson.body : cunMessage.description}</p>
+          <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>{ui.manualButton}</button>
         </aside>
       )}
 
@@ -2674,7 +2693,7 @@ function App() {
             >{mobileToolsCollapsed ? '›' : '‹'}</button>
             <div className="menu-group">
               <button type="button" className={frameEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle frame" data-cun-title="Frame on or off" data-cun="Toggle the decorative frame without changing the artwork or mat settings." onClick={() => setFrameEnabled((current) => !current)}>
-                Frame
+                {t.frame}
               </button>
               <select
                 className="menu-select"
@@ -2696,7 +2715,7 @@ function App() {
             </div>
 
             <div className="menu-group">
-              <span>Material</span>
+              <span>{ui.material}</span>
               <select className="menu-select" aria-label="Frame material" data-cun-title="Frame material" data-cun="Choose a material and finish, including wood and stainless options." value={selectedStyle} onChange={(event) => { restoringProjectRef.current = 0; setSelectedStyle(event.target.value) }}>
                 {materialOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
@@ -2704,7 +2723,7 @@ function App() {
 
             <div className="menu-group">
               <button type="button" className={matEnabled ? 'menu-chip active' : 'menu-chip'} aria-label="Toggle top mat" data-cun-title="Top Mat" data-cun="Turn the outer mat layer on or off. Choose Standard or Letter size and a color beside this control." onClick={() => setMatEnabled((current) => !current)}>
-                Top Mat
+                {ui.topMat}
               </button>
               <select className="menu-select" aria-label="Top mat size" data-cun-title="Top Mat size" data-cun="Choose Standard or Letter to change the outer mat opening size." value={selectedSize} onChange={(event) => { restoringProjectRef.current = 0; setSelectedSize(event.target.value as typeof selectedSize) }}>
                 {sizeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -2712,7 +2731,7 @@ function App() {
             </div>
 
             <div className="menu-group compact-group">
-              <span>Top Mat color</span>
+              <span>{ui.topMatColor}</span>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedMatColor.hex }}></span>
                 <select
@@ -2737,7 +2756,7 @@ function App() {
                 data-cun="Turn on the inner mat layer, then choose its color from the menu beside it."
                 onClick={() => setBottomMatEnabled((current) => !current)}
               >
-                Bottom Mat
+                {ui.bottomMat}
               </button>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedBottomMatColor.hex }}></span>
@@ -2756,7 +2775,7 @@ function App() {
 
             <div className="menu-actions">
               <button type="button" className="menu-action workspace-upload-action" data-cun-title="Upload artwork" data-cun="Choose an image from your device to place it inside the frame. Upload replaces the current artwork." onClick={openArtworkPicker}>
-                Upload
+                {ui.upload}
               </button>
               <button
                 type="button"
@@ -2766,7 +2785,7 @@ function App() {
                 data-cun-title="Artwork dimensions"
                 data-cun="Enter the artwork's measured width and height in inches. Image-ratio values are estimates until you apply your physical measurements; confirmed values are stored with the project."
                 onClick={() => setShowDimensionsDialog(true)}
-              >Dimensions</button>
+              >{ui.dimensions}</button>
               <button
                 type="button"
                 className={frameOrientation === 'horizontal' ? 'menu-action active' : 'menu-action'}
@@ -2803,7 +2822,7 @@ function App() {
                 data-cun="Toggle the narrow accent strip where the outer and inner mat layers meet. Choose its color from the adjacent menu."
                 onClick={() => setStripEnabled((current) => !current)}
               >
-                Mat Offcut
+                {ui.offcut}
               </button>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedStripColor.hex }}></span>
@@ -2824,7 +2843,7 @@ function App() {
                 data-cun="Set the preview wall to the white tone. This changes the display background, not the frame or artwork."
                 onClick={() => setWallTone('white')}
               >
-                Wall
+                {ui.wall}
               </button>
               <button
                 type="button"
@@ -2833,7 +2852,7 @@ function App() {
                 data-cun="Set the preview wall to the warm light tone. This changes the display background, not the frame or artwork."
                 onClick={() => setWallTone('warm')}
               >
-                Light
+                {ui.light}
               </button>
             </div>
 
@@ -2871,7 +2890,7 @@ function App() {
             </select>
 
             <button type="button" className="gallery-center-button workspace-upload-action" data-cun-title="Replace artwork" data-cun="Choose another image from your device. Your frame and mat selections stay in place." onClick={openArtworkPicker}>
-              {artwork ? 'Replace artwork' : 'Upload artwork'}
+              {artwork ? ui.replaceArtwork : t.uploadTitle}
             </button>
             {uploadMessage && <span className="upload-message" role="alert">{uploadMessage}</span>}
             <div className="workspace-scale" aria-label="Frame size">
@@ -2881,7 +2900,7 @@ function App() {
               {saveMessage && <span className="save-message">{saveMessage}</span>}
               {downloadMessage && <span className="save-message" role="status">{downloadMessage}</span>}
               <button type="button" className="workspace-save-button" data-cun-title="Save Project" data-cun="Name the project, record optional notes, choose a folder and PNG or JPG, then save its framing settings and measured artwork dimensions." onClick={saveProject} disabled={!accountReady || !authReady}>
-                Save Project
+                {t.save}
               </button>
             </div>
           </div>
@@ -3379,11 +3398,11 @@ function App() {
             <div className="dialog-header university-header">
               <div>
                 <p className="university-eyebrow">Confessn University</p>
-                <h2 id="cun-manual-title">Framing Manual</h2>
+                <h2 id="cun-manual-title">{ui.manualTitle}</h2>
               </div>
-              <button type="button" aria-label="Close framing manual" onClick={() => setShowCunManual(false)}>×</button>
+              <button type="button" aria-label={ui.closeManual} onClick={() => setShowCunManual(false)}>×</button>
             </div>
-            <p className="university-intro">Use the guide mode to identify any control. This manual covers the complete framing workflow.</p>
+            <p className="university-intro">{ui.manualIntro}</p>
 
             <div className="university-diagrams">
               <div className="university-frame-diagram" role="img" aria-label="Frame, outer top mat, colored offcut, inner bottom mat, and artwork layers">
@@ -3396,58 +3415,32 @@ function App() {
                 </div>
               </div>
               <div className="university-layer-labels">
-                <span><i className="layer-swatch layer-frame" />Frame</span>
-                <span><i className="layer-swatch layer-top-mat" />Top Mat · outer</span>
-                <span><i className="layer-swatch layer-offcut" />Mat Offcut</span>
-                <span><i className="layer-swatch layer-bottom-mat" />Bottom Mat · inner</span>
-                <span><i className="layer-swatch layer-art" />Artwork</span>
+                <span><i className="layer-swatch layer-frame" />{ui.layerLabels[0]}</span>
+                <span><i className="layer-swatch layer-top-mat" />{ui.layerLabels[1]}</span>
+                <span><i className="layer-swatch layer-offcut" />{ui.layerLabels[2]}</span>
+                <span><i className="layer-swatch layer-bottom-mat" />{ui.layerLabels[3]}</span>
+                <span><i className="layer-swatch layer-art" />{ui.layerLabels[4]}</span>
               </div>
               <div className="university-gesture-guide" aria-label="Drag adjustment controls">
-                <div><kbd>F</kbd><span>Frame width</span></div>
-                <div><kbd>M</kbd><span>Mat width</span></div>
-                <div><kbd>S</kbd><span>Offcut width</span></div>
-                <p>Press and drag up to increase; drag down to decrease.</p>
+                <div><kbd>F</kbd><span>{ui.frameWidth}</span></div>
+                <div><kbd>M</kbd><span>{ui.matWidth}</span></div>
+                <div><kbd>S</kbd><span>{ui.offcutWidth}</span></div>
+                <p>{ui.dragHint}</p>
               </div>
             </div>
 
             <div className="university-manual-grid">
-              <section className="university-guide-section">
-                <h3>Start with artwork</h3>
-                <p>Choose <strong>Upload</strong> or <strong>Replace artwork</strong> to select an image from your device. From the gallery, select <strong>Use this look</strong> to load an example and its matching frame settings.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Choose frame dimensions</h3>
-                <p>Toggle <strong>Frame</strong> on or off. Choose a profile and material, then select the physical outer size in inches from Small, Medium, Large, or Square. Floating frames use their fixed 16 × 20 in size.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Measure the artwork</h3>
-                <p>Measure the artwork edge-to-edge, excluding any frame or mat. Select <strong>Dimensions</strong>, enter width and height in inches to the nearest tenth, and apply. The preview shows those measurements and sets orientation from the values. An image-ratio value remains an estimate until you apply physical measurements; the saved record preserves that distinction.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Layer the mats</h3>
-                <p><strong>Top Mat</strong> is the outer layer. Choose Standard or Letter and a color. Enable <strong>Bottom Mat</strong> to add an inner layer and choose its color. <strong>Mat Offcut</strong> toggles the accent at the boundary between the mats; its adjacent menu changes the accent color.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Position and zoom</h3>
-                <p>Drag the artwork to reposition it. Use <strong>−</strong> and <strong>+</strong> to zoom with a mouse, or drag with one finger and pinch with two on a touch screen. The image covers the mat opening; zoom cannot go below the cover size.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Adjust the frame and mats</h3>
-                <p>Press and drag <strong>F</strong> for frame thickness, <strong>M</strong> for mat width, or <strong>S</strong> for offcut width. Drag upward to increase a value and downward to decrease it.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Set orientation and wall</h3>
-                <p>Choose <strong>↔</strong> or <strong>↕</strong> to reverse the physical frame orientation and its displayed width and height. This does not change the artwork's measured dimensions. <strong>Wall</strong> and <strong>Light</strong> choose the preview wall tone behind the frame.</p>
-              </section>
-              <section className="university-guide-section">
-                <h3>Save and continue later</h3>
-                <p>Select <strong>Save Project</strong>, enter a name, add optional source, condition, or handling notes, choose a folder and PNG or JPG, then save. The editable settings, measured artwork dimensions, notes, and creation date are retained with the project. In <strong>Projects</strong>, select an item to reopen it, use the down arrow to download, or the trash button to delete. Folder controls organize saved work.</p>
-              </section>
+              {ui.lessons.map((lesson) => (
+                <section className="university-guide-section" key={lesson.title}>
+                  <h3>{lesson.title}</h3>
+                  <p>{lesson.body}</p>
+                </section>
+              ))}
             </div>
 
             <div className="university-footer">
-              <span>Hover over or focus any control with guide mode on for a specific tip.</span>
-              <button type="button" className="primary-button" onClick={() => setShowCunManual(false)}>Back to guide</button>
+              <span>{ui.guideFooter}</span>
+              <button type="button" className="primary-button" onClick={() => setShowCunManual(false)}>{ui.backToGuide}</button>
             </div>
           </section>
         </div>
@@ -3457,59 +3450,59 @@ function App() {
         <div className="dialog-overlay" onClick={() => { if (!authSubmitting) { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') } }}>
           <form className="dialog-box small-dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void (authMode === 'forgot' || authMode === 'reset' ? submitPasswordRecovery() : submitAuth()) }}>
             <div className="dialog-header">
-              <h4 id="auth-dialog-title">{authMode === 'create' ? 'Create account' : authMode === 'forgot' ? 'Reset password' : authMode === 'reset' ? 'Choose a new password' : 'Log in'}</h4>
+              <h4 id="auth-dialog-title">{authMode === 'create' ? t.createAccount : authMode === 'forgot' ? ui.resetPassword : authMode === 'reset' ? ui.choosePassword : t.logIn}</h4>
               <button type="button" disabled={authSubmitting} aria-label="Close account window" onClick={() => { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') }}>×</button>
             </div>
             {authMode === 'create' && (
               <div className="field-group">
-                <label htmlFor="auth-username">Username</label>
+                <label htmlFor="auth-username">{ui.username}</label>
                 <input id="auth-username" autoComplete="username" value={authUsername} onChange={(event) => setAuthUsername(event.target.value)} />
               </div>
             )}
             <div className="field-group">
-              <label htmlFor="auth-email">Email</label>
+              <label htmlFor="auth-email">{ui.email}</label>
               <input id="auth-email" type="email" autoComplete="email" required readOnly={authMode === 'reset'} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
             </div>
             {authMode !== 'forgot' && (
               <div className="field-group">
-                <label htmlFor="auth-password">{authMode === 'reset' ? 'New password' : 'Password'}</label>
+                <label htmlFor="auth-password">{authMode === 'reset' ? ui.newPassword : ui.password}</label>
                 <input id="auth-password" type="password" required minLength={authMode === 'reset' ? 8 : 6} autoComplete={authMode === 'create' || authMode === 'reset' ? 'new-password' : 'current-password'} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
               </div>
             )}
             {authMode === 'reset' && (
               <div className="field-group">
-                <label htmlFor="confirm-password">Confirm new password</label>
+                <label htmlFor="confirm-password">{ui.confirmPassword}</label>
                 <input id="confirm-password" type="password" required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               </div>
             )}
             {authMode === 'create' && (
               <fieldset className="email-preference-options">
-                <legend>Email preferences (optional)</legend>
-                <p>Select only the updates you want. All options start off.</p>
+                <legend>{ui.emailPreferences}</legend>
+                <p>{ui.emailOptionsHint}</p>
                 <label>
                   <input type="checkbox" checked={signupEmailPreferences.community_events} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, community_events: event.target.checked }))} />
-                  Community events
+                  {ui.communityEvents}
                 </label>
                 <label>
                   <input type="checkbox" checked={signupEmailPreferences.contests} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, contests: event.target.checked }))} />
-                  Contests
+                  {ui.contests}
                 </label>
                 <label>
                   <input type="checkbox" checked={signupEmailPreferences.confessn_news} onChange={(event) => setSignupEmailPreferences((current) => ({ ...current, confessn_news: event.target.checked }))} />
-                  Confessn news
+                  {ui.news}
                 </label>
               </fieldset>
             )}
             {authMessage && <p className="dialog-hint" role={authMode === 'login' && loginFailed ? 'alert' : 'status'}>{authMessage}</p>}
             {authMode === 'login' && loginFailed && authMessage && (
-              <button type="button" className="auth-recovery-button auth-recovery-prominent" autoFocus onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>Forgot password?</button>
+              <button type="button" className="auth-recovery-button auth-recovery-prominent" autoFocus onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>{ui.forgotPassword}</button>
             )}
             <button type="submit" className="primary-button full-width-button" disabled={authSubmitting || (authMode === 'reset' && !passwordRecoveryUserId)}>
-              {authSubmitting ? 'Please wait...' : authMode === 'create' ? 'Create account' : authMode === 'forgot' ? 'Send reset link' : authMode === 'reset' ? 'Save new password' : 'Log in'}
+              {authSubmitting ? ui.pleaseWait : authMode === 'create' ? t.createAccount : authMode === 'forgot' ? ui.sendReset : authMode === 'reset' ? ui.savePassword : t.logIn}
             </button>
-            {authMode === 'login' && (!loginFailed || !authMessage) && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>Forgot password?</button>}
-            {authMode === 'reset' && !passwordRecoveryUserId && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>Request a new reset link</button>}
-            {(authMode === 'forgot' || authMode === 'reset') && <button type="button" className="auth-recovery-button" disabled={authSubmitting} onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>Back to log in</button>}
+            {authMode === 'login' && (!loginFailed || !authMessage) && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>{ui.forgotPassword}</button>}
+            {authMode === 'reset' && !passwordRecoveryUserId && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>{ui.requestReset}</button>}
+            {(authMode === 'forgot' || authMode === 'reset') && <button type="button" className="auth-recovery-button" disabled={authSubmitting} onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>{ui.backToLogin}</button>}
           </form>
         </div>
       )}
@@ -3518,11 +3511,11 @@ function App() {
         <div className="dialog-overlay" onClick={() => setShowSaveDialog(false)}>
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
-              <h4>Save project</h4>
+              <h4>{t.save}</h4>
               <button type="button" onClick={() => setShowSaveDialog(false)}>×</button>
             </div>
             <div className="field-group">
-              <label htmlFor="project-file-name">Project file name</label>
+              <label htmlFor="project-file-name">{ui.fileName}</label>
               <input
                 id="project-file-name"
                 value={projectFileName}
@@ -3531,7 +3524,7 @@ function App() {
               />
             </div>
             <div className="field-group">
-              <label htmlFor="project-notes">Project notes (optional)</label>
+              <label htmlFor="project-notes">{ui.notes}</label>
               <textarea
                 id="project-notes"
                 rows={3}
@@ -3543,7 +3536,7 @@ function App() {
               />
             </div>
             <div className="field-group">
-              <label htmlFor="project-folder-location">Folder location</label>
+              <label htmlFor="project-folder-location">{ui.folder}</label>
               <select
                 id="project-folder-location"
                 className="menu-select full-width-button"
@@ -3555,7 +3548,7 @@ function App() {
               </select>
             </div>
             <div className="field-group">
-              <span className="field-label">Image format</span>
+              <span className="field-label">{ui.imageFormat}</span>
               <div className="format-options save-format-options" role="group" aria-label="Image format">
                 {(['png', 'jpg'] as const).map((format) => (
                   <button key={format} type="button" className={`format-option ${exportFormat === format ? 'active' : ''}`} aria-pressed={exportFormat === format} onClick={() => setExportFormat(format)}>{format.toUpperCase()}</button>
@@ -3564,7 +3557,7 @@ function App() {
             </div>
             {saveError && <p className="dialog-hint" role="alert">{saveError}</p>}
             <button type="button" className="primary-button full-width-button" onClick={confirmSaveProject}>
-              Save
+              {t.save}
             </button>
           </div>
         </div>
@@ -3577,22 +3570,22 @@ function App() {
               <h4 id="tzol-wallet-title">Tzol Bank</h4>
               <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>
             </div>
-            {bankStep === 'loading' && <p role="status">Checking bank security...</p>}
-            {bankStep === 'error' && <button type="button" className="primary-button full-width-button" onClick={() => void loadBankAuthenticator()}>Retry verification</button>}
-            {bankStep === 'setup' && <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void enrollBankAuthenticator()}>{bankBusy ? 'Setting up...' : 'Set up authenticator'}</button>}
+            {bankStep === 'loading' && <p role="status">{ui.bankChecking}</p>}
+            {bankStep === 'error' && <button type="button" className="primary-button full-width-button" onClick={() => void loadBankAuthenticator()}>{ui.bankRetry}</button>}
+            {bankStep === 'setup' && <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void enrollBankAuthenticator()}>{bankBusy ? ui.bankSettingUp : ui.bankSetup}</button>}
             {bankStep === 'code' && (
               <form onSubmit={(event) => { event.preventDefault(); void unlockBank() }}>
                 {bankEnrollment && (
                   <div className="bank-authenticator-setup">
                     <img src={bankEnrollment.qrCode} width="208" height="208" alt="Authenticator setup QR code" />
-                    <details><summary>Manual setup key</summary><code>{bankEnrollment.secret}</code></details>
+                    <details><summary>{ui.bankManualKey}</summary><code>{bankEnrollment.secret}</code></details>
                   </div>
                 )}
                   <div className="field-group">
-                    <label htmlFor="bank-authenticator-code">6-digit authenticator code</label>
+                    <label htmlFor="bank-authenticator-code">{ui.bankCode}</label>
                     <input id="bank-authenticator-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required maxLength={6} value={bankCode} disabled={bankBusy} onChange={(event) => setBankCode(event.target.value.replace(/\D/g, ''))} />
                   </div>
-                <button type="submit" className="primary-button full-width-button" disabled={bankBusy}>{bankBusy ? 'Verifying...' : 'Verify and open bank'}</button>
+                <button type="submit" className="primary-button full-width-button" disabled={bankBusy}>{bankBusy ? ui.bankVerifying : ui.bankVerify}</button>
               </form>
             )}
             {bankStep === 'unlocked' && memberWallet && (
@@ -3601,9 +3594,9 @@ function App() {
                 <div className="tzol-wallet-balance" aria-live="polite"><strong>{BigInt(memberWallet.balance).toLocaleString('en-US')}</strong><span>Tzols</span></div>
                 <dl className="tzol-wallet-details">
                   <div><dt>Token</dt><dd>TZOL</dd></div>
-                  <div><dt>Bank account ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
+                  <div><dt>{ui.bankAccountId}</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
                 </dl>
-                <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void refreshBankDetails()}>{bankBusy ? 'Loading...' : 'Refresh balance'}</button>
+                <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void refreshBankDetails()}>{bankBusy ? ui.loading : ui.refreshBalance}</button>
               </>
             )}
             {bankMessage && <p className="dialog-hint" role="alert">{bankMessage}</p>}
@@ -3615,7 +3608,7 @@ function App() {
         <div className="dialog-overlay" onClick={() => { if (!profileSaving) setShowAccountDialog(false) }}>
           <div className="dialog-box small-dialog account-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
-              <h4>Account</h4>
+              <h4>{ui.account}</h4>
               <button type="button" disabled={profileSaving} onClick={() => setShowAccountDialog(false)}>×</button>
             </div>
             <div className="account-photo-editor">
@@ -3631,15 +3624,15 @@ function App() {
               </div>
             </div>
             <div className="field-group">
-              <label htmlFor="profile-username">Username</label>
+              <label htmlFor="profile-username">{ui.username}</label>
               <input id="profile-username" value={profileUsername} onChange={(event) => setProfileUsername(event.target.value)} />
             </div>
             <div className="field-group">
-              <label htmlFor="profile-email">Email</label>
+              <label htmlFor="profile-email">{ui.email}</label>
               <input id="profile-email" type="email" value={profileEmail} onChange={(event) => setProfileEmail(event.target.value)} />
             </div>
             <div className="field-group">
-              <label htmlFor="profile-password">Password</label>
+              <label htmlFor="profile-password">{ui.password}</label>
               <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
             <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesSaving}>
@@ -3658,7 +3651,7 @@ function App() {
               onClick={() => void saveEmailPreferences()}
             >{emailPreferencesSaving ? 'Saving preferences…' : 'Save email preferences'}</button>
             {profileMessage && <p className="dialog-hint" role="alert">{profileMessage}</p>}
-            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading || profileSaving} onClick={() => void saveAccountChanges()}>{profileSaving ? 'Saving profile...' : 'Save Profile'}</button>
+            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading || profileSaving} onClick={() => void saveAccountChanges()}>{profileSaving ? ui.savingProfile : ui.saveProfile}</button>
           </div>
         </div>
       )}

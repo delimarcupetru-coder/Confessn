@@ -124,6 +124,26 @@
   cursor: pointer;
 }
 
+.menu-group,
+.menu-actions {
+  min-width: 0;
+}
+
+.menu-chip,
+.menu-action,
+.workspace-save-button,
+.primary-button,
+.auth-recovery-button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lang-select {
+  min-width: 54px;
+  min-height: 36px;
+  cursor: pointer;
+}
+
 .nav-bank-balance {
   max-width: 180px;
   color: #f4d578;
