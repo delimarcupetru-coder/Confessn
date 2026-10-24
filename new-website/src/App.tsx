@@ -880,6 +880,8 @@ function App() {
   const artworkOpeningRef = useRef<HTMLDivElement | null>(null)
   const pinchGestureRef = useRef<PinchGesture | null>(null)
   const cunAnchorRef = useRef<{ x: number; y: number } | null>(null)
+  const cunPinnedRef = useRef(false)
+  const cunDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
   const artZoomRef = useRef(zoom)
   const artPositionRef = useRef(artPosition)
   const autoFitDefaultArtworkRef = useRef(true)
@@ -1843,8 +1845,10 @@ function App() {
     if (!notification) return
     const bounds = notification.getBoundingClientRect()
     const margin = 8
-    const left = Math.max(margin, Math.min(x + 14, window.innerWidth - bounds.width - margin))
-    const top = Math.max(margin, Math.min(y + 14, window.innerHeight - bounds.height - margin))
+    const desiredLeft = cunPinnedRef.current ? x : x + 14 + bounds.width <= window.innerWidth - margin ? x + 14 : x - bounds.width - 14
+    const desiredTop = cunPinnedRef.current ? y : y + 14 + bounds.height <= window.innerHeight - margin ? y + 14 : y - bounds.height - 14
+    const left = Math.max(margin, Math.min(desiredLeft, window.innerWidth - bounds.width - margin))
+    const top = Math.max(margin, Math.min(desiredTop, window.innerHeight - bounds.height - margin))
     notification.style.left = `${left}px`
     notification.style.top = `${top}px`
     notification.style.right = 'auto'
@@ -1853,13 +1857,16 @@ function App() {
 
   const updateCunMessage = (target: EventTarget | null, pointer?: { x: number; y: number }) => {
     if (!cunActive || !(target instanceof Element)) return
+    if (target.closest('#cun-notification') || cunDragRef.current) return
     const control = target.closest<HTMLElement>('[data-cun-title][data-cun]')
     if (!control) return
-    if (pointer) {
-      positionCunNotification(pointer.x, pointer.y)
-    } else {
-      const bounds = control.getBoundingClientRect()
-      positionCunNotification(bounds.left + Math.min(bounds.width / 2, 24), bounds.bottom)
+    if (!cunPinnedRef.current) {
+      if (pointer) {
+        positionCunNotification(pointer.x, pointer.y)
+      } else {
+        const bounds = control.getBoundingClientRect()
+        positionCunNotification(bounds.left + Math.min(bounds.width / 2, 24), bounds.bottom)
+      }
     }
     const title = control.dataset.cunTitle ?? 'Control'
     const description = control.dataset.cun ?? ''
@@ -1868,9 +1875,13 @@ function App() {
   }
 
   useEffect(() => {
-    if (cunActive && cunAnchorRef.current) {
-      positionCunNotification(cunAnchorRef.current.x, cunAnchorRef.current.y)
+    if (!cunActive) return
+    const reposition = () => {
+      if (cunAnchorRef.current) positionCunNotification(cunAnchorRef.current.x, cunAnchorRef.current.y)
     }
+    reposition()
+    window.addEventListener('resize', reposition)
+    return () => window.removeEventListener('resize', reposition)
   }, [cunActive, cunMessage])
 
   const loadAdminUsers = async () => {
@@ -1998,6 +2009,7 @@ function App() {
               event.preventDefault()
               setCunActive(true)
               cunAnchorRef.current = null
+              cunPinnedRef.current = false
               setShowCunManual(false)
               setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
             }}
@@ -2016,6 +2028,7 @@ function App() {
                   setShowMobileNav(false)
                   setCunActive(true)
                   cunAnchorRef.current = null
+                  cunPinnedRef.current = false
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
@@ -2079,12 +2092,51 @@ function App() {
       {cunActive && (
         <aside id="cun-notification" className="cun-notification" aria-label="FRAME University Notification" role="status">
           <div className="cun-notification-heading">
-            <span>FRAME University Notification</span>
-            <button type="button" aria-label="Close CUN guide mode" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
+            <button
+              type="button"
+              className="cun-drag-handle"
+              aria-label="Move university guide"
+              title="Drag to move; arrow keys to position; Home to reset"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return
+                const bounds = event.currentTarget.closest('aside')!.getBoundingClientRect()
+                cunPinnedRef.current = true
+                cunAnchorRef.current = { x: bounds.left, y: bounds.top }
+                cunDragRef.current = { pointerId: event.pointerId, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top }
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }}
+              onPointerMove={(event) => {
+                const drag = cunDragRef.current
+                if (drag?.pointerId === event.pointerId) positionCunNotification(event.clientX - drag.offsetX, event.clientY - drag.offsetY)
+              }}
+              onPointerUp={() => { cunDragRef.current = null }}
+              onPointerCancel={() => { cunDragRef.current = null }}
+              onLostPointerCapture={() => { cunDragRef.current = null }}
+              onKeyDown={(event) => {
+                if (event.key === 'Home') {
+                  event.preventDefault()
+                  cunPinnedRef.current = false
+                  positionCunNotification(window.innerWidth, window.innerHeight)
+                  return
+                }
+                const steps: Record<string, { x: number; y: number }> = {
+                  ArrowLeft: { x: -16, y: 0 }, ArrowRight: { x: 16, y: 0 },
+                  ArrowUp: { x: 0, y: -16 }, ArrowDown: { x: 0, y: 16 },
+                }
+                const step = steps[event.key]
+                if (!step) return
+                event.preventDefault()
+                const bounds = event.currentTarget.closest('aside')!.getBoundingClientRect()
+                cunPinnedRef.current = true
+                positionCunNotification(bounds.left + step.x, bounds.top + step.y)
+              }}
+            ><span aria-hidden="true">&#8942;&#8942;</span></button>
+            <span>FRAME University</span>
+            <button type="button" aria-label="Close university guide" title="Close guide" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
           <strong>{cunMessage.title}</strong>
           <p>{cunMessage.description}</p>
-          <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>Open illustrated manual</button>
+          <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>Framing manual</button>
         </aside>
       )}
 
