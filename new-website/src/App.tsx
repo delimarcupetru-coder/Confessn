@@ -174,7 +174,7 @@ async function writeStoredAccount(account: Account) {
 
 const translations = {
   en: {
-    brand: 'Virtual Art Framing Studio',
+    brand: 'FRAME',
     navWork: 'Workspace',
     navProjects: 'Projects',
     navAbout: 'About',
@@ -233,7 +233,7 @@ const translations = {
     projectCreated: 'Project folder created',
   },
   fr: {
-    brand: 'Atelier de Cadres d’Art Virtuel',
+    brand: 'FRAME',
     navWork: 'Espace',
     navProjects: 'Projets',
     navAbout: 'À propos',
@@ -292,7 +292,7 @@ const translations = {
     projectCreated: 'Dossier créé',
   },
   zh: {
-    brand: '虚拟艺术装裱工作室',
+    brand: 'FRAME',
     navWork: '工作区',
     navProjects: '项目',
     navAbout: '关于',
@@ -350,7 +350,7 @@ const translations = {
     projectCreated: '文件夹已创建',
   },
   de: {
-    brand: 'Virtuelles Kunstrahmen-Studio',
+    brand: 'FRAME',
     navWork: 'Arbeitsbereich',
     navProjects: 'Projekte',
     navAbout: 'Über uns',
@@ -409,7 +409,7 @@ const translations = {
     projectCreated: 'Ordner erstellt',
   },
   it: {
-    brand: 'Virtual Art Framing Studio',
+    brand: 'FRAME',
     navWork: 'Workspace',
     navProjects: 'Progetti',
     navAbout: 'Chi siamo',
@@ -468,7 +468,7 @@ const translations = {
     projectCreated: 'Cartella creata',
   },
   es: {
-    brand: 'Estudio de Enmarcado Virtual',
+    brand: 'FRAME',
     navWork: 'Espacio',
     navProjects: 'Proyectos',
     navAbout: 'Nosotros',
@@ -527,7 +527,7 @@ const translations = {
     projectCreated: 'Carpeta creada',
   },
   ja: {
-    brand: 'バーチャル・アート・フレーミング・スタジオ',
+    brand: 'FRAME',
     navWork: 'ワークスペース',
     navProjects: 'プロジェクト',
     navAbout: '会社概要',
@@ -769,7 +769,7 @@ type PinchGesture = {
 
 function App() {
   useEffect(() => {
-    document.title = 'VAFS'
+    document.title = 'FRAME'
   }, [])
 
   const [viewportDimensions, setViewportDimensions] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }))
@@ -1967,7 +1967,7 @@ function App() {
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
       <header className="topbar">
         <div className="brand-wrap">
-          <div className="brand-mark">V</div>
+          <img className="brand-mark" src={`${import.meta.env.BASE_URL}frame.svg`} width="48" height="48" alt="" />
           <span>{t.brand}</span>
         </div>
 
