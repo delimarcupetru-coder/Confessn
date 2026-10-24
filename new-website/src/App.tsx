@@ -72,6 +72,9 @@ type TzolWallet = {
   welcome_bonus_pending?: boolean
 }
 
+type TzolSummary = Pick<TzolWallet, 'user_id' | 'balance' | 'welcome_bonus_pending'>
+type BankEnrollment = { id: string; qrCode: string; secret: string }
+
 type AdminUserSummary = {
   user_id: string
   email: string
@@ -942,10 +945,21 @@ function App() {
   const [profileReady, setProfileReady] = useState(false)
   const [workspaceReadyForUser, setWorkspaceReadyForUser] = useState<string | null>(null)
   const [wallet, setWallet] = useState<TzolWallet | null>(null)
+  const [walletSummary, setWalletSummary] = useState<TzolSummary | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
   const [walletError, setWalletError] = useState('')
   const [walletRequest, setWalletRequest] = useState(0)
   const [showWalletDialog, setShowWalletDialog] = useState(false)
+  const [bankStep, setBankStep] = useState<'loading' | 'setup' | 'code' | 'unlocked' | 'error'>('loading')
+  const [bankFactorId, setBankFactorId] = useState('')
+  const [bankEnrollment, setBankEnrollment] = useState<BankEnrollment | null>(null)
+  const [bankCode, setBankCode] = useState('')
+  const [bankBusy, setBankBusy] = useState(false)
+  const [bankMessage, setBankMessage] = useState('')
+  const [bankAccessExpiresAt, setBankAccessExpiresAt] = useState(0)
+  const bankOperationRef = useRef(0)
+  const bankUnlockRef = useRef<{ token: string; userId: string } | null>(null)
+  const bankPendingEnrollmentRef = useRef<string | null>(null)
   const [welcomeBonusUserId, setWelcomeBonusUserId] = useState<string | null>(null)
   const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
   const [showAdminDialog, setShowAdminDialog] = useState(false)
@@ -1064,6 +1078,7 @@ function App() {
   useEffect(() => {
     if (!authUserId || !isLoggedIn) {
       setWallet(null)
+      setWalletSummary(null)
       setWalletError('')
       setWalletLoading(false)
       setShowWalletDialog(false)
@@ -1076,15 +1091,15 @@ function App() {
     setWalletError('')
     void (async () => {
       try {
-        const { data, error } = await supabase.rpc('get_tzol_wallet')
+        const { data, error } = await supabase.rpc('get_tzol_wallet_summary')
         if (error) throw error
-        if (!data || data.user_id !== authUserId || typeof data.id !== 'string' || typeof data.balance !== 'string' || !/^\d+$/.test(data.balance)) {
+        if (!data || data.user_id !== authUserId || typeof data.balance !== 'string' || !/^\d+$/.test(data.balance)) {
           throw new Error('Invalid wallet response')
         }
-        if (mounted) setWallet(data as TzolWallet)
+        if (mounted) setWalletSummary(data as TzolSummary)
       } catch {
         if (mounted) {
-          setWallet(null)
+          setWalletSummary(null)
           setWalletError('Your TZOL wallet could not be loaded. Please try again.')
         }
       } finally {
@@ -1093,6 +1108,21 @@ function App() {
     })()
     return () => { mounted = false }
   }, [authReady, authUserId, isLoggedIn, walletRequest])
+
+  useEffect(() => {
+    if (!authUserId || !isLoggedIn) return
+    const refreshWallet = () => {
+      if (document.visibilityState === 'visible') setWalletRequest((current) => current + 1)
+    }
+    const interval = window.setInterval(refreshWallet, 60000)
+    window.addEventListener('focus', refreshWallet)
+    document.addEventListener('visibilitychange', refreshWallet)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWallet)
+      document.removeEventListener('visibilitychange', refreshWallet)
+    }
+  }, [authUserId, isLoggedIn])
 
   useEffect(() => {
     let mounted = true
@@ -1113,8 +1143,157 @@ function App() {
 
   const t = translations[language]
   const memberWallet = wallet?.user_id === authUserId ? wallet : null
-  const tzolBalance = memberWallet ? BigInt(memberWallet.balance).toLocaleString('en-US') : null
-  const welcomeBonusPending = memberWallet?.welcome_bonus_pending === true
+  const memberSummary = walletSummary?.user_id === authUserId ? walletSummary : null
+  const tzolBalance = memberSummary ? BigInt(memberSummary.balance).toLocaleString('en-US') : null
+  const welcomeBonusPending = memberSummary?.welcome_bonus_pending === true
+
+  const loadBankAuthenticator = async () => {
+    const operation = ++bankOperationRef.current
+    setBankStep('loading')
+    setBankMessage('')
+    setBankCode('')
+    setBankBusy(false)
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors()
+      if (error) throw error
+      if (operation !== bankOperationRef.current) return
+      const factor = data.totp.find((item) => item.status === 'verified')
+      setBankFactorId(factor?.id ?? '')
+      setBankStep(factor ? 'code' : 'setup')
+    } catch (error) {
+      if (operation !== bankOperationRef.current) return
+      setBankMessage(error instanceof Error ? error.message : 'Bank verification is unavailable.')
+      setBankStep('error')
+    }
+  }
+
+  useEffect(() => {
+    if (!showWalletDialog || !authUserId || !isLoggedIn) return
+    setWallet(null)
+    setBankEnrollment(null)
+    setBankAccessExpiresAt(0)
+    void loadBankAuthenticator()
+    return () => {
+      bankOperationRef.current += 1
+      const access = bankUnlockRef.current
+      bankUnlockRef.current = null
+      if (access) void Promise.resolve(supabase.rpc('lock_frame_bank', { p_unlock_token: access.token })).catch(() => undefined)
+      const pendingFactor = bankPendingEnrollmentRef.current
+      bankPendingEnrollmentRef.current = null
+      if (pendingFactor) void supabase.auth.mfa.unenroll({ factorId: pendingFactor }).catch(() => undefined)
+    }
+  }, [showWalletDialog, authUserId, isLoggedIn])
+
+  useEffect(() => {
+    if (!showWalletDialog || !bankAccessExpiresAt) return
+    const timer = window.setTimeout(() => {
+      bankOperationRef.current += 1
+      bankUnlockRef.current = null
+      setWallet(null)
+      setBankStep('code')
+      setBankCode('')
+      setBankBusy(false)
+      setBankMessage('Bank access has expired. Enter a new authenticator code. You are still signed in to FRAME.')
+    }, Math.max(0, bankAccessExpiresAt - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [showWalletDialog, bankAccessExpiresAt])
+
+  const enrollBankAuthenticator = async () => {
+    if (bankBusy) return
+    const operation = bankOperationRef.current
+    setBankBusy(true)
+    setBankMessage('')
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Tzol Bank ${Date.now()}` })
+      if (error) throw error
+      if (operation !== bankOperationRef.current) {
+        void supabase.auth.mfa.unenroll({ factorId: data.id }).catch(() => undefined)
+        return
+      }
+      bankPendingEnrollmentRef.current = data.id
+      const prefix = 'data:image/svg+xml;utf-8,'
+      const qrCode = data.totp.qr_code.startsWith(prefix)
+        ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data.totp.qr_code.slice(prefix.length))}`
+        : data.totp.qr_code
+      setBankEnrollment({ id: data.id, qrCode, secret: data.totp.secret })
+      setBankFactorId(data.id)
+      setBankCode('')
+      setBankStep('code')
+    } catch (error) {
+      if (operation === bankOperationRef.current) setBankMessage(error instanceof Error ? error.message : 'Could not set up your authenticator.')
+    } finally {
+      if (operation === bankOperationRef.current) setBankBusy(false)
+    }
+  }
+
+  const unlockBank = async () => {
+    if (bankBusy || !authUserId) return
+    if (!/^\d{6}$/.test(bankCode) || !bankFactorId) { setBankMessage('Enter the six-digit code from your authenticator app.'); return }
+    const operation = bankOperationRef.current
+    setBankBusy(true)
+    setBankMessage('')
+    try {
+      const { data: requestId, error: requestError } = await supabase.rpc('begin_frame_bank_unlock')
+      if (requestError) throw requestError
+      if (operation !== bankOperationRef.current) return
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: bankFactorId })
+      if (challengeError) throw challengeError
+      if (operation !== bankOperationRef.current) return
+      const { error: verificationError } = await supabase.auth.mfa.verify({ factorId: bankFactorId, challengeId: challenge.id, code: bankCode })
+      if (verificationError) throw verificationError
+      bankPendingEnrollmentRef.current = null
+      if (operation !== bankOperationRef.current) return
+      setBankEnrollment(null)
+      const { data: access, error: unlockError } = await supabase.rpc('complete_frame_bank_unlock', {
+        p_request_id: requestId, p_factor_id: bankFactorId, p_challenge_id: challenge.id,
+      })
+      if (unlockError) throw unlockError
+      if (operation !== bankOperationRef.current) {
+        if (typeof access.unlock_token === 'string') void Promise.resolve(supabase.rpc('lock_frame_bank', { p_unlock_token: access.unlock_token })).catch(() => undefined)
+        return
+      }
+      const expiresAt = Date.parse(access.expires_at)
+      if (typeof access.unlock_token !== 'string' || !/^[a-f0-9]{64}$/.test(access.unlock_token) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Bank verification expired. Enter a new authenticator code.')
+      bankUnlockRef.current = { token: access.unlock_token, userId: authUserId }
+      setBankAccessExpiresAt(expiresAt)
+      const { data, error } = await supabase.rpc('get_tzol_wallet', { p_unlock_token: access.unlock_token })
+      if (error) throw error
+      if (operation !== bankOperationRef.current) return
+      if (!data || data.user_id !== authUserId || typeof data.id !== 'string' || typeof data.balance !== 'string' || !/^\d+$/.test(data.balance)) throw new Error('Could not load your verified bank account.')
+      setWallet(data as TzolWallet)
+      setBankCode('')
+      setBankStep('unlocked')
+      setWalletRequest((current) => current + 1)
+    } catch (error) {
+      if (operation === bankOperationRef.current) setBankMessage(error instanceof Error ? error.message : 'Verification failed. Enter a new authenticator code.')
+    } finally {
+      if (operation === bankOperationRef.current) setBankBusy(false)
+    }
+  }
+
+  const refreshBankDetails = async () => {
+    const access = bankUnlockRef.current
+    if (bankBusy || !access || access.userId !== authUserId) return
+    const operation = bankOperationRef.current
+    setBankBusy(true)
+    try {
+      const { data, error } = await supabase.rpc('get_tzol_wallet', { p_unlock_token: access.token })
+      if (error) throw error
+      if (operation !== bankOperationRef.current) return
+      if (!data || data.user_id !== authUserId || typeof data.balance !== 'string' || !/^\d+$/.test(data.balance)) throw new Error('Could not refresh the bank balance.')
+      setWallet(data as TzolWallet)
+      setWalletRequest((current) => current + 1)
+      setBankMessage('')
+    } catch {
+      if (operation === bankOperationRef.current) {
+        setWallet(null)
+        setBankStep('code')
+        setBankMessage('Bank access could not be refreshed. Enter a new authenticator code.')
+      }
+    } finally {
+      if (operation === bankOperationRef.current) setBankBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!authReady || !authUserId || !isLoggedIn || !welcomeBonusPending) return
@@ -2277,10 +2456,10 @@ function App() {
     >
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
       {welcomeBonusUserId === authUserId && authUserId && isLoggedIn && (
-        <aside className="cun-notification tzol-welcome-notification" aria-label="FRAME Bank notification">
+        <aside className="cun-notification tzol-welcome-notification" aria-label="Tzol Bank notification">
           <div className="cun-notification-heading">
-            <span>FRAME Bank</span>
-            <button type="button" aria-label="Dismiss FRAME Bank notification" title="Dismiss notification" onClick={() => setWelcomeBonusUserId(null)}>×</button>
+            <span>Tzol Bank</span>
+            <button type="button" aria-label="Dismiss Tzol Bank notification" title="Dismiss notification" onClick={() => setWelcomeBonusUserId(null)}>×</button>
           </div>
           <p role="status"><span aria-hidden="true">&#127873;</span> Welcome to FRAME! We've credited your account with <strong>50 Tzols</strong> as a welcome bonus. Enjoy exploring the platform!</p>
           <button type="button" className="cun-manual-button" onClick={() => { setWelcomeBonusUserId(null); setShowWalletDialog(true) }}>Open wallet</button>
@@ -2312,9 +2491,10 @@ function App() {
             <a
               href="#confessn-university"
               className="nav-university-link"
+              aria-label="Confessn University"
               aria-controls="cun-notification"
               aria-expanded={cunActive}
-              data-cun-title="FRAME University"
+              data-cun-title="Confessn University"
               data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
               onClick={(event) => {
                 event.preventDefault()
@@ -2324,19 +2504,19 @@ function App() {
                 setShowCunManual(false)
                 setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
               }}
-            >FRAME University</a>
+            ><span>Confessn</span><span>University</span></a>
             {authUserId && isLoggedIn && (
               <button
                 type="button"
                 className="nav-bank-tab"
-                aria-label={tzolBalance !== null ? `Open FRAME Bank, ${tzolBalance} Tzols` : 'Open FRAME Bank'}
+                aria-label={tzolBalance !== null ? `Open Tzol Bank, ${tzolBalance} Tzols` : 'Open Tzol Bank'}
                 aria-haspopup="dialog"
                 aria-expanded={showWalletDialog}
                 aria-controls="tzol-wallet-dialog"
                 onClick={() => { setShowMobileNav(false); setShowMobileAccountMenu(false); setShowWalletDialog(true) }}
               >
-                <span>FRAME Bank</span>
-                <span className="nav-bank-balance" aria-live="polite">{tzolBalance !== null ? `${tzolBalance} Tzols` : walletError ? 'Unavailable' : 'Loading...'}</span>
+                <span>Tzol Bank</span>
+                <span className="nav-bank-balance" aria-live="polite" aria-busy={walletLoading}>{tzolBalance !== null ? `${tzolBalance} Tzols` : walletError ? 'Unavailable' : 'Loading...'}</span>
               </button>
             )}
           </div>
@@ -2349,6 +2529,8 @@ function App() {
               {isConfessnAdmin && <a href="#admin" onClick={(event) => { event.preventDefault(); setShowMobileNav(false); openAdminDialog() }}>Admin</a>}
               <a
                 href="#confessn-university"
+                className="nav-university-link"
+                aria-label="Confessn University"
                 onClick={(event) => {
                   event.preventDefault()
                   setShowMobileNav(false)
@@ -2358,7 +2540,7 @@ function App() {
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
-              >FRAME University</a>
+              ><span>Confessn</span><span>University</span></a>
               <a href="#about" onClick={() => setShowMobileNav(false)}>{t.navAbout}</a>
               <a href="#contact" onClick={() => setShowMobileNav(false)}>{t.navContact}</a>
             </div>
@@ -2416,7 +2598,7 @@ function App() {
       </header>
 
       {cunActive && (
-        <aside id="cun-notification" className="cun-notification" aria-label="FRAME University Notification" role="status">
+        <aside id="cun-notification" className="cun-notification" aria-label="Confessn University Notification" role="status">
           <div className="cun-notification-heading">
             <button
               type="button"
@@ -2457,7 +2639,7 @@ function App() {
                 positionCunNotification(bounds.left + step.x, bounds.top + step.y)
               }}
             ><span aria-hidden="true">&#8942;&#8942;</span></button>
-            <span>FRAME University</span>
+            <span>Confessn University</span>
             <button type="button" aria-label="Close university guide" title="Close guide" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
           <strong>{cunMessage.title}</strong>
@@ -3196,7 +3378,7 @@ function App() {
           >
             <div className="dialog-header university-header">
               <div>
-                <p className="university-eyebrow">FRAME University</p>
+                <p className="university-eyebrow">Confessn University</p>
                 <h2 id="cun-manual-title">Framing Manual</h2>
               </div>
               <button type="button" aria-label="Close framing manual" onClick={() => setShowCunManual(false)}>×</button>
@@ -3389,24 +3571,42 @@ function App() {
       )}
 
       {showWalletDialog && authUserId && isLoggedIn && (
-        <div className="dialog-overlay" onClick={() => setShowWalletDialog(false)} onKeyDown={(event) => { if (event.key === 'Escape') setShowWalletDialog(false) }}>
+        <div className="dialog-overlay">
           <div id="tzol-wallet-dialog" className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
-              <h4 id="tzol-wallet-title">FRAME Bank</h4>
+              <h4 id="tzol-wallet-title">Tzol Bank</h4>
               <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>
             </div>
-            <p className="tzol-wallet-owner">{account.name}</p>
-            <div className="tzol-wallet-balance" aria-live="polite" aria-busy={walletLoading}>
-              {tzolBalance !== null ? <><strong>{tzolBalance}</strong><span>Tzols</span></> : <span>{walletLoading ? 'Loading balance...' : 'Balance unavailable'}</span>}
-            </div>
-            {memberWallet && (
-              <dl className="tzol-wallet-details">
-                <div><dt>Token</dt><dd>TZOL</dd></div>
-                <div><dt>Bank account ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
-              </dl>
+            {bankStep === 'loading' && <p role="status">Checking bank security...</p>}
+            {bankStep === 'error' && <button type="button" className="primary-button full-width-button" onClick={() => void loadBankAuthenticator()}>Retry verification</button>}
+            {bankStep === 'setup' && <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void enrollBankAuthenticator()}>{bankBusy ? 'Setting up...' : 'Set up authenticator'}</button>}
+            {bankStep === 'code' && (
+              <form onSubmit={(event) => { event.preventDefault(); void unlockBank() }}>
+                {bankEnrollment && (
+                  <div className="bank-authenticator-setup">
+                    <img src={bankEnrollment.qrCode} width="208" height="208" alt="Authenticator setup QR code" />
+                    <details><summary>Manual setup key</summary><code>{bankEnrollment.secret}</code></details>
+                  </div>
+                )}
+                  <div className="field-group">
+                    <label htmlFor="bank-authenticator-code">6-digit authenticator code</label>
+                    <input id="bank-authenticator-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required maxLength={6} value={bankCode} disabled={bankBusy} onChange={(event) => setBankCode(event.target.value.replace(/\D/g, ''))} />
+                  </div>
+                <button type="submit" className="primary-button full-width-button" disabled={bankBusy}>{bankBusy ? 'Verifying...' : 'Verify and open bank'}</button>
+              </form>
             )}
-            {walletError && <p className="dialog-hint" role="alert">{walletError}</p>}
-            <button type="button" className="primary-button full-width-button" disabled={walletLoading} onClick={() => setWalletRequest((current) => current + 1)}>{walletLoading ? 'Loading...' : walletError ? 'Try again' : 'Refresh balance'}</button>
+            {bankStep === 'unlocked' && memberWallet && (
+              <>
+                <p className="tzol-wallet-owner">{account.name}</p>
+                <div className="tzol-wallet-balance" aria-live="polite"><strong>{BigInt(memberWallet.balance).toLocaleString('en-US')}</strong><span>Tzols</span></div>
+                <dl className="tzol-wallet-details">
+                  <div><dt>Token</dt><dd>TZOL</dd></div>
+                  <div><dt>Bank account ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
+                </dl>
+                <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void refreshBankDetails()}>{bankBusy ? 'Loading...' : 'Refresh balance'}</button>
+              </>
+            )}
+            {bankMessage && <p className="dialog-hint" role="alert">{bankMessage}</p>}
           </div>
         </div>
       )}

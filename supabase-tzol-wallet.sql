@@ -1,3 +1,11 @@
+do $$
+begin
+  if to_regclass('public.frame_bank_access') is not null then
+    raise exception 'Bank verification is installed. Use a bank-security migration instead of rerunning the base wallet script.';
+  end if;
+end;
+$$;
+
 create table if not exists public.tzol_wallets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
@@ -80,6 +88,9 @@ security definer
 set search_path = ''
 as $$
 begin
+  if new.is_anonymous is true or new.deleted_at is not null then
+    return new;
+  end if;
   insert into public.tzol_wallets (user_id, balance, welcome_bonus_awarded_at)
   values (new.id, 50, now())
   on conflict (user_id) do nothing;
@@ -104,13 +115,29 @@ declare
   member_id uuid := auth.uid();
   wallet jsonb;
 begin
-  if member_id is null then
+  if member_id is null or not exists (
+    select 1 from auth.users as member
+    where member.id = member_id
+      and member.is_anonymous is not true
+      and member.deleted_at is null
+  ) then
     raise exception 'An account is required to open a TZOL wallet.' using errcode = '28000';
   end if;
 
   insert into public.tzol_wallets (user_id)
   values (member_id)
   on conflict (user_id) do nothing;
+
+  update public.tzol_wallets as wallet
+  set balance = wallet.balance + 50,
+      welcome_bonus_awarded_at = now(),
+      welcome_bonus_notified_at = null
+  where wallet.user_id = member_id
+    and wallet.welcome_bonus_awarded_at is null
+    and not exists (
+      select 1 from public.tzol_issuances as issuance
+      where issuance.user_id = member_id and issuance.reason = 'welcome_bonus'
+    );
 
   select jsonb_build_object(
     'id', id,

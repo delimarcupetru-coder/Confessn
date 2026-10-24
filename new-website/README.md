@@ -12,11 +12,35 @@ After changing these settings, request a new reset email; use the newest email r
 
 Run [supabase-tzol-wallet.sql](../supabase-tzol-wallet.sql) in the SQL Editor of the Supabase project used by this app before enabling wallets in production. No service-role key should be added to the frontend.
 
+### FRAME Bank Authenticator Verification
+
+Bank verification is separate from FRAME sign-in. Members stay signed in to FRAME when Bank is locked, closed, or verification expires. First-time users set up Microsoft Authenticator, Google Authenticator, or another TOTP-compatible app with a QR code or manual setup key. Subsequent bank access requires a six-digit authenticator code. This uses Supabase TOTP MFA and requires no Twilio account, SMS provider, per-message fees, or extra Edge Function. Existing Supabase plan limits still apply.
+
+Authenticator verification does not prove ownership of a phone number. The existing wallet UUID remains the displayed FRAME Bank account ID and the permanent internal accounting identifier. No phone number is collected or publicly displayed. Bank balances, bonus history, and transaction IDs are unchanged.
+
+Administrator activation order:
+
+1. Install the base wallet SQL first, if it is not already installed. The base script refuses to run once bank verification is installed, preventing an accidental security downgrade.
+2. In **Supabase > Authentication > Multi-Factor Authentication**, confirm authenticator-app/TOTP enrollment and verification are enabled. Keep **Limit duration of AAL1 sessions** disabled for this bank-only step-up design; otherwise Supabase can terminate FRAME sessions when members do not verify within 15 minutes. The bank's server-side fresh-code requirement remains enforced separately. Do not enable paid phone MFA or configure Twilio.
+3. Verify the production `auth.mfa_factors` and `auth.mfa_challenges` schema is available; [supabase-bank-authenticator.sql](../supabase-bank-authenticator.sql) checks verified TOTP challenges server-side without reading the authenticator secret.
+4. Apply the authenticator SQL and publish the new frontend as a coordinated release. The previous frontend cannot fetch full wallet details after the protected RPC replaces the old one; the new frontend needs the summary and bank-unlock RPCs. Website deployment alone does not install SQL.
+5. Test enrollment and an actual authenticator code on an authorized member account, then confirm closing/reopening Bank requires a new code while FRAME remains signed in. Do not disclose real setup keys, QR codes, access tokens, or verification codes in chat.
+
+The database revokes direct member wallet-table reads. `get_tzol_wallet_summary()` provides only balance/bonus information for the header. An unlock request is tied to the current member and login session and expires in five minutes. The server requires an AAL2 session and a verified TOTP challenge completed after that request; old verified challenges cannot be reused. At most ten unlock requests are allowed per member per ten minutes, in addition to Supabase Auth verification limits.
+
+`get_tzol_wallet()` requires a random, hashed, session-bound access token that expires after five minutes. Closing X discards local access and requests server revocation; if the network is unavailable, server expiry still applies. Authenticator setup secrets and bank tokens are not placed in browser storage by FRAME. Supabase's standard signed-in session remains persisted normally. Incomplete enrollment is cancelled when its bank window closes. Verified authenticator factors are retained for future bank access.
+
+The Bank window does not close on outside click or Escape. Verification expiry locks its contents without closing the window. Refreshing requires bank verification again, not FRAME sign-in again. Signing out of FRAME hides private bank details. Lost-authenticator recovery must be handled by an administrator after verifying ownership; there is no insecure bypass or automatic factor reset in FRAME.
+
+Verification checks: unauthenticated/direct wallet access denied; ordinary AAL1 sessions denied full details; new setup QR renders; wrong and stale codes rejected; fresh code unlocks; bank close revokes access; reopening requires a fresh verification; FRAME remains signed in; and base-wallet setup cannot downgrade the protection. Automated UI tests use a simulated Supabase MFA provider, so production activation still requires a real authenticator round trip.
+
 New accounts created after applying the SQL receive one wallet and a one-time 50-Tzol welcome bonus from an account-creation database trigger. The Supabase Cron job `frame-tzol-welcome-bonus` also scans every five minutes for signed-in members who missed the bonus, including existing members. It creates missing wallets or adds 50 to an uncredited wallet's current balance. Anonymous, deleted, and never-signed-in accounts are excluded from the catch-up scan. Previously credited accounts are not awarded again. The script runs one catch-up scan immediately, and rerunning it does not duplicate the named job or bonuses.
 
 Apply the script as administrator in Supabase SQL Editor. It enables `pg_cron`; if the extension cannot be enabled, enable Supabase Cron in the dashboard first and rerun the script. Verify the job and its run history under **Supabase > Cron**. Website deployment alone does not activate database jobs. Never put service-role credentials in the frontend.
 
-The FRAME Bank tab beside FRAME University opens the wallet, with the current balance on its second line. Guests cannot create or access wallets. Loading failures show a retry action, not a fabricated balance.
+The FRAME Bank tab beside FRAME University opens the wallet, with the current balance on its second line. Loading a member wallet automatically credits its missing one-time bonus server-side, so eligible existing members do not need to wait for the Cron scan. Repeated loads cannot award another bonus. Balances refresh every minute while the page is visible and when the member returns to the tab. Guests and anonymous sessions cannot create or access member wallets. Loading failures show a retry action, not a fabricated balance.
+
+Members never need Supabase access, SQL, or administrative actions. The administrator must install the database script once; thereafter registration, wallet loading, periodic scans, issuance records, and welcome notifications operate automatically. The frontend cannot install privileged database functions or safely fabricate credits if setup is missing.
 
 ### Total Tzols Released
 

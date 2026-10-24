@@ -90,6 +90,21 @@
   max-width: 100%;
 }
 
+.nav-university-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 46px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.nav-university-link > span {
+  display: block;
+}
+
 .nav-bank-tab {
   display: flex;
   flex-direction: column;
@@ -156,6 +171,39 @@
   margin: 0 0 12px;
   color: #d9d7e5;
   overflow-wrap: anywhere;
+}
+
+.bank-authenticator-setup {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bank-authenticator-setup img {
+  width: 208px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  padding: 8px;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.bank-authenticator-setup details {
+  width: 100%;
+}
+
+.bank-authenticator-setup summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.bank-authenticator-setup code {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
 }
 
 .tzol-wallet-balance {
@@ -1848,7 +1896,7 @@
   }
 
   .nav a.nav-university-link {
-    display: inline;
+    display: flex;
   }
 
   .mobile-lang-select {
