@@ -79,39 +79,52 @@
   gap: 10px;
 }
 
-.topbar:has(.tzol-wallet-button) {
+.topbar:has(.nav-bank-tab) {
   flex-wrap: wrap;
 }
 
-.tzol-wallet-button {
-  display: inline-flex;
+.nav-learning-tabs {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+}
+
+.nav-bank-tab {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: 100px;
-  min-height: 40px;
-  max-width: 100%;
-  padding: 6px 14px;
-  border: 1px solid #f4d578;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #fff0b4, #e8bc49 55%, #be861e);
-  color: #35260a;
-  box-shadow: inset 0 1px 1px #fff8dc, 0 2px 8px #0003;
+  gap: 2px;
+  min-width: 108px;
+  min-height: 46px;
+  padding: 5px 2px;
+  border: 0;
+  background: transparent;
+  color: #d9d7e5;
   font: inherit;
-  font-size: 0.85rem;
-  font-weight: 800;
+  font-size: 0.92rem;
   line-height: 1.25;
-  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
-.tzol-wallet-button:hover {
-  filter: brightness(1.08);
+.nav-bank-balance {
+  max-width: 180px;
+  color: #f4d578;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
-.tzol-wallet-button:focus-visible {
+.nav-bank-tab:hover,
+.nav-bank-tab[aria-expanded='true'] {
+  color: #7dd3fc;
+}
+
+.nav-bank-tab:focus-visible {
   outline: 2px solid #7dd3fc;
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 .cun-notification.tzol-welcome-notification {
@@ -3014,17 +3027,31 @@
     padding: 7px 10px;
   }
 
-  .topbar:has(.tzol-wallet-button) {
+  .topbar:has(.nav-bank-tab) {
     grid-template-areas:
       'brand brand'
-      'wallet wallet'
-      'nav actions';
+      'nav nav'
+      'actions actions';
   }
 
-  .topbar > .tzol-wallet-button {
-    grid-area: wallet;
-    justify-self: center;
-    min-height: 44px;
+  .topbar:has(.nav-bank-tab) .nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .topbar:has(.nav-bank-tab) .header-actions {
+    justify-content: center;
+  }
+
+  .nav-learning-tabs {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .nav-bank-tab {
+    min-width: 98px;
+    font-size: 0.82rem;
   }
 
   .topbar .brand-wrap {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
 import { supabase } from './supabase'
@@ -43,6 +44,16 @@ type ProjectRecord = {
 
 type ImageFormat = 'png' | 'jpg'
 type ExportSelection = { handle: FileSystemFileHandle | null; filename: string; format: ImageFormat }
+
+type WorkspaceDraft = {
+  project: ProjectRecord
+  selectedProjectId: string | null
+  projectFileName: string
+  projectNotes: string
+  exportFormat: ImageFormat
+  wallTone: 'white' | 'warm'
+  showDimensions: boolean
+}
 
 type Account = {
   name: string
@@ -151,12 +162,12 @@ function openAccountDatabase() {
   })
 }
 
-async function readStoredAccount(): Promise<Account | undefined> {
+async function readStoredRecord<RecordType>(key: string): Promise<RecordType | undefined> {
   const database = await openAccountDatabase()
   try {
-    return await new Promise<Account | undefined>((resolve, reject) => {
-      const request = database.transaction('accounts', 'readonly').objectStore('accounts').get('current')
-      request.onsuccess = () => resolve(request.result as Account | undefined)
+    return await new Promise<RecordType | undefined>((resolve, reject) => {
+      const request = database.transaction('accounts', 'readonly').objectStore('accounts').get(key)
+      request.onsuccess = () => resolve(request.result as RecordType | undefined)
       request.onerror = () => reject(request.error)
     })
   } finally {
@@ -164,20 +175,28 @@ async function readStoredAccount(): Promise<Account | undefined> {
   }
 }
 
-async function writeStoredAccount(account: Account) {
+async function writeStoredRecord(key: string, record: Account | WorkspaceDraft) {
   const database = await openAccountDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('accounts', 'readwrite')
-      transaction.objectStore('accounts').put(account, 'current')
+      transaction.objectStore('accounts').put(record, key)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
     })
-    window.localStorage.removeItem(accountStorageKey)
   } finally {
     database.close()
   }
+}
+
+function readStoredAccount() {
+  return readStoredRecord<Account>('current')
+}
+
+async function writeStoredAccount(account: Account) {
+  await writeStoredRecord('current', account)
+  window.localStorage.removeItem(accountStorageKey)
 }
 
 const translations = {
@@ -856,7 +875,6 @@ function App() {
   const [profileImageLoading, setProfileImageLoading] = useState(false)
   const [profileImageError, setProfileImageError] = useState('')
   const profileImageInputRef = useRef<HTMLInputElement | null>(null)
-  const explicitLogoutRef = useRef(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [projectFileName, setProjectFileName] = useState('my-framing-project')
@@ -918,6 +936,8 @@ function App() {
   const [accountReady, setAccountReady] = useState(false)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [profileReady, setProfileReady] = useState(false)
+  const [workspaceReadyForUser, setWorkspaceReadyForUser] = useState<string | null>(null)
   const [wallet, setWallet] = useState<TzolWallet | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
   const [walletError, setWalletError] = useState('')
@@ -970,61 +990,57 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!accountReady) return
     let mounted = true
-    const loadSessionProfile = async () => {
-      const { data } = await supabase.auth.getSession()
+    let sessionEventReceived = false
+    const restoreSession = (user: User | null) => {
       if (!mounted) return
-      const user = data.session?.user
-      if (!user) {
-        setAuthUserId(null)
-        setAuthReady(true)
-        return
+      setAuthUserId(user?.id ?? null)
+      setIsLoggedIn(Boolean(user))
+      if (user) {
+        setAccount((current) => ({ ...current, name: user.user_metadata.username ?? current.name, email: user.email ?? current.email }))
       }
-      setAuthUserId(user.id)
-      const { data: profile } = await supabase.from('user_profiles').select('account').eq('user_id', user.id).maybeSingle()
-      if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
-      setAccount((current) => ({ ...current, name: user.user_metadata.username ?? current.name, email: user.email ?? current.email }))
-      setIsLoggedIn(true)
       setAuthReady(true)
     }
-    void loadSessionProfile()
-
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session?.user) {
-        setAuthUserId(null)
-        setAuthReady(true)
-        if (explicitLogoutRef.current) {
-          explicitLogoutRef.current = false
-          setIsLoggedIn(false)
-        }
-        return
-      }
-      setAuthReady(false)
-      setAuthUserId(session.user.id)
-      setAccount((current) => ({
-        ...current,
-        name: session.user.user_metadata.username ?? current.name,
-        email: session.user.email ?? current.email,
-      }))
-      setIsLoggedIn(true)
+      sessionEventReceived = true
+      restoreSession(session?.user ?? null)
       if (event === 'SIGNED_IN' && (window.location.search.includes('code=') || window.location.hash.includes('access_token'))) {
         setAuthSuccessMessage('Authentication successful!')
         window.setTimeout(() => setAuthSuccessMessage(''), 6000)
       }
-      window.setTimeout(() => {
-        void supabase.from('user_profiles').select('account').eq('user_id', session.user.id).maybeSingle().then(({ data: profile }) => {
-          if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
-          setAuthReady(true)
-        })
-      }, 0)
+    })
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!sessionEventReceived) restoreSession(data.session?.user ?? null)
+    }).catch(() => {
+      if (mounted && !sessionEventReceived) {
+        setAuthReady(true)
+        setSaveMessage('Could not restore your session. Your browser projects have been kept.')
+      }
     })
 
     return () => {
       mounted = false
       listener.subscription.unsubscribe()
     }
-  }, [accountReady])
+  }, [])
+
+  useEffect(() => {
+    setProfileReady(false)
+    if (!accountReady || !authUserId) return
+    let mounted = true
+    void (async () => {
+      try {
+        const { data: profile, error } = await supabase.from('user_profiles').select('account').eq('user_id', authUserId).maybeSingle()
+        if (error) throw error
+        if (!mounted) return
+        if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
+        setProfileReady(true)
+      } catch {
+        if (mounted) setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
+      }
+    })()
+    return () => { mounted = false }
+  }, [accountReady, authUserId])
 
   useEffect(() => {
     if (!saveAfterAuth || !authReady || !authUserId || !isLoggedIn || authMode === 'reset') return
@@ -1125,7 +1141,7 @@ function App() {
     setAuthMessage('')
     try {
       if (authMode === 'forgot') {
-        const redirect = new URL(window.location.href)
+        const redirect = new URL('https://delimarcupetru-coder.github.io/Confessn/')
         redirect.search = ''
         redirect.hash = ''
         redirect.searchParams.set('recovery', '1')
@@ -1184,6 +1200,21 @@ function App() {
       })
       : await supabase.auth.signInWithPassword({ email, password: authPassword })
 
+    const accountExists = authMode === 'create' && (
+      supabaseResult.error?.code === 'user_already_exists'
+      || supabaseResult.error?.code === 'email_exists'
+      || supabaseResult.error?.message === 'User already registered'
+      || (!supabaseResult.error && !supabaseResult.data.session && supabaseResult.data.user?.identities?.length === 0)
+    )
+    if (accountExists) {
+      setAuthMessage('An account with this email already exists. Please log in or reset your password.')
+      setAuthPassword('')
+      setConfirmPassword('')
+      setLoginFailed(true)
+      setAuthMode('login')
+      return
+    }
+
     if (supabaseResult.error) {
       setAuthMessage(supabaseResult.error.message)
       setLoginFailed(authMode === 'login')
@@ -1209,7 +1240,6 @@ function App() {
   }
 
   const logOut = () => {
-    explicitLogoutRef.current = true
     window.localStorage.removeItem('virtual-art-framing-studio-session')
     void supabase.auth.signOut()
     setIsLoggedIn(false)
@@ -1536,10 +1566,10 @@ function App() {
         // Ignore malformed local auth data and keep the profile usable.
       }
     }
-    if (authReady && authUserId) {
+    if (authReady && authUserId && profileReady) {
       void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() })
     }
-  }, [account, accountReady, authReady, authUserId])
+  }, [account, accountReady, authReady, authUserId, profileReady])
 
   const activeFolderProjects = useMemo(() => {
     return account.projects.filter((project) => {
@@ -1609,7 +1639,6 @@ function App() {
   const saveProject = () => {
     if (!accountReady || !authReady) return
     setSaveError('')
-    setProjectNotes('')
     if (!authUserId || !isLoggedIn) {
       setSaveAfterAuth(true)
       setAuthMessage('')
@@ -1678,7 +1707,7 @@ function App() {
       const handle = await filePromise
       if (handle !== undefined) beginProjectDownload(nextProject, handle)
     }
-    if (authUserId) {
+    if (authUserId && profileReady) {
       try {
         const { error } = await supabase.from('user_profiles').upsert({
           user_id: authUserId,
@@ -1731,7 +1760,7 @@ function App() {
     setSelectedProjectId(null)
   }
 
-  const loadProject = (project: ProjectRecord) => {
+  const loadProject = (project: ProjectRecord, scrollToWorkspace = true) => {
     const [savedFrameType, savedMaterial] = project.style.split('-')
     const matchingColor = colorOptions.find((color) => color.name === project.color)
     setSelectedProjectId(project.id)
@@ -1767,8 +1796,72 @@ function App() {
     if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
     if (project.matMargin !== undefined) setMatMargin(project.matMargin)
     if (project.stripThickness !== undefined) setStripThickness(project.stripThickness)
-    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (scrollToWorkspace) document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  useEffect(() => {
+    setWorkspaceReadyForUser(null)
+    if (!authReady || !authUserId || !isLoggedIn) return
+    let mounted = true
+    void readStoredRecord<WorkspaceDraft>(`workspace:${authUserId}`).then((draft) => {
+      if (!mounted) return
+      if (draft) {
+        loadProject(draft.project, false)
+        setSelectedProjectId(draft.selectedProjectId)
+        setProjectFileName(draft.projectFileName)
+        setProjectNotes(draft.projectNotes)
+        setExportFormat(draft.exportFormat)
+        setWallTone(draft.wallTone)
+        setShowDimensions(draft.showDimensions)
+      }
+      setWorkspaceReadyForUser(authUserId)
+    }).catch(() => {
+      if (mounted) setSaveMessage('Could not restore the workspace draft. Your saved projects have been kept.')
+    })
+    return () => { mounted = false }
+  }, [authReady, authUserId, isLoggedIn])
+
+  useEffect(() => {
+    if (!authUserId || !isLoggedIn || workspaceReadyForUser !== authUserId) return
+    const draft: WorkspaceDraft = {
+      project: {
+        id: selectedProjectId ?? 'workspace-draft',
+        name: projectFileName,
+        size: selectedSize,
+        style: `${selectedFrameType}-${selectedStyle}`,
+        color: selectedColor.name,
+        notes: projectNotes,
+        folderId: account.activeFolderId,
+        artwork,
+        createdAt: '',
+        frameEnabled,
+        matEnabled,
+        matColorId: selectedMatColor.id,
+        bottomMatEnabled,
+        bottomMatColorId: selectedBottomMatColor.id,
+        stripColorId: selectedStripColor.id,
+        stripEnabled,
+        frameSizeIndex: standardFrameSizeIndex,
+        frameOrientation,
+        artworkRatio,
+        artWidthInches,
+        artHeightInches,
+        dimensionsConfirmed,
+        zoom,
+        artPosition,
+        frameThickness,
+        matMargin,
+        stripThickness,
+      },
+      selectedProjectId,
+      projectFileName,
+      projectNotes,
+      exportFormat,
+      wallTone,
+      showDimensions,
+    }
+    void writeStoredRecord(`workspace:${authUserId}`, draft).catch(() => setSaveMessage('Could not keep the workspace draft in this browser. Check available device storage.'))
+  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
 
   const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
     restoringProjectRef.current = 2
@@ -2154,22 +2247,38 @@ function App() {
           <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
           <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
           {isConfessnAdmin && <a href="#admin" data-cun-title="Admin" data-cun="Open the restricted account summary for user identity, project counts, and storage estimates." onClick={(event) => { event.preventDefault(); openAdminDialog() }}>Admin</a>}
-          <a
-            href="#confessn-university"
-            className="nav-university-link"
-            aria-controls="cun-notification"
-            aria-expanded={cunActive}
-            data-cun-title="FRAME University"
-            data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
-            onClick={(event) => {
-              event.preventDefault()
-              setCunActive(true)
-              cunAnchorRef.current = null
-              cunPinnedRef.current = false
-              setShowCunManual(false)
-              setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
-            }}
-          >FRAME University</a>
+          <div className="nav-learning-tabs">
+            <a
+              href="#confessn-university"
+              className="nav-university-link"
+              aria-controls="cun-notification"
+              aria-expanded={cunActive}
+              data-cun-title="FRAME University"
+              data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
+              onClick={(event) => {
+                event.preventDefault()
+                setCunActive(true)
+                cunAnchorRef.current = null
+                cunPinnedRef.current = false
+                setShowCunManual(false)
+                setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
+              }}
+            >FRAME University</a>
+            {authUserId && isLoggedIn && (
+              <button
+                type="button"
+                className="nav-bank-tab"
+                aria-label={tzolBalance !== null ? `Open FRAME Bank, ${tzolBalance} Tzols` : 'Open FRAME Bank'}
+                aria-haspopup="dialog"
+                aria-expanded={showWalletDialog}
+                aria-controls="tzol-wallet-dialog"
+                onClick={() => { setShowMobileNav(false); setShowMobileAccountMenu(false); setShowWalletDialog(true) }}
+              >
+                <span>FRAME Bank</span>
+                <span className="nav-bank-balance" aria-live="polite">{tzolBalance !== null ? `${tzolBalance} Tzols` : walletError ? 'Unavailable' : 'Loading...'}</span>
+              </button>
+            )}
+          </div>
           <a href="#about" data-cun-title="About" data-cun="Read about Confessn and the framing studio.">{t.navAbout}</a>
           <a href="#contact" data-cun-title="Contact" data-cun="Use the contact form to send a message to the studio.">{t.navContact}</a>
           {showMobileNav && (
@@ -2194,17 +2303,6 @@ function App() {
             </div>
           )}
         </nav>
-
-        {authReady && authUserId && isLoggedIn && (
-          <button
-            type="button"
-            className="tzol-wallet-button"
-            aria-label={tzolBalance !== null ? `Open TZOL wallet, ${tzolBalance} Tzols` : 'Open TZOL wallet'}
-            aria-haspopup="dialog"
-            title="Open your TZOL wallet"
-            onClick={() => { setShowMobileAccountMenu(false); setShowWalletDialog(true) }}
-          >{tzolBalance !== null ? `${tzolBalance} Tzols` : walletLoading ? 'Loading Tzols' : 'TZOL wallet'}</button>
-        )}
 
         <div className="header-actions">
           <button
@@ -3229,11 +3327,11 @@ function App() {
         </div>
       )}
 
-      {showWalletDialog && authReady && authUserId && isLoggedIn && (
+      {showWalletDialog && authUserId && isLoggedIn && (
         <div className="dialog-overlay" onClick={() => setShowWalletDialog(false)} onKeyDown={(event) => { if (event.key === 'Escape') setShowWalletDialog(false) }}>
-          <div className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" onClick={(event) => event.stopPropagation()}>
+          <div id="tzol-wallet-dialog" className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
-              <h4 id="tzol-wallet-title">TZOL wallet</h4>
+              <h4 id="tzol-wallet-title">FRAME Bank</h4>
               <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>
             </div>
             <p className="tzol-wallet-owner">{account.name}</p>

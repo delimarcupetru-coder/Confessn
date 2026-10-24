@@ -1,10 +1,18 @@
 # FRAME
 
+## Password Recovery Redirects
+
+In Supabase, open **Authentication > URL Configuration** and set **Site URL** to `https://delimarcupetru-coder.github.io/Confessn/`. Add `https://delimarcupetru-coder.github.io/Confessn/?recovery=1` to **Redirect URLs** and save. If using the custom domain as the site URL, also allow `https://confessn.com/?recovery=1`.
+
+FRAME requests the live recovery URL even when the reset email is requested from local development. Supabase may fall back to its Site URL when a requested redirect is not allowed. A Site URL such as `http://localhost:3000` can therefore produce a reset email that leads to a connection-refused page.
+
+After changing these settings, request a new reset email; use the newest email rather than the old localhost link. Never share passwords or full recovery URLs, which contain private tokens.
+
 ## TZOL Wallet Setup
 
 Run [supabase-tzol-wallet.sql](../supabase-tzol-wallet.sql) in the SQL Editor of the Supabase project used by this app before enabling wallets in production. No service-role key should be added to the frontend.
 
-New accounts created after applying the SQL receive one wallet and a one-time 50-Tzol welcome bonus from an account-creation database trigger. Existing members are not retroactively credited; if they have no wallet, their first authenticated wallet request creates one with 0 Tzols. Re-running the SQL does not award more tokens. The gold oval balance button opens the wallet. Guests cannot create or access wallets. Loading failures show a retry action, not a fabricated balance.
+New accounts created after applying the SQL receive one wallet and a one-time 50-Tzol welcome bonus from an account-creation database trigger. Existing members are not retroactively credited; if they have no wallet, their first authenticated wallet request creates one with 0 Tzols. Re-running the SQL does not award more tokens. The FRAME Bank tab beside FRAME University opens the wallet, with the current balance on its second line. Guests cannot create or access wallets. Loading failures show a retry action, not a fabricated balance.
 
 The welcome notification appears about 1.2 seconds after the credited member's authenticated wallet loads. For email-confirmed sign-ups, it appears after confirmation and sign-in. A server-side atomic claim prevents repeated notifications across refreshes and devices. The notification remains visible until dismissed.
 
@@ -12,7 +20,7 @@ TZOL is an in-app token, not a blockchain asset or cryptocurrency. This implemen
 
 Verification after applying the SQL:
 
-1. Create a new account, sign in, and check that the gold button displays `50 Tzols`, opens your wallet, and the welcome notification appears.
+1. Create a new account, sign in, and check that FRAME Bank displays `50 Tzols` underneath its title, opens your wallet, and the welcome notification appears.
 2. Refresh the page and confirm the wallet ID and balance remain unchanged and the welcome notification does not repeat.
 3. Sign out and confirm the wallet button and wallet dialog disappear.
 4. Sign into another account and confirm it has a different wallet ID.
