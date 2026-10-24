@@ -825,11 +825,19 @@ function App() {
     title: 'Guide mode is ready',
     description: 'Hover over or focus a highlighted control to see what it does and how to use it.',
   })
-  const [authMode, setAuthMode] = useState<'login' | 'create' | null>(null)
+  const [authMode, setAuthMode] = useState<'login' | 'create' | 'forgot' | 'reset' | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [loginFailed, setLoginFailed] = useState(false)
+  const [passwordRecoveryUserId, setPasswordRecoveryUserId] = useState<string | null>(null)
+  const recoveryLinkRequestedRef = useRef(
+    new URLSearchParams(window.location.search).get('recovery') === '1'
+    || new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery',
+  )
   const [signupEmailPreferences, setSignupEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
   const [emailPreferences, setEmailPreferences] = useState<EmailPreferenceValues>(defaultEmailPreferences)
   const [emailPreferencesLoading, setEmailPreferencesLoading] = useState(false)
@@ -927,6 +935,29 @@ function App() {
   const [adminSearch, setAdminSearch] = useState('')
 
   useEffect(() => {
+    if (recoveryLinkRequestedRef.current) {
+      setAuthMode('reset')
+      setAuthMessage('Verifying your recovery link...')
+    }
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && recoveryLinkRequestedRef.current && session?.user)) {
+        setPasswordRecoveryUserId(session?.user.id ?? null)
+        setAuthEmail(session?.user.email ?? '')
+        setAuthPassword('')
+        setConfirmPassword('')
+        setAuthMessage('')
+        setAuthMode('reset')
+        recoveryLinkRequestedRef.current = false
+      } else if (event === 'INITIAL_SESSION' && recoveryLinkRequestedRef.current && !session) {
+        setAuthMessage('This recovery link has expired or is invalid. Request a new link.')
+      } else if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryUserId(null)
+      }
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
     let mounted = true
     void readStoredAccount().then((stored) => {
       if (mounted && stored) setAccount(stored)
@@ -996,11 +1027,11 @@ function App() {
   }, [accountReady])
 
   useEffect(() => {
-    if (!saveAfterAuth || !authReady || !authUserId || !isLoggedIn) return
+    if (!saveAfterAuth || !authReady || !authUserId || !isLoggedIn || authMode === 'reset') return
     setSaveAfterAuth(false)
     setAuthMode(null)
     setShowSaveDialog(true)
-  }, [saveAfterAuth, authReady, authUserId, isLoggedIn])
+  }, [saveAfterAuth, authReady, authUserId, isLoggedIn, authMode])
 
   useEffect(() => {
     if (!authUserId || !isLoggedIn) {
@@ -1079,7 +1110,55 @@ function App() {
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
   }
 
+  const submitPasswordRecovery = async () => {
+    if (authSubmitting) return
+    const email = authEmail.trim().toLowerCase()
+    if (authMode === 'forgot' && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      setAuthMessage('Enter a valid email address.')
+      return
+    }
+    if (authMode === 'reset' && (!passwordRecoveryUserId || authPassword.length < 8 || authPassword !== confirmPassword)) {
+      setAuthMessage(!passwordRecoveryUserId ? 'Open a valid recovery link from your email first.' : authPassword.length < 8 ? 'Use at least 8 characters for your new password.' : 'The passwords do not match.')
+      return
+    }
+    setAuthSubmitting(true)
+    setAuthMessage('')
+    try {
+      if (authMode === 'forgot') {
+        const redirect = new URL(window.location.href)
+        redirect.search = ''
+        redirect.hash = ''
+        redirect.searchParams.set('recovery', '1')
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect.toString() })
+        if (error) throw error
+        setAuthMessage('If an account exists for this email, a password reset link has been sent. Check your inbox and spam folder.')
+      } else if (authMode === 'reset') {
+        const { data, error: sessionError } = await supabase.auth.getUser()
+        if (sessionError || data.user?.id !== passwordRecoveryUserId) {
+          setPasswordRecoveryUserId(null)
+          throw new Error('This recovery link has expired or is invalid. Request a new link.')
+        }
+        const { error } = await supabase.auth.updateUser({ password: authPassword })
+        if (error) throw error
+        setAuthPassword('')
+        setConfirmPassword('')
+        setPasswordRecoveryUserId(null)
+        const location = new URL(window.location.href)
+        location.searchParams.delete('recovery')
+        location.hash = ''
+        window.history.replaceState(null, '', `${location.pathname}${location.search}`)
+        setAuthMessage('Password updated successfully. You can now log in with your new password.')
+        setAuthMode('login')
+      }
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Could not complete password recovery. Please try again.')
+    } finally {
+      setAuthSubmitting(false)
+    }
+  }
+
   const submitAuth = async () => {
+    setLoginFailed(false)
     const email = authEmail.trim().toLowerCase()
     const username = authUsername.trim()
     if (!email || authPassword.length < 6) {
@@ -1107,6 +1186,7 @@ function App() {
 
     if (supabaseResult.error) {
       setAuthMessage(supabaseResult.error.message)
+      setLoginFailed(authMode === 'login')
       return
     }
 
@@ -3033,11 +3113,11 @@ function App() {
       )}
 
       {authMode && (
-        <div className="dialog-overlay" onClick={() => { setAuthMode(null); setSaveAfterAuth(false) }}>
-          <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
+        <div className="dialog-overlay" onClick={() => { if (!authSubmitting) { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') } }}>
+          <form className="dialog-box small-dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void (authMode === 'forgot' || authMode === 'reset' ? submitPasswordRecovery() : submitAuth()) }}>
             <div className="dialog-header">
-              <h4>{authMode === 'create' ? 'Create account' : 'Log in'}</h4>
-              <button type="button" onClick={() => { setAuthMode(null); setSaveAfterAuth(false) }}>×</button>
+              <h4 id="auth-dialog-title">{authMode === 'create' ? 'Create account' : authMode === 'forgot' ? 'Reset password' : authMode === 'reset' ? 'Choose a new password' : 'Log in'}</h4>
+              <button type="button" disabled={authSubmitting} aria-label="Close account window" onClick={() => { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') }}>×</button>
             </div>
             {authMode === 'create' && (
               <div className="field-group">
@@ -3047,12 +3127,20 @@ function App() {
             )}
             <div className="field-group">
               <label htmlFor="auth-email">Email</label>
-              <input id="auth-email" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+              <input id="auth-email" type="email" autoComplete="email" required readOnly={authMode === 'reset'} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
             </div>
-            <div className="field-group">
-              <label htmlFor="auth-password">Password</label>
-              <input id="auth-password" type="password" autoComplete={authMode === 'create' ? 'new-password' : 'current-password'} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
-            </div>
+            {authMode !== 'forgot' && (
+              <div className="field-group">
+                <label htmlFor="auth-password">{authMode === 'reset' ? 'New password' : 'Password'}</label>
+                <input id="auth-password" type="password" required minLength={authMode === 'reset' ? 8 : 6} autoComplete={authMode === 'create' || authMode === 'reset' ? 'new-password' : 'current-password'} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+              </div>
+            )}
+            {authMode === 'reset' && (
+              <div className="field-group">
+                <label htmlFor="confirm-password">Confirm new password</label>
+                <input id="confirm-password" type="password" required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              </div>
+            )}
             {authMode === 'create' && (
               <fieldset className="email-preference-options">
                 <legend>Email preferences (optional)</legend>
@@ -3071,11 +3159,17 @@ function App() {
                 </label>
               </fieldset>
             )}
-            {authMessage && <p className="dialog-hint" role="status">{authMessage}</p>}
-            <button type="button" className="primary-button full-width-button" onClick={() => void submitAuth()}>
-              {authMode === 'create' ? 'Create account' : 'Log in'}
+            {authMessage && <p className="dialog-hint" role={authMode === 'login' && loginFailed ? 'alert' : 'status'}>{authMessage}</p>}
+            {authMode === 'login' && loginFailed && authMessage && (
+              <button type="button" className="auth-recovery-button auth-recovery-prominent" autoFocus onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>Forgot password?</button>
+            )}
+            <button type="submit" className="primary-button full-width-button" disabled={authSubmitting || (authMode === 'reset' && !passwordRecoveryUserId)}>
+              {authSubmitting ? 'Please wait...' : authMode === 'create' ? 'Create account' : authMode === 'forgot' ? 'Send reset link' : authMode === 'reset' ? 'Save new password' : 'Log in'}
             </button>
-          </div>
+            {authMode === 'login' && (!loginFailed || !authMessage) && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>Forgot password?</button>}
+            {authMode === 'reset' && !passwordRecoveryUserId && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>Request a new reset link</button>}
+            {(authMode === 'forgot' || authMode === 'reset') && <button type="button" className="auth-recovery-button" disabled={authSubmitting} onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>Back to log in</button>}
+          </form>
         </div>
       )}
 

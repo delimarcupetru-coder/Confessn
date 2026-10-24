@@ -1050,6 +1050,35 @@
   width: min(360px, calc(100vw - 30px));
 }
 
+.auth-dialog {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+
+.auth-recovery-button {
+  display: block;
+  min-height: 44px;
+  margin: 6px auto 0;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: #7dd3fc;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-recovery-prominent {
+  width: 100%;
+  margin: 0 0 10px;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  background: #7dd3fc;
+  color: #142630;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .dialog-header {
   display: flex;
   align-items: center;
