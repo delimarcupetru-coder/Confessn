@@ -2594,7 +2594,6 @@ function App() {
       <section id="projects" className="portfolio-section">
         <div className="section-head">
           <div>
-            <p className="eyebrow">{t.galleryTitle}</p>
             <h2>{t.quote}</h2>
           </div>
         </div>
