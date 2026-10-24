@@ -1343,10 +1343,6 @@ function App() {
       setProfileMessage('Sign in to save your profile.')
       return
     }
-    if (!profileReady) {
-      setProfileMessage('Your saved profile must finish loading before changes can be saved. Please try again.')
-      return
-    }
     setProfileSaving(true)
     setProfileMessage('')
     try {
@@ -1381,10 +1377,24 @@ function App() {
     if (!data.user || data.user.id !== authUserId) throw new Error('Could not verify the updated profile. Please sign in again.')
     authenticatedUserRef.current = data.user
     const nextAccount = { ...account, name: data.user.user_metadata.username ?? username, email: data.user.email ?? account.email, avatar: savedAvatar }
-    const { error: profileError } = await supabase.from('user_profiles').upsert({ user_id: authUserId, account: nextAccount, updated_at: new Date().toISOString() })
-    if (profileError) throw profileError
-    await writeStoredAccount(nextAccount)
     setAccount(nextAccount)
+    let profileSyncUnavailable = !profileReady
+    if (profileReady) {
+      try {
+        const { error: profileError } = await supabase.from('user_profiles').upsert({ user_id: authUserId, account: nextAccount, updated_at: new Date().toISOString() })
+        profileSyncUnavailable = Boolean(profileError)
+      } catch {
+        profileSyncUnavailable = true
+      }
+    }
+    let browserStorageUnavailable = !accountReady
+    if (accountReady) {
+      try {
+        await writeStoredAccount(nextAccount)
+      } catch {
+        browserStorageUnavailable = true
+      }
+    }
     const storedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
     if (storedAuth) {
       try {
@@ -1396,7 +1406,12 @@ function App() {
       }
     }
     setProfilePassword('')
-    setSaveMessage(email !== nextAccount.email ? 'Profile saved. Check your email to confirm the email address change.' : 'Profile saved.')
+    const confirmationMessage = email !== nextAccount.email ? ' Check your email to confirm the email address change.' : ''
+    setSaveMessage(`${profileSyncUnavailable
+      ? 'Username saved to your account. Project sync is unavailable; saved projects were not overwritten.'
+      : browserStorageUnavailable
+        ? 'Profile saved to your account. Browser storage is unavailable.'
+        : 'Profile saved.'}${confirmationMessage}`)
     setShowAccountDialog(false)
     } catch (error) {
       setProfileMessage(error instanceof Error ? error.message : 'Could not save your profile. Please try again.')
