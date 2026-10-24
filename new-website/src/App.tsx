@@ -1992,7 +1992,7 @@ function App() {
             className="nav-university-link"
             aria-controls="cun-notification"
             aria-expanded={cunActive}
-            data-cun-title="Confessn University"
+            data-cun-title="FRAME University"
             data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
             onClick={(event) => {
               event.preventDefault()
@@ -2001,7 +2001,7 @@ function App() {
               setShowCunManual(false)
               setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
             }}
-          >Confessn University</a>
+          >FRAME University</a>
           <a href="#about" data-cun-title="About" data-cun="Read about Confessn and the framing studio.">{t.navAbout}</a>
           <a href="#contact" data-cun-title="Contact" data-cun="Use the contact form to send a message to the studio.">{t.navContact}</a>
           {showMobileNav && (
@@ -2019,7 +2019,7 @@ function App() {
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
-              >Confessn University</a>
+              >FRAME University</a>
               <a href="#about" onClick={() => setShowMobileNav(false)}>{t.navAbout}</a>
               <a href="#contact" onClick={() => setShowMobileNav(false)}>{t.navContact}</a>
             </div>
@@ -2077,9 +2077,9 @@ function App() {
       </header>
 
       {cunActive && (
-        <aside id="cun-notification" className="cun-notification" aria-label="Confessn University Notification" role="status">
+        <aside id="cun-notification" className="cun-notification" aria-label="FRAME University Notification" role="status">
           <div className="cun-notification-heading">
-            <span>Confessn University Notification</span>
+            <span>FRAME University Notification</span>
             <button type="button" aria-label="Close CUN guide mode" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
           <strong>{cunMessage.title}</strong>
@@ -2819,7 +2819,7 @@ function App() {
           >
             <div className="dialog-header university-header">
               <div>
-                <p className="university-eyebrow">Confessn University</p>
+                <p className="university-eyebrow">FRAME University</p>
                 <h2 id="cun-manual-title">Framing Manual</h2>
               </div>
               <button type="button" aria-label="Close framing manual" onClick={() => setShowCunManual(false)}>×</button>
