@@ -216,7 +216,7 @@ const translations = {
     languages: 'Languages',
     placeholder: 'Tell us about your space and the mood you want for the frame.',
     customerProjects: 'My projects',
-    market: 'A thoughtful framing studio for collectors, interiors, and gifting.',
+    market: 'A thoughtful framing studio for collectors, interiors, and meaningful gifts.',
     orderSummary: 'Order summary',
     template: 'Template',
     noProjects: 'No saved projects yet.',
