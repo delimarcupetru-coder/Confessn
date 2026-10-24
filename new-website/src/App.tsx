@@ -868,6 +868,9 @@ function App() {
   const [authSuccessMessage, setAuthSuccessMessage] = useState('')
   const [showAccountDialog, setShowAccountDialog] = useState(false)
   const [profileUsername, setProfileUsername] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const authenticatedUserRef = useRef<User | null>(null)
   const [profileEmail, setProfileEmail] = useState('')
   const [profilePassword, setProfilePassword] = useState('')
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>()
@@ -980,7 +983,11 @@ function App() {
   useEffect(() => {
     let mounted = true
     void readStoredAccount().then((stored) => {
-      if (mounted && stored) setAccount(stored)
+      if (mounted && stored) setAccount({
+        ...stored,
+        name: authenticatedUserRef.current?.user_metadata.username ?? stored.name,
+        email: authenticatedUserRef.current?.email ?? stored.email,
+      })
     }).catch(() => {
       if (mounted) setSaveMessage('Browser project storage is unavailable.')
     }).finally(() => {
@@ -994,6 +1001,7 @@ function App() {
     let sessionEventReceived = false
     const restoreSession = (user: User | null) => {
       if (!mounted) return
+      authenticatedUserRef.current = user
       setAuthUserId(user?.id ?? null)
       setIsLoggedIn(Boolean(user))
       if (user) {
@@ -1033,7 +1041,11 @@ function App() {
         const { data: profile, error } = await supabase.from('user_profiles').select('account').eq('user_id', authUserId).maybeSingle()
         if (error) throw error
         if (!mounted) return
-        if (profile?.account) setAccount((current) => mergeProfileAccount(current, profile.account as Account))
+        if (profile?.account) setAccount((current) => ({
+          ...mergeProfileAccount(current, profile.account as Account),
+          name: authenticatedUserRef.current?.user_metadata.username ?? (profile.account as Account).name,
+          email: authenticatedUserRef.current?.email ?? (profile.account as Account).email,
+        }))
         setProfileReady(true)
       } catch {
         if (mounted) setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
@@ -1277,6 +1289,7 @@ function App() {
   }
 
   const openAccountDialog = () => {
+    setProfileMessage('')
     setProfileUsername(account.name)
     setProfileEmail(account.email)
     setProfilePassword('')
@@ -1319,9 +1332,24 @@ function App() {
   }
 
   const saveAccountChanges = async () => {
+    if (profileSaving) return
     const username = profileUsername.trim()
     const email = profileEmail.trim().toLowerCase()
-    if (!username || !email) return
+    if (!username || !email) {
+      setProfileMessage('Enter a username and email address.')
+      return
+    }
+    if (!authUserId || !isLoggedIn) {
+      setProfileMessage('Sign in to save your profile.')
+      return
+    }
+    if (!profileReady) {
+      setProfileMessage('Your saved profile must finish loading before changes can be saved. Please try again.')
+      return
+    }
+    setProfileSaving(true)
+    setProfileMessage('')
+    try {
     let savedAvatar = profileAvatar
     if (profileAvatar && profileAvatarZoom !== 1) {
       const image = new Image()
@@ -1344,7 +1372,18 @@ function App() {
         }
       }
     }
-    const nextAccount = { ...account, name: username, email, avatar: savedAvatar }
+    const { data, error } = await supabase.auth.updateUser({
+      data: { username },
+      ...(email !== account.email ? { email } : {}),
+      ...(profilePassword ? { password: profilePassword } : {}),
+    })
+    if (error) throw error
+    if (!data.user || data.user.id !== authUserId) throw new Error('Could not verify the updated profile. Please sign in again.')
+    authenticatedUserRef.current = data.user
+    const nextAccount = { ...account, name: data.user.user_metadata.username ?? username, email: data.user.email ?? account.email, avatar: savedAvatar }
+    const { error: profileError } = await supabase.from('user_profiles').upsert({ user_id: authUserId, account: nextAccount, updated_at: new Date().toISOString() })
+    if (profileError) throw profileError
+    await writeStoredAccount(nextAccount)
     setAccount(nextAccount)
     const storedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
     if (storedAuth) {
@@ -1356,7 +1395,14 @@ function App() {
         // Keep the profile update local even if an old auth record is malformed.
       }
     }
+    setProfilePassword('')
+    setSaveMessage(email !== nextAccount.email ? 'Profile saved. Check your email to confirm the email address change.' : 'Profile saved.')
     setShowAccountDialog(false)
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : 'Could not save your profile. Please try again.')
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   const handleProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -3341,7 +3387,7 @@ function App() {
             {memberWallet && (
               <dl className="tzol-wallet-details">
                 <div><dt>Token</dt><dd>TZOL</dd></div>
-                <div><dt>Wallet ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
+                <div><dt>Bank account ID</dt><dd className="tzol-wallet-id">{memberWallet.id}</dd></div>
               </dl>
             )}
             {walletError && <p className="dialog-hint" role="alert">{walletError}</p>}
@@ -3351,11 +3397,11 @@ function App() {
       )}
 
       {showAccountDialog && (
-        <div className="dialog-overlay" onClick={() => setShowAccountDialog(false)}>
+        <div className="dialog-overlay" onClick={() => { if (!profileSaving) setShowAccountDialog(false) }}>
           <div className="dialog-box small-dialog account-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>Account</h4>
-              <button type="button" onClick={() => setShowAccountDialog(false)}>×</button>
+              <button type="button" disabled={profileSaving} onClick={() => setShowAccountDialog(false)}>×</button>
             </div>
             <div className="account-photo-editor">
               <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>
@@ -3396,7 +3442,8 @@ function App() {
               disabled={!authUserId || emailPreferencesLoading || emailPreferencesLoadFailed || emailPreferencesSaving}
               onClick={() => void saveEmailPreferences()}
             >{emailPreferencesSaving ? 'Saving preferences…' : 'Save email preferences'}</button>
-            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading} onClick={() => void saveAccountChanges()}>Save Profile</button>
+            {profileMessage && <p className="dialog-hint" role="alert">{profileMessage}</p>}
+            <button type="button" className="primary-button full-width-button" disabled={profileImageLoading || profileSaving} onClick={() => void saveAccountChanges()}>{profileSaving ? 'Saving profile...' : 'Save Profile'}</button>
           </div>
         </div>
       )}
