@@ -44,6 +44,7 @@ type ProjectRecord = {
   artPosition?: { x: number; y: number }
   frameThickness?: number
   matMargin?: number
+  bottomMatMargin?: number
   stripThickness?: number
 }
 
@@ -1021,6 +1022,7 @@ function App() {
   const [mobileToolsCollapsed, setMobileToolsCollapsed] = useState(false)
   const [frameThickness, setFrameThickness] = useState(10)
   const [matMargin, setMatMargin] = useState(8)
+  const [bottomMatMargin, setBottomMatMargin] = useState(12)
   const [stripThickness, setStripThickness] = useState(2)
   const [bevelDepth, setBevelDepth] = useState(3)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
@@ -1043,7 +1045,7 @@ function App() {
   const selectedFrameSize = standardFrameSizes[standardFrameSizeIndex]
   const [showDimensions, setShowDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
-  const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip' | 'bevel'; startY: number; startValue: number } | null>(null)
+  const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'bottomMat' | 'strip' | 'bevel'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
   const saveHandleRef = useRef<ExportSelection | null>(null)
@@ -1782,7 +1784,6 @@ function App() {
   const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'floral' ? 20 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
-  const bottomMatMargin = 12
   const displayFrameWidthInches = selectedFrameType === 'floating'
     ? frameOrientation === 'horizontal' ? frameHeightInches : frameWidthInches
     : frameOrientation === 'horizontal' ? selectedFrameSize.height : selectedFrameSize.width
@@ -1884,6 +1885,7 @@ function App() {
       const nextValue = resizeDrag.startValue - (event.clientY - resizeDrag.startY) / 2
       if (resizeDrag.kind === 'frame') setFrameThickness(Math.min(42, Math.max(6, nextValue)))
       if (resizeDrag.kind === 'mat') setMatMargin(Math.min(80, Math.max(0, nextValue)))
+      if (resizeDrag.kind === 'bottomMat') setBottomMatMargin(Math.min(80, Math.max(0, nextValue)))
       if (resizeDrag.kind === 'strip') setStripThickness(Math.min(8, Math.max(0, nextValue)))
       if (resizeDrag.kind === 'bevel') setBevelDepth(Math.min(12, Math.max(0, nextValue)))
     }
@@ -2052,6 +2054,7 @@ function App() {
       artPosition,
       frameThickness,
       matMargin,
+      bottomMatMargin,
       stripThickness,
     }
 
@@ -2170,6 +2173,7 @@ function App() {
     moveArtwork(project.artPosition ?? { x: 0, y: 0 })
     if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
     if (project.matMargin !== undefined) setMatMargin(project.matMargin)
+    setBottomMatMargin(project.bottomMatMargin ?? 12)
     if (project.stripThickness !== undefined) setStripThickness(project.stripThickness)
     if (scrollToWorkspace) document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -2229,6 +2233,7 @@ function App() {
         artPosition,
         frameThickness,
         matMargin,
+        bottomMatMargin,
         stripThickness,
       },
       selectedProjectId,
@@ -2239,7 +2244,7 @@ function App() {
       showDimensions,
     }
     void writeStoredRecord(`workspace:${authUserId}`, draft).catch(() => setSaveMessage('Could not keep the workspace draft in this browser. Check available device storage.'))
-  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, bevelDepth, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
+  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, bevelDepth, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, bottomMatMargin, stripThickness])
 
   const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
     restoringProjectRef.current = 2
@@ -3083,7 +3088,7 @@ function App() {
                     className="mat-stack"
                     style={{
                       inset: `${frameThickness + frameGap}px`,
-                      padding: `${matMargin}px`,
+                      padding: `${matEnabled ? matMargin : bottomMatMargin}px`,
                       background: matEnabled ? selectedMatColor.hex : selectedBottomMatColor.hex,
                       pointerEvents: 'auto',
                     }}
@@ -3092,7 +3097,7 @@ function App() {
                       event.preventDefault()
                       event.stopPropagation()
                       event.currentTarget.setPointerCapture(event.pointerId)
-                      setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
+                      setResizeDrag({ kind: matEnabled ? 'mat' : 'bottomMat', startY: event.clientY, startValue: matEnabled ? matMargin : bottomMatMargin })
                     }}
                   >
                     {matEnabled ? (
@@ -3240,15 +3245,29 @@ function App() {
                 type="button"
                 className="menu-action"
                 aria-label="Adjust mat size"
-                title="Drag M to adjust mat size"
-                data-cun-title="M · Mat width"
+                title="Drag M1 to adjust top mat width"
+                data-cun-title="M1 · Top mat width"
                 data-cun="Press and drag this control vertically. Drag up to widen the mat; drag down to narrow it."
                 onPointerDown={(event) => {
                   event.preventDefault()
                   event.currentTarget.setPointerCapture(event.pointerId)
                   setResizeDrag({ kind: 'mat', startY: event.clientY, startValue: matMargin })
                 }}
-              >M</button>
+              >M1</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust bottom mat width"
+                title="Drag M2 to adjust bottom mat width"
+                data-cun-title="M2 · Bottom mat width"
+                data-cun="Press and drag this control vertically. Drag up to widen the bottom mat; drag down to narrow it."
+                disabled={!bottomMatEnabled}
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'bottomMat', startY: event.clientY, startValue: bottomMatMargin })
+                }}
+              >M2</button>
               <button type="button" className="menu-action" aria-label="Zoom out artwork" data-cun-title="Zoom out" data-cun="Reduce the artwork zoom one step. Zoom cannot go below the cover size, so the mat opening stays filled." disabled={!artwork} onClick={() => adjustArtworkZoom(1 / 1.1)}>−</button>
               <button type="button" className="menu-action" aria-label="Zoom in artwork" data-cun-title="Zoom in" data-cun="Enlarge the artwork one step. Drag the image to reposition it within the mat opening." disabled={!artwork} onClick={() => adjustArtworkZoom(1.1)}>+</button>
               <button
