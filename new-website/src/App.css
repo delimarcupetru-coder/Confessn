@@ -1,7 +1,8 @@
 .studio-shell {
+  --topbar-clearance: 88px;
   width: min(1400px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 20px 0 72px;
+  padding: calc(var(--topbar-clearance) + 20px) 0 72px;
 }
 
 .auth-success-message {
@@ -29,10 +30,22 @@
   border-radius: 13px;
   background: rgba(14, 16, 23, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  position: sticky;
-  top: 16px;
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  width: min(1400px, calc(100vw - 32px));
+  box-sizing: border-box;
+  transform: translateX(-50%);
   z-index: 20;
   backdrop-filter: blur(18px);
+}
+
+#workspace,
+#projects,
+#about,
+#contact,
+#admin {
+  scroll-margin-top: calc(var(--topbar-clearance) + 16px);
 }
 
 .brand-wrap {
@@ -1871,6 +1884,10 @@
 }
 
 @media (max-width: 980px) {
+  .studio-shell {
+    --topbar-clearance: 132px;
+  }
+
   .topbar,
   .hero-stage,
   .studio-layout,
@@ -1955,6 +1972,7 @@
 
 @media (max-width: 620px) {
   .studio-shell {
+    --topbar-clearance: 180px;
     width: 100%;
     padding-bottom: 0;
   }
@@ -1966,7 +1984,8 @@
 
   .topbar {
     padding: 3px 10px;
-    position: relative;
+    width: calc(100vw - 12px);
+    top: 6px;
   }
 
   .header-actions {
