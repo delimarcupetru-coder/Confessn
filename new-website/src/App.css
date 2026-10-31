@@ -1373,12 +1373,11 @@
   content: '';
   position: absolute;
   z-index: 5;
-  inset: 0;
-  background:
-    linear-gradient(to bottom, var(--mat-bevel-highlight, #ffffff), transparent 78%) top / 100% 7px no-repeat,
-    linear-gradient(to top, var(--mat-bevel-shadow, #342f2b), transparent 78%) bottom / 100% 7px no-repeat,
-    linear-gradient(to right, var(--mat-bevel-highlight, #ffffff), transparent 78%) left / 7px 100% no-repeat,
-    linear-gradient(to left, var(--mat-bevel-shadow, #342f2b), transparent 78%) right / 7px 100% no-repeat;
+  inset: var(--mat-bevel-inset, 0px);
+  box-sizing: border-box;
+  border: var(--mat-bevel-width, 2px) solid var(--mat-bevel-shadow, #342f2b);
+  border-top-color: var(--mat-bevel-highlight, #ffffff);
+  border-left-color: var(--mat-bevel-highlight, #ffffff);
   pointer-events: none;
 }
 

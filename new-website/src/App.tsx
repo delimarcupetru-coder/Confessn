@@ -800,11 +800,26 @@ const bottomMatColorOptions: ColorOption[] = [
 ]
 
 const bevelColorOptions: BevelColorOption[] = [
-  { id: 'classic', name: 'Classic White', highlight: '#ffffff', shadow: '#342f2b' },
-  { id: 'warm-gold', name: 'Warm Gold', highlight: '#fff0c8', shadow: '#755323' },
-  { id: 'silver', name: 'Silver', highlight: '#f5f8fa', shadow: '#46535e' },
-  { id: 'soft-blush', name: 'Soft Blush', highlight: '#fff1f2', shadow: '#79565b' },
-  { id: 'mist-blue', name: 'Mist Blue', highlight: '#f0f8fc', shadow: '#456476' },
+  { id: 'classic', name: 'Classic White', highlight: '#deded9', shadow: '#57544f' },
+  { id: 'warm-gold', name: 'Offcut Oak', highlight: '#c9a36b', shadow: '#6f512b' },
+  { id: 'silver', name: 'Silver', highlight: '#b7bbbe', shadow: '#4c5258' },
+  { id: 'soft-blush', name: 'Offcut Red', highlight: '#c94242', shadow: '#70252c' },
+  { id: 'mist-blue', name: 'Offcut Blue', highlight: '#356bc1', shadow: '#1c3d76' },
+  { id: 'champagne', name: 'Offcut Sage', highlight: '#a7b39a', shadow: '#546449' },
+  { id: 'copper', name: 'Offcut Rust', highlight: '#b8583a', shadow: '#672719' },
+  { id: 'rose-gold', name: 'Offcut Purple', highlight: '#8152ad', shadow: '#41245e' },
+  { id: 'bronze', name: 'Offcut Walnut', highlight: '#5e3727', shadow: '#2b1610' },
+  { id: 'pearl-gray', name: 'Deep Slate', highlight: '#73777b', shadow: '#313438' },
+  { id: 'graphite', name: 'Offcut Black', highlight: '#1d1d22', shadow: '#08090b' },
+  { id: 'warm-ivory', name: 'Offcut Ivory', highlight: '#f4e9d8', shadow: '#87745c' },
+  { id: 'sage-green', name: 'Offcut Green', highlight: '#4e9560', shadow: '#1f4d2d' },
+  { id: 'lavender', name: 'Deep Lavender', highlight: '#79578e', shadow: '#38233f' },
+  { id: 'teal', name: 'Deep Teal', highlight: '#3f8f84', shadow: '#1e4f48' },
+  { id: 'navy', name: 'Midnight Blue', highlight: '#3156a3', shadow: '#16284f' },
+  { id: 'emerald', name: 'Forest Green', highlight: '#29533b', shadow: '#112b1c' },
+  { id: 'ruby', name: 'Burgundy', highlight: '#722f3b', shadow: '#3e1721' },
+  { id: 'amber', name: 'Burnished Gold', highlight: '#c4a24d', shadow: '#6d4a19' },
+  { id: 'coral', name: 'Burnt Orange', highlight: '#ed934d', shadow: '#8d461f' },
 ]
 
 const stripColorOptions: ColorOption[] = [
@@ -3100,6 +3115,8 @@ function App() {
                             background: selectedMatColor.hex,
                             '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
                             '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
+                            '--mat-bevel-width': `${Math.max(2, stripThickness)}px`,
+                            '--mat-bevel-inset': '0px',
                           } as React.CSSProperties}
                         >
                           {artwork ? (
@@ -3136,6 +3153,8 @@ function App() {
                           background: selectedBottomMatColor.hex,
                           '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
                           '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
+                          '--mat-bevel-width': `${Math.max(2, stripThickness)}px`,
+                          '--mat-bevel-inset': stripEnabled ? `${Math.max(2, stripThickness)}px` : '0px',
                         } as React.CSSProperties}
                       >
                         {artwork ? (
