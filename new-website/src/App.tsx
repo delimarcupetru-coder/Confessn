@@ -31,6 +31,7 @@ type ProjectRecord = {
   bottomMatColorId?: string
   bottomMatBevelEnabled?: boolean
   bottomMatBevelColorId?: string
+  bottomMatBevelDepth?: number
   stripColorId?: string
   stripEnabled?: boolean
   frameSizeIndex?: number
@@ -1021,6 +1022,7 @@ function App() {
   const [frameThickness, setFrameThickness] = useState(10)
   const [matMargin, setMatMargin] = useState(8)
   const [stripThickness, setStripThickness] = useState(2)
+  const [bevelDepth, setBevelDepth] = useState(3)
   const [artPosition, setArtPosition] = useState({ x: 0, y: 0 })
   const [artDrag, setArtDrag] = useState<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [artWidthInches, setArtWidthInches] = useState(12)
@@ -1041,7 +1043,7 @@ function App() {
   const selectedFrameSize = standardFrameSizes[standardFrameSizeIndex]
   const [showDimensions, setShowDimensions] = useState(false)
   const [showDimensionsDialog, setShowDimensionsDialog] = useState(false)
-  const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip'; startY: number; startValue: number } | null>(null)
+  const [resizeDrag, setResizeDrag] = useState<{ kind: 'frame' | 'mat' | 'strip' | 'bevel'; startY: number; startValue: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const captureRef = useRef<HTMLDivElement | null>(null)
   const saveHandleRef = useRef<ExportSelection | null>(null)
@@ -1883,6 +1885,7 @@ function App() {
       if (resizeDrag.kind === 'frame') setFrameThickness(Math.min(42, Math.max(6, nextValue)))
       if (resizeDrag.kind === 'mat') setMatMargin(Math.min(80, Math.max(0, nextValue)))
       if (resizeDrag.kind === 'strip') setStripThickness(Math.min(8, Math.max(0, nextValue)))
+      if (resizeDrag.kind === 'bevel') setBevelDepth(Math.min(12, Math.max(0, nextValue)))
     }
     const stopResize = () => setResizeDrag(null)
     window.addEventListener('pointermove', handlePointerMove)
@@ -2036,6 +2039,7 @@ function App() {
       bottomMatColorId: selectedBottomMatColor.id,
       bottomMatBevelEnabled,
       bottomMatBevelColorId: selectedBottomMatBevelColor.id,
+      bottomMatBevelDepth: bevelDepth,
       stripColorId: selectedStripColor.id,
       stripEnabled,
       frameSizeIndex: standardFrameSizeIndex,
@@ -2147,6 +2151,7 @@ function App() {
     if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
     setBottomMatBevelEnabled(project.bottomMatBevelEnabled ?? true)
     if (project.bottomMatBevelColorId) setSelectedBottomMatBevelColor(bevelColorOptions.find((color) => color.id === project.bottomMatBevelColorId) ?? bevelColorOptions[0])
+    setBevelDepth(project.bottomMatBevelDepth ?? 3)
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     autoFitDefaultArtworkRef.current = false
@@ -2211,6 +2216,7 @@ function App() {
         bottomMatColorId: selectedBottomMatColor.id,
         bottomMatBevelEnabled,
         bottomMatBevelColorId: selectedBottomMatBevelColor.id,
+        bottomMatBevelDepth: bevelDepth,
         stripColorId: selectedStripColor.id,
         stripEnabled,
         frameSizeIndex: standardFrameSizeIndex,
@@ -2233,7 +2239,7 @@ function App() {
       showDimensions,
     }
     void writeStoredRecord(`workspace:${authUserId}`, draft).catch(() => setSaveMessage('Could not keep the workspace draft in this browser. Check available device storage.'))
-  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
+  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, bevelDepth, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
 
   const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
     restoringProjectRef.current = 2
@@ -3115,7 +3121,7 @@ function App() {
                             background: selectedMatColor.hex,
                             '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
                             '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
-                            '--mat-bevel-width': `${Math.max(2, stripThickness)}px`,
+                            '--mat-bevel-width': `${bevelDepth}px`,
                             '--mat-bevel-inset': '0px',
                           } as React.CSSProperties}
                         >
@@ -3153,7 +3159,7 @@ function App() {
                           background: selectedBottomMatColor.hex,
                           '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
                           '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
-                          '--mat-bevel-width': `${Math.max(2, stripThickness)}px`,
+                          '--mat-bevel-width': `${bevelDepth}px`,
                           '--mat-bevel-inset': stripEnabled ? `${Math.max(2, stripThickness)}px` : '0px',
                         } as React.CSSProperties}
                       >
@@ -3258,6 +3264,20 @@ function App() {
                   setResizeDrag({ kind: 'strip', startY: event.clientY, startValue: stripThickness })
                 }}
               >S</button>
+              <button
+                type="button"
+                className="menu-action"
+                aria-label="Adjust bevel depth"
+                title="Drag B to adjust bevel cut depth"
+                data-cun-title="B · Bevel cut depth"
+                data-cun="Press and drag this control vertically. Drag up to deepen the bevel cut; drag down to make it shallower."
+                disabled={!bottomMatEnabled || !bottomMatBevelEnabled}
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setResizeDrag({ kind: 'bevel', startY: event.clientY, startValue: bevelDepth })
+                }}
+              >B</button>
             </div>
           </div>
         </div>
