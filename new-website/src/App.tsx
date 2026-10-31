@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
+import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
 import './App.css'
@@ -28,6 +29,8 @@ type ProjectRecord = {
   matColorId?: string
   bottomMatEnabled?: boolean
   bottomMatColorId?: string
+  bottomMatBevelEnabled?: boolean
+  bottomMatBevelColorId?: string
   stripColorId?: string
   stripEnabled?: boolean
   frameSizeIndex?: number
@@ -74,8 +77,6 @@ type TzolWallet = {
 }
 
 type TzolSummary = Pick<TzolWallet, 'user_id' | 'balance' | 'welcome_bonus_pending'>
-type BankEnrollment = { id: string; qrCode: string; secret: string }
-
 type AdminUserSummary = {
   user_id: string
   email: string
@@ -145,6 +146,13 @@ type ColorOption = {
   id: string
   name: string
   hex: string
+}
+
+type BevelColorOption = {
+  id: string
+  name: string
+  highlight: string
+  shadow: string
 }
 
 const defaultAccount: Account = {
@@ -659,10 +667,21 @@ const translations = {
 
 const materialOptions: FrameOption[] = [
   { id: 'darkwood', label: 'Dark Wood', description: 'Deep natural grain', icon: '▥' },
+  { id: 'walnut', label: 'Walnut', description: 'Rich medium-dark brown grain', icon: '▥' },
+  { id: 'cherrywood', label: 'Cherry Wood', description: 'Warm reddish-brown grain', icon: '▥' },
+  { id: 'rosewood', label: 'Rosewood', description: 'Deep red-brown grain', icon: '▥' },
+  { id: 'espresso', label: 'Espresso', description: 'Very dark coffee-brown grain', icon: '▥' },
   { id: 'stainless', label: 'Stainless Steel', description: 'Cool metallic finish', icon: '▤' },
   { id: 'lightwood', label: 'Light Wood', description: 'Warm natural grain', icon: '▦' },
+  { id: 'maple', label: 'Maple', description: 'Pale, fine natural grain', icon: '▦' },
+  { id: 'birch', label: 'Birch', description: 'Soft, light golden grain', icon: '▦' },
+  { id: 'honey-oak', label: 'Honey Oak', description: 'Soft golden-brown grain', icon: '▦' },
   { id: 'blackwood', label: 'Black Wood', description: 'Dark stained natural grain', icon: '▥' },
   { id: 'engravedwood', label: 'Engraved Wood', description: 'Detailed carved grain', icon: '▧' },
+  { id: 'engraved-maple', label: 'Engraved Maple', description: 'Fine floral engraving on pale maple', icon: '❀' },
+  { id: 'engraved-oak', label: 'Engraved Oak', description: 'Carved ornament on natural oak', icon: '❀' },
+  { id: 'engraved-walnut', label: 'Engraved Walnut', description: 'Carved ornament on deep walnut', icon: '❀' },
+  { id: 'engraved-rosewood', label: 'Engraved Rosewood', description: 'Fine carving on rich rosewood', icon: '❀' },
 ]
 
 function makeFrameTexture(base: [number, number, number], steel = false) {
@@ -699,9 +718,21 @@ function makeFrameTexture(base: [number, number, number], steel = false) {
 
 const frameTextures: Record<string, { horizontal: string; vertical: string }> = {
   darkwood: makeFrameTexture([81, 48, 33]),
+  walnut: makeFrameTexture([105, 72, 48]),
+  cherrywood: makeFrameTexture([126, 67, 48]),
+  rosewood: makeFrameTexture([91, 48, 44]),
+  espresso: makeFrameTexture([54, 39, 34]),
   lightwood: makeFrameTexture([200, 159, 107]),
+  maple: makeFrameTexture([220, 199, 161]),
+  birch: makeFrameTexture([229, 211, 176]),
+  'honey-oak': makeFrameTexture([190, 139, 82]),
   blackwood: makeFrameTexture([43, 42, 40]),
   stainless: makeFrameTexture([175, 183, 186], true),
+  engravedwood: makeFrameTexture([153, 111, 73]),
+  'engraved-maple': makeFrameTexture([220, 199, 161]),
+  'engraved-oak': makeFrameTexture([176, 128, 77]),
+  'engraved-walnut': makeFrameTexture([105, 72, 48]),
+  'engraved-rosewood': makeFrameTexture([91, 48, 44]),
 }
 
 const frameTypeOptions: FrameOption[] = [
@@ -709,6 +740,7 @@ const frameTypeOptions: FrameOption[] = [
   { id: 'classic', label: 'Classic', description: 'Timeless profile', icon: '◫' },
   { id: 'studio', label: 'Studio', description: 'Clean professional profile', icon: '▭' },
   { id: 'modern', label: 'Modern', description: 'Minimal crisp profile', icon: '□' },
+  { id: 'floral', label: 'Floral Ornament', description: 'Decorative floral details along each rail', icon: '❀' },
 ]
 
 const sizeOptions = [
@@ -725,8 +757,15 @@ const colorOptions: ColorOption[] = [
 ]
 
 const matColorOptions: ColorOption[] = [
+  { id: 'white', name: 'White', hex: '#ffffff' },
   { id: 'pearl', name: 'Pearl', hex: '#e1e3de' },
   { id: 'linen', name: 'Linen', hex: '#e7dfcf' },
+  { id: 'soft-blush', name: 'Soft Blush', hex: '#f1dfe2' },
+  { id: 'mist-blue', name: 'Mist Blue', hex: '#dceaf2' },
+  { id: 'pale-sage', name: 'Pale Sage', hex: '#e1e9df' },
+  { id: 'soft-lavender', name: 'Soft Lavender', hex: '#e8e2f0' },
+  { id: 'soft-peach', name: 'Soft Peach', hex: '#f6e4d7' },
+  { id: 'buttercream', name: 'Buttercream', hex: '#f7eecf' },
   { id: 'warm-ivory', name: 'Warm Ivory', hex: '#f4e4b8' },
   { id: 'yellow', name: 'Yellow', hex: '#f2d34f' },
   { id: 'light-blue', name: 'Light Blue', hex: '#b9dced' },
@@ -742,6 +781,13 @@ const matColorOptions: ColorOption[] = [
 ]
 
 const bottomMatColorOptions: ColorOption[] = [
+  { id: 'white', name: 'White', hex: '#ffffff' },
+  { id: 'soft-blush', name: 'Soft Blush', hex: '#f1dfe2' },
+  { id: 'mist-blue', name: 'Mist Blue', hex: '#dceaf2' },
+  { id: 'pale-sage', name: 'Pale Sage', hex: '#e1e9df' },
+  { id: 'soft-lavender', name: 'Soft Lavender', hex: '#e8e2f0' },
+  { id: 'soft-peach', name: 'Soft Peach', hex: '#f6e4d7' },
+  { id: 'buttercream', name: 'Buttercream', hex: '#f7eecf' },
   { id: 'black', name: 'Black', hex: '#17171b' },
   { id: 'charcoal-gray', name: 'Charcoal Gray', hex: '#45464a' },
   { id: 'navy-blue', name: 'Navy Blue', hex: '#172b4d' },
@@ -751,6 +797,14 @@ const bottomMatColorOptions: ColorOption[] = [
   { id: 'silver', name: 'Silver', hex: '#b7bbbe' },
   { id: 'cream', name: 'Cream', hex: '#f1e8d4' },
   { id: 'warm-tan', name: 'Warm Tan', hex: '#bd956a' },
+]
+
+const bevelColorOptions: BevelColorOption[] = [
+  { id: 'classic', name: 'Classic White', highlight: '#ffffff', shadow: '#342f2b' },
+  { id: 'warm-gold', name: 'Warm Gold', highlight: '#fff0c8', shadow: '#755323' },
+  { id: 'silver', name: 'Silver', highlight: '#f5f8fa', shadow: '#46535e' },
+  { id: 'soft-blush', name: 'Soft Blush', highlight: '#fff1f2', shadow: '#79565b' },
+  { id: 'mist-blue', name: 'Mist Blue', highlight: '#f0f8fc', shadow: '#456476' },
 ]
 
 const stripColorOptions: ColorOption[] = [
@@ -874,13 +928,15 @@ function App() {
   }, [language])
   const [frameEnabled, setFrameEnabled] = useState(true)
   const [matEnabled, setMatEnabled] = useState(true)
-  const [bottomMatEnabled, setBottomMatEnabled] = useState(false)
+  const [bottomMatEnabled, setBottomMatEnabled] = useState(true)
+  const [bottomMatBevelEnabled, setBottomMatBevelEnabled] = useState(true)
+  const [selectedBottomMatBevelColor, setSelectedBottomMatBevelColor] = useState(bevelColorOptions[0])
   const [selectedStyle, setSelectedStyle] = useState('blackwood')
   const [selectedFrameType, setSelectedFrameType] = useState('modern')
   const [selectedSize, setSelectedSize] = useState('standard')
   const [selectedColor, setSelectedColor] = useState(colorOptions[1])
-  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'pearl')!)
-  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'warm-tan')!)
+  const [selectedMatColor, setSelectedMatColor] = useState(matColorOptions.find((color) => color.id === 'white')!)
+  const [selectedBottomMatColor, setSelectedBottomMatColor] = useState(bottomMatColorOptions.find((color) => color.id === 'white')!)
   const [selectedStripColor, setSelectedStripColor] = useState(stripColorOptions.find((color) => color.id === 'black')!)
   const [stripEnabled, setStripEnabled] = useState(true)
   const [artwork, setArtwork] = useState<string | null>(galleryItems.find((item) => item.title === 'Golden Hour Pumpkins')!.image)
@@ -1007,16 +1063,15 @@ function App() {
   const [walletError, setWalletError] = useState('')
   const [walletRequest, setWalletRequest] = useState(0)
   const [showWalletDialog, setShowWalletDialog] = useState(false)
-  const [bankStep, setBankStep] = useState<'loading' | 'setup' | 'code' | 'unlocked' | 'error'>('loading')
-  const [bankFactorId, setBankFactorId] = useState('')
-  const [bankEnrollment, setBankEnrollment] = useState<BankEnrollment | null>(null)
+  const [bankStep, setBankStep] = useState<'loading' | 'setup' | 'unlock' | 'unlocked' | 'error'>('loading')
+  const [bankPassword, setBankPassword] = useState('')
+  const [bankLegacyApproval, setBankLegacyApproval] = useState(false)
   const [bankCode, setBankCode] = useState('')
   const [bankBusy, setBankBusy] = useState(false)
   const [bankMessage, setBankMessage] = useState('')
   const [bankAccessExpiresAt, setBankAccessExpiresAt] = useState(0)
   const bankOperationRef = useRef(0)
   const bankUnlockRef = useRef<{ token: string; userId: string } | null>(null)
-  const bankPendingEnrollmentRef = useRef<string | null>(null)
   const [welcomeBonusUserId, setWelcomeBonusUserId] = useState<string | null>(null)
   const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
   const [showAdminDialog, setShowAdminDialog] = useState(false)
@@ -1206,19 +1261,34 @@ function App() {
   const tzolBalance = memberSummary ? BigInt(memberSummary.balance).toLocaleString('en-US') : null
   const welcomeBonusPending = memberSummary?.welcome_bonus_pending === true
 
-  const loadBankAuthenticator = async () => {
+  const invokeBankPasskeys = async (body: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke('bank-passkeys', { body })
+    if (error) {
+      let message = 'Bank passkeys are temporarily unavailable. Your bank remains locked.'
+      if (error.context instanceof Response) {
+        const details = await error.context.json().catch(() => null)
+        if (typeof details?.error === 'string') message = details.error
+      }
+      throw new Error(message)
+    }
+    if (!data || data.error) throw new Error(data?.error ?? 'Bank passkeys are unavailable.')
+    return data
+  }
+
+  const loadBankPasskeys = async () => {
     const operation = ++bankOperationRef.current
     setBankStep('loading')
     setBankMessage('')
     setBankCode('')
+    setBankPassword('')
     setBankBusy(false)
     try {
-      const { data, error } = await supabase.auth.mfa.listFactors()
-      if (error) throw error
+      if (!browserSupportsWebAuthn()) throw new Error(ui.bankPasskeyUnavailable)
+      const data = await invokeBankPasskeys({ action: 'status' })
       if (operation !== bankOperationRef.current) return
-      const factor = data.totp.find((item) => item.status === 'verified')
-      setBankFactorId(factor?.id ?? '')
-      setBankStep(factor ? 'code' : 'setup')
+      if (typeof data.registered !== 'boolean') throw new Error('Bank passkeys are not configured correctly.')
+      setBankLegacyApproval(data.requires_mfa_approval === true)
+      setBankStep(data.registered ? 'unlock' : 'setup')
     } catch (error) {
       if (operation !== bankOperationRef.current) return
       setBankMessage(error instanceof Error ? error.message : 'Bank verification is unavailable.')
@@ -1229,17 +1299,14 @@ function App() {
   useEffect(() => {
     if (!showWalletDialog || !authUserId || !isLoggedIn) return
     setWallet(null)
-    setBankEnrollment(null)
     setBankAccessExpiresAt(0)
-    void loadBankAuthenticator()
+    void loadBankPasskeys()
     return () => {
       bankOperationRef.current += 1
+      WebAuthnAbortService.cancelCeremony()
       const access = bankUnlockRef.current
       bankUnlockRef.current = null
       if (access) void Promise.resolve(supabase.rpc('lock_frame_bank', { p_unlock_token: access.token })).catch(() => undefined)
-      const pendingFactor = bankPendingEnrollmentRef.current
-      bankPendingEnrollmentRef.current = null
-      if (pendingFactor) void supabase.auth.mfa.unenroll({ factorId: pendingFactor }).catch(() => undefined)
     }
   }, [showWalletDialog, authUserId, isLoggedIn])
 
@@ -1249,70 +1316,50 @@ function App() {
       bankOperationRef.current += 1
       bankUnlockRef.current = null
       setWallet(null)
-      setBankStep('code')
+      setBankStep('unlock')
       setBankCode('')
       setBankBusy(false)
-      setBankMessage('Bank access has expired. Enter a new authenticator code. You are still signed in to FRAME.')
+      setBankMessage('Bank access has expired. Verify your passkey again. You are still signed in to FRAME.')
     }, Math.max(0, bankAccessExpiresAt - Date.now()))
     return () => window.clearTimeout(timer)
   }, [showWalletDialog, bankAccessExpiresAt])
 
-  const enrollBankAuthenticator = async () => {
-    if (bankBusy) return
-    const operation = bankOperationRef.current
-    setBankBusy(true)
-    setBankMessage('')
-    try {
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Tzol Bank ${Date.now()}` })
-      if (error) throw error
-      if (operation !== bankOperationRef.current) {
-        void supabase.auth.mfa.unenroll({ factorId: data.id }).catch(() => undefined)
-        return
-      }
-      bankPendingEnrollmentRef.current = data.id
-      const prefix = 'data:image/svg+xml;utf-8,'
-      const qrCode = data.totp.qr_code.startsWith(prefix)
-        ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data.totp.qr_code.slice(prefix.length))}`
-        : data.totp.qr_code
-      setBankEnrollment({ id: data.id, qrCode, secret: data.totp.secret })
-      setBankFactorId(data.id)
-      setBankCode('')
-      setBankStep('code')
-    } catch (error) {
-      if (operation === bankOperationRef.current) setBankMessage(error instanceof Error ? error.message : 'Could not set up your authenticator.')
-    } finally {
-      if (operation === bankOperationRef.current) setBankBusy(false)
-    }
-  }
-
-  const unlockBank = async () => {
+  const verifyBankPasskey = async () => {
     if (bankBusy || !authUserId) return
-    if (!/^\d{6}$/.test(bankCode) || !bankFactorId) { setBankMessage('Enter the six-digit code from your authenticator app.'); return }
+    const registering = bankStep === 'setup'
+    if (registering && !bankPassword) { setBankMessage(ui.bankSetupPassword); return }
+    if (registering && bankLegacyApproval && !/^\d{6}$/.test(bankCode)) { setBankMessage(ui.bankLegacyCode); return }
     const operation = bankOperationRef.current
     setBankBusy(true)
     setBankMessage('')
     try {
-      const { data: requestId, error: requestError } = await supabase.rpc('begin_frame_bank_unlock')
-      if (requestError) throw requestError
-      if (operation !== bankOperationRef.current) return
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: bankFactorId })
-      if (challengeError) throw challengeError
-      if (operation !== bankOperationRef.current) return
-      const { error: verificationError } = await supabase.auth.mfa.verify({ factorId: bankFactorId, challengeId: challenge.id, code: bankCode })
-      if (verificationError) throw verificationError
-      bankPendingEnrollmentRef.current = null
-      if (operation !== bankOperationRef.current) return
-      setBankEnrollment(null)
-      const { data: access, error: unlockError } = await supabase.rpc('complete_frame_bank_unlock', {
-        p_request_id: requestId, p_factor_id: bankFactorId, p_challenge_id: challenge.id,
+      if (registering && bankLegacyApproval) {
+        const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors()
+        if (factorError) throw factorError
+        const factor = factors.totp.find((item) => item.status === 'verified')
+        if (!factor) throw new Error('Your existing verification method is unavailable. Contact the administrator for account recovery.')
+        const { error: approvalError } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: bankCode })
+        if (approvalError) throw approvalError
+        if (operation !== bankOperationRef.current) return
+        setBankCode('')
+      }
+      const prepared = await invokeBankPasskeys({
+        action: registering ? 'registration-options' : 'authentication-options',
+        ...(registering ? { password: bankPassword } : {}),
       })
-      if (unlockError) throw unlockError
+      setBankPassword('')
+      if (operation !== bankOperationRef.current) return
+      const response = registering
+        ? await startRegistration({ optionsJSON: prepared.options })
+        : await startAuthentication({ optionsJSON: prepared.options })
+      if (operation !== bankOperationRef.current) return
+      const access = await invokeBankPasskeys({ action: 'verify', request_id: prepared.request_id, response })
       if (operation !== bankOperationRef.current) {
         if (typeof access.unlock_token === 'string') void Promise.resolve(supabase.rpc('lock_frame_bank', { p_unlock_token: access.unlock_token })).catch(() => undefined)
         return
       }
       const expiresAt = Date.parse(access.expires_at)
-      if (typeof access.unlock_token !== 'string' || !/^[a-f0-9]{64}$/.test(access.unlock_token) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Bank verification expired. Enter a new authenticator code.')
+      if (typeof access.unlock_token !== 'string' || !/^[a-f0-9]{64}$/.test(access.unlock_token) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Bank verification expired. Verify your passkey again.')
       bankUnlockRef.current = { token: access.unlock_token, userId: authUserId }
       setBankAccessExpiresAt(expiresAt)
       const { data, error } = await supabase.rpc('get_tzol_wallet', { p_unlock_token: access.unlock_token })
@@ -1324,9 +1371,9 @@ function App() {
       setBankStep('unlocked')
       setWalletRequest((current) => current + 1)
     } catch (error) {
-      if (operation === bankOperationRef.current) setBankMessage(error instanceof Error ? error.message : 'Verification failed. Enter a new authenticator code.')
+      if (operation === bankOperationRef.current) setBankMessage(error instanceof Error && error.name === 'NotAllowedError' ? ui.bankDeviceHelp : error instanceof Error ? error.message : 'Passkey verification failed. Please try again.')
     } finally {
-      if (operation === bankOperationRef.current) setBankBusy(false)
+      if (operation === bankOperationRef.current) { setBankBusy(false); setBankPassword('') }
     }
   }
 
@@ -1346,8 +1393,8 @@ function App() {
     } catch {
       if (operation === bankOperationRef.current) {
         setWallet(null)
-        setBankStep('code')
-        setBankMessage('Bank access could not be refreshed. Enter a new authenticator code.')
+        setBankStep('unlock')
+        setBankMessage('Bank access could not be refreshed. Verify your passkey again.')
       }
     } finally {
       if (operation === bankOperationRef.current) setBankBusy(false)
@@ -1715,7 +1762,7 @@ function App() {
     }
     reader.readAsDataURL(imageBlob)
   }
-  const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
+  const defaultFrameThickness = selectedFrameType === 'floating' ? 12 : selectedFrameType === 'floral' ? 20 : selectedFrameType === 'classic' ? 24 : selectedFrameType === 'modern' ? 10 : selectedStyle === 'stainless' ? 14 : 18
   const frameGap = selectedFrameType === 'floating' ? 4 : 0
   const defaultMatMargin = selectedSize === 'standard' ? 14 : 22
   const bottomMatMargin = 12
@@ -1961,7 +2008,7 @@ function App() {
       id: crypto.randomUUID(),
       name: safeFileName,
       size: selectedSize,
-      style: `${selectedFrameType}-${selectedStyle}`,
+      style: `${selectedFrameType}::${selectedStyle}`,
       color: selectedColor.name,
       notes: projectNotes.trim(),
       folderId: account.activeFolderId,
@@ -1972,6 +2019,8 @@ function App() {
       matColorId: selectedMatColor.id,
       bottomMatEnabled,
       bottomMatColorId: selectedBottomMatColor.id,
+      bottomMatBevelEnabled,
+      bottomMatBevelColorId: selectedBottomMatBevelColor.id,
       stripColorId: selectedStripColor.id,
       stripEnabled,
       frameSizeIndex: standardFrameSizeIndex,
@@ -2060,7 +2109,12 @@ function App() {
   }
 
   const loadProject = (project: ProjectRecord, scrollToWorkspace = true) => {
-    const [savedFrameType, savedMaterial] = project.style.split('-')
+    const savedFrameType = frameTypeOptions
+      .map((option) => option.id)
+      .sort((left, right) => right.length - left.length)
+      .find((id) => project.style.startsWith(`${id}::`) || project.style.startsWith(`${id}-`)) ?? 'modern'
+    const separator = project.style.startsWith(`${savedFrameType}::`) ? '::' : '-'
+    const savedMaterial = project.style.slice(savedFrameType.length + separator.length)
     const matchingColor = colorOptions.find((color) => color.name === project.color)
     setSelectedProjectId(project.id)
     setSelectedFrameType(frameTypeOptions.some((option) => option.id === savedFrameType) ? savedFrameType : 'modern')
@@ -2076,6 +2130,8 @@ function App() {
     if (project.matColorId) setSelectedMatColor(matColorOptions.find((color) => color.id === project.matColorId) ?? selectedMatColor)
     setBottomMatEnabled(project.bottomMatEnabled ?? false)
     if (project.bottomMatColorId) setSelectedBottomMatColor(bottomMatColorOptions.find((color) => color.id === project.bottomMatColorId) ?? selectedBottomMatColor)
+    setBottomMatBevelEnabled(project.bottomMatBevelEnabled ?? true)
+    if (project.bottomMatBevelColorId) setSelectedBottomMatBevelColor(bevelColorOptions.find((color) => color.id === project.bottomMatBevelColorId) ?? bevelColorOptions[0])
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     autoFitDefaultArtworkRef.current = false
@@ -2127,7 +2183,7 @@ function App() {
         id: selectedProjectId ?? 'workspace-draft',
         name: projectFileName,
         size: selectedSize,
-        style: `${selectedFrameType}-${selectedStyle}`,
+        style: `${selectedFrameType}::${selectedStyle}`,
         color: selectedColor.name,
         notes: projectNotes,
         folderId: account.activeFolderId,
@@ -2138,6 +2194,8 @@ function App() {
         matColorId: selectedMatColor.id,
         bottomMatEnabled,
         bottomMatColorId: selectedBottomMatColor.id,
+        bottomMatBevelEnabled,
+        bottomMatBevelColorId: selectedBottomMatBevelColor.id,
         stripColorId: selectedStripColor.id,
         stripEnabled,
         frameSizeIndex: standardFrameSizeIndex,
@@ -2160,7 +2218,7 @@ function App() {
       showDimensions,
     }
     void writeStoredRecord(`workspace:${authUserId}`, draft).catch(() => setSaveMessage('Could not keep the workspace draft in this browser. Check available device storage.'))
-  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
+  }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, stripThickness])
 
   const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
     restoringProjectRef.current = 2
@@ -2798,6 +2856,31 @@ function App() {
               >
                 {ui.bottomMat}
               </button>
+              <button
+                type="button"
+                className={bottomMatBevelEnabled ? 'menu-chip active' : 'menu-chip'}
+                aria-label={ui.bottomMatBevel}
+                aria-pressed={bottomMatBevelEnabled}
+                disabled={!bottomMatEnabled}
+                data-cun-title={ui.bottomMatBevel}
+                data-cun="Add or remove the beveled inner cut on the Bottom Mat. This setting is saved with the project."
+                onClick={() => setBottomMatBevelEnabled((current) => !current)}
+              >
+                {ui.bottomMatBevel}
+              </button>
+              <label className="color-picker">
+                <span className="swatch-mini" style={{ background: selectedBottomMatBevelColor.highlight }}></span>
+                <select
+                  aria-label={ui.bevelColor}
+                  data-cun-title={ui.bevelColor}
+                  data-cun="Choose the highlight and shadow colors for the bottom mat bevel. This finish is saved with the project."
+                  value={selectedBottomMatBevelColor.id}
+                  disabled={!bottomMatEnabled || !bottomMatBevelEnabled}
+                  onChange={(event) => setSelectedBottomMatBevelColor(bevelColorOptions.find((color) => color.id === event.target.value) ?? bevelColorOptions[0])}
+                >
+                  {bevelColorOptions.map((color) => <option key={color.id} value={color.id}>{color.name}</option>)}
+                </select>
+              </label>
               <label className="color-picker">
                 <span className="swatch-mini" style={{ background: selectedBottomMatColor.hex }}></span>
                 <select
@@ -3009,13 +3092,15 @@ function App() {
                       >
                         <div
                           ref={artworkOpeningRef}
-                          className="mat-cut-edge"
+                          className={bottomMatEnabled ? `mat-cut-edge bottom-mat-opening${bottomMatBevelEnabled ? ' bottom-mat-bevel' : ''}` : 'mat-cut-edge'}
                           style={{
                             borderColor: selectedMatColor.hex,
                             borderWidth: 0,
                             boxShadow: 'none',
                             background: selectedMatColor.hex,
-                          }}
+                            '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
+                            '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
+                          } as React.CSSProperties}
                         >
                           {artwork ? (
                             <img
@@ -3043,13 +3128,15 @@ function App() {
                     ) : (
                       <div
                         ref={artworkOpeningRef}
-                        className="mat-cut-edge bottom-mat-opening"
+                        className={`mat-cut-edge bottom-mat-opening${bottomMatBevelEnabled ? ' bottom-mat-bevel' : ''}`}
                         style={{
                           borderColor: stripEnabled ? selectedStripColor.hex : selectedBottomMatColor.hex,
                           borderWidth: stripEnabled ? `${Math.max(2, stripThickness)}px` : 0,
                           boxShadow: stripEnabled ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.75)' : 'none',
                           background: selectedBottomMatColor.hex,
-                        }}
+                          '--mat-bevel-highlight': selectedBottomMatBevelColor.highlight,
+                          '--mat-bevel-shadow': selectedBottomMatBevelColor.shadow,
+                        } as React.CSSProperties}
                       >
                         {artwork ? (
                           <img
@@ -3083,7 +3170,7 @@ function App() {
                   </div>
                 )}
                 {frameEnabled && <div
-                  className={`frame-shell frame-${selectedStyle} frame-${selectedFrameType}`}
+                  className={`frame-shell${frameTextures[selectedStyle] ? ' frame-textured' : ''} frame-${selectedStyle} frame-${selectedFrameType}`}
                   style={{
                     '--frame-width': `${frameThickness}px`,
                     '--frame-texture-horizontal': frameTextures[selectedStyle] ? `url("${frameTextures[selectedStyle].horizontal}")` : undefined,
@@ -3611,21 +3698,22 @@ function App() {
               <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>
             </div>
             {bankStep === 'loading' && <p role="status">{ui.bankChecking}</p>}
-            {bankStep === 'error' && <button type="button" className="primary-button full-width-button" onClick={() => void loadBankAuthenticator()}>{ui.bankRetry}</button>}
-            {bankStep === 'setup' && <button type="button" className="primary-button full-width-button" disabled={bankBusy} onClick={() => void enrollBankAuthenticator()}>{bankBusy ? ui.bankSettingUp : ui.bankSetup}</button>}
-            {bankStep === 'code' && (
-              <form onSubmit={(event) => { event.preventDefault(); void unlockBank() }}>
-                {bankEnrollment && (
-                  <div className="bank-authenticator-setup">
-                    <img src={bankEnrollment.qrCode} width="208" height="208" alt="Authenticator setup QR code" />
-                    <details><summary>{ui.bankManualKey}</summary><code>{bankEnrollment.secret}</code></details>
-                  </div>
-                )}
+            {bankStep === 'error' && <button type="button" className="primary-button full-width-button" onClick={() => void loadBankPasskeys()}>{ui.bankRetry}</button>}
+            {(bankStep === 'setup' || bankStep === 'unlock') && (
+              <form onSubmit={(event) => { event.preventDefault(); void verifyBankPasskey() }}>
+                <p className="bank-verification-help">{bankStep === 'setup' ? ui.bankPasskeyIntro : ui.bankDeviceHelp}</p>
+                {bankStep === 'setup' && <div className="field-group">
+                  <label htmlFor="bank-setup-password">{ui.bankSetupPassword}</label>
+                  <input id="bank-setup-password" type="password" autoComplete="current-password" required maxLength={1024} value={bankPassword} disabled={bankBusy} onChange={(event) => setBankPassword(event.target.value)} />
+                </div>}
+                {bankStep === 'setup' && bankLegacyApproval && <>
+                  <p className="bank-verification-help">{ui.bankSetupApproval}</p>
                   <div className="field-group">
-                    <label htmlFor="bank-authenticator-code">{ui.bankCode}</label>
-                    <input id="bank-authenticator-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required maxLength={6} value={bankCode} disabled={bankBusy} onChange={(event) => setBankCode(event.target.value.replace(/\D/g, ''))} />
+                    <label htmlFor="bank-legacy-code">{ui.bankLegacyCode}</label>
+                    <input id="bank-legacy-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required maxLength={6} value={bankCode} disabled={bankBusy} onChange={(event) => setBankCode(event.target.value.replace(/\D/g, ''))} />
                   </div>
-                <button type="submit" className="primary-button full-width-button" disabled={bankBusy}>{bankBusy ? ui.bankVerifying : ui.bankVerify}</button>
+                </>}
+                <button type="submit" className="primary-button full-width-button" disabled={bankBusy}>{bankBusy ? ui.bankVerifying : bankStep === 'setup' ? ui.bankSetup : ui.bankVerify}</button>
               </form>
             )}
             {bankStep === 'unlocked' && memberWallet && (

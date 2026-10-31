@@ -1,2 +1,5 @@
 [functions.notify-new-account]
 verify_jwt = false
+
+[functions.bank-passkeys]
+verify_jwt = false
