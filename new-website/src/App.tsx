@@ -4,6 +4,7 @@ import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
 import { MessageCircle, Share2 } from 'lucide-react'
 import { Community, CommunityFeed, uploadCommunityImage } from './Community'
+import { Basket, MarketplaceProvider } from './Marketplace'
 import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
@@ -1104,6 +1105,7 @@ function App() {
   const [bankAccessExpiresAt, setBankAccessExpiresAt] = useState(0)
   const bankOperationRef = useRef(0)
   const bankUnlockRef = useRef<{ token: string; userId: string } | null>(null)
+  const commerceVerificationRef = useRef<{ resolve: (token: string) => void; reject: (error: Error) => void } | null>(null)
   const [welcomeBonusUserId, setWelcomeBonusUserId] = useState<string | null>(null)
   const [isConfessnAdmin, setIsConfessnAdmin] = useState(false)
   const [showAdminDialog, setShowAdminDialog] = useState(false)
@@ -1336,6 +1338,8 @@ function App() {
     return () => {
       bankOperationRef.current += 1
       WebAuthnAbortService.cancelCeremony()
+      commerceVerificationRef.current?.reject(new Error('Bank verification was cancelled. No purchase or bid was authorized.'))
+      commerceVerificationRef.current = null
       const access = bankUnlockRef.current
       bankUnlockRef.current = null
       if (access) void Promise.resolve(supabase.rpc('lock_frame_bank', { p_unlock_token: access.token })).catch(() => undefined)
@@ -1402,12 +1406,23 @@ function App() {
       setBankCode('')
       setBankStep('unlocked')
       setWalletRequest((current) => current + 1)
+      commerceVerificationRef.current?.resolve(access.unlock_token)
+      commerceVerificationRef.current = null
     } catch (error) {
       if (operation === bankOperationRef.current) setBankMessage(error instanceof Error && error.name === 'NotAllowedError' ? ui.bankDeviceHelp : error instanceof Error ? error.message : 'Passkey verification failed. Please try again.')
     } finally {
       if (operation === bankOperationRef.current) { setBankBusy(false); setBankPassword('') }
     }
   }
+
+  const authorizeMarketplace = () => new Promise<string>((resolve, reject) => {
+    if (!authUserId || !isLoggedIn) { reject(new Error('Sign in before trading.')); return }
+    const access = bankUnlockRef.current
+    if (access?.userId === authUserId && bankAccessExpiresAt > Date.now()) { resolve(access.token); return }
+    if (commerceVerificationRef.current) { reject(new Error('A bank verification is already in progress.')); return }
+    commerceVerificationRef.current = { resolve, reject }
+    setShowWalletDialog(true)
+  })
 
   const refreshBankDetails = async () => {
     const access = bankUnlockRef.current
@@ -2646,6 +2661,7 @@ function App() {
   }
 
   return (
+    <MarketplaceProvider userId={isLoggedIn ? authUserId : null} authorizeBank={authorizeMarketplace} onBalanceChanged={() => { setWalletRequest(current => current + 1); setShowWalletDialog(false) }} onSignIn={() => setAuthMode('login')}>
     <main
       className={cunActive ? 'studio-shell cun-guide-active' : 'studio-shell'}
       onPointerOverCapture={(event) => updateCunMessage(event.target, event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : undefined)}
@@ -3471,10 +3487,7 @@ function App() {
           )}
         </div>
 
-        <div className="project-list panel-block">
-          <h3>{t.orderSummary}</h3>
-          <p>No order summary</p>
-        </div>
+        <Basket />
         <div className="follow-panel panel-block">
           <h3>{t.follow}</h3>
           <div className="social-list">
@@ -3944,6 +3957,7 @@ function App() {
       )}
 
     </main>
+    </MarketplaceProvider>
   )
 }
 

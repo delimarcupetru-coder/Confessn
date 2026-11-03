@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { addMonths, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
 import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSquare, Pencil, Plus, Send, ShieldBan, Star, Trash2, Users, X } from 'lucide-react'
 import { supabase } from './supabase'
+import { SaleControls } from './Marketplace'
 import './Community.css'
 
 type Member = { user_id: string; username: string }
@@ -350,6 +351,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn, onCount }: { 
         <button type="button" className="community-small-message" title={`Message ${post.community_members?.username ?? 'publisher'}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
       </div>
       <QuickComment post={post} userId={userId} onSignIn={onSignIn} />
+      <SaleControls postId={post.id} authorId={post.author_id} kind={post.kind} compact onOpen={() => setSelected(post)} />
     </div>
   </article>)}</div>{posts.length === pageSize && <button type="button" onClick={() => setPageSize(current => current + 12)}>Load more</button>}{selected && <PublicationDetails post={selected} userId={userId} onClose={() => setSelected(null)} onChat={onChat} onSignIn={onSignIn} onChanged={() => { setSelected(null); setRefresh(current => current + 1) }} onEdited={updated => { setSelected(updated); setPosts(current => current.map(item => item.id === updated.id ? updated : item)) }} onRated={() => setRatingVersion(current => current + 1)} />}</div>
 }
@@ -375,6 +377,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
     {error && <p role="alert" className="community-error">{error}</p>}{notice && <p role="status">{notice}</p>}
     {userId === post.author_id && <button type="button" className="community-edit-button" onClick={() => setEditing(!editing)} disabled={busy}><Pencil size={14} /> Edit post</button>}
     {editing && userId === post.author_id && <PostEditor post={post} userId={userId} onCancel={() => setEditing(false)} onSaved={updated => { onEdited(updated); setEditing(false); setNotice('Post updated.') }} />}
+    <SaleControls postId={post.id} authorId={post.author_id} kind={post.kind} onClose={onClose} />
     <div className="community-detail-actions"><button type="button" disabled={post.author_id === userId} onClick={connect}><MessageCircle size={16} /> Message {post.community_members?.username}</button>{userId && userId !== post.author_id && <><button type="button" disabled={busy} onClick={() => void act(async () => { const result = await supabase.from('community_blocks').upsert({ blocker_id: userId, blocked_id: post.author_id }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }); fail(result.error); onChanged() })}><ShieldBan size={16} /> Block</button><button type="button" onClick={() => setReport(!report)}><Flag size={16} /> Report</button></>}{userId === post.author_id && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove this publication from the public feed?')) void act(async () => { const result = await supabase.from('community_posts').delete().eq('id', post.id); fail(result.error); await supabase.storage.from('community-media').remove([post.image_path]); onChanged() }) }}><Trash2 size={16} /> Unpublish</button>}</div>
     {report && <form onSubmit={event => { event.preventDefault(); void act(async () => { const result = await supabase.from('community_reports').insert({ reporter_id: userId, target_user_id: post.author_id, post_id: post.id, reason: reason.trim() }); fail(result.error); setReport(false); setNotice('Report sent to administrators.') }) }}><label>Report reason<textarea required minLength={5} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label><button type="submit" disabled={busy}>Submit report</button></form>}
     {post.kind === 'art' && <PostRating post={post} userId={userId} compact onSignIn={connect} onRated={onRated} />}
