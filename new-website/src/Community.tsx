@@ -82,7 +82,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       supabase.from('community_members').select('user_id,username').order('username'),
       supabase.rpc('community_conversations'),
       supabase.from('community_blocks').select('blocked_id').eq('blocker_id', userId),
-      supabase.from('community_posts').select('*,community_members(username)').eq('kind', 'event').gte('ends_at', startOfWeek(startOfMonth(month), { weekStartsOn: 1 }).toISOString()).lte('starts_at', endOfWeek(endOfMonth(month), { weekStartsOn: 1 }).toISOString()).order('starts_at').limit(1000),
+      supabase.from('community_posts').select('*,community_members:community_members!community_posts_author_id_fkey(username)').eq('kind', 'event').gte('ends_at', startOfWeek(startOfMonth(month), { weekStartsOn: 1 }).toISOString()).lte('starts_at', endOfWeek(endOfMonth(month), { weekStartsOn: 1 }).toISOString()).order('starts_at').limit(1000),
       supabase.rpc('community_is_admin'),
     ])
     for (const result of [directory, chats, blocked, planned]) fail(result.error)
@@ -223,7 +223,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn, onCount }: { 
   useEffect(() => {
     let active = true
     setPosts([]); setSelected(null)
-    void supabase.from('community_posts').select('*,community_members(username)').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(pageSize).then(({ data, error: issue }) => {
+    void supabase.from('community_posts').select('*,community_members:community_members!community_posts_author_id_fkey(username)').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(pageSize).then(({ data, error: issue }) => {
       if (!active) return
       if (issue) setError(issue.code === '42P01' || issue.code === 'PGRST205' ? 'Community publishing is not yet available.' : issue.message)
       else { setError(''); setPosts(data as CommunityPost[] ?? []); onCount(data?.length ?? 0) }
@@ -243,7 +243,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const load = async () => {
-    const [responses, scores] = await Promise.all([supabase.from('community_comments').select('*,community_members(username)').eq('post_id', post.id).order('created_at').limit(200), supabase.from('community_ratings').select('user_id,score').eq('post_id', post.id)])
+    const [responses, scores] = await Promise.all([supabase.from('community_comments').select('*,community_members:community_members!community_comments_author_id_fkey(username)').eq('post_id', post.id).order('created_at').limit(200), supabase.from('community_ratings').select('user_id,score').eq('post_id', post.id)])
     fail(responses.error); fail(scores.error); setComments(responses.data as Comment[] ?? []); setRatings(scores.data ?? [])
   }
   useEffect(() => { void load().catch(issue => setError(errorText(issue))) }, [post.id, userId])
