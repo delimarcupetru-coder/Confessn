@@ -69,6 +69,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const panel = useRef<HTMLDivElement>(null)
+  const eventForm = useRef<HTMLFormElement>(null)
   const identity = useRef(userId)
   identity.current = userId
   const conversation = conversations.find(item => item.id === selected)
@@ -94,6 +95,13 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   useEffect(() => {
     setMembers([]); setConversations([]); setMessages([]); setBlocks([]); setSelected(null); setDraft(''); setReports([]); setParticipants([]); setCommunityAdmin(false)
   }, [userId])
+
+  useEffect(() => {
+    if (open && tab === 'planning' && eventOpen) {
+      eventForm.current?.querySelector('input')?.focus()
+      eventForm.current?.closest('.community-planning')?.scrollTo({ top: 0 })
+    }
+  }, [open, tab, eventOpen])
 
   useEffect(() => {
     if (!open || !userId) return
@@ -186,10 +194,10 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         </form>
       </section>
     </div> : <section role="tabpanel" aria-label="Planning" className="community-planning">
-      <div className="community-calendar-toolbar"><button type="button" className="community-icon" title="Previous month" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft /></button><h3>{format(month, 'MMMM yyyy')}</h3><button type="button" className="community-icon" title="Next month" aria-label="Next month" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight /></button><button type="button" onClick={() => { setMonth(new Date()); setDay(new Date()) }}>Today</button><button type="button" onClick={() => { setStart(`${format(day, 'yyyy-MM-dd')}T10:00`); setEnd(`${format(day, 'yyyy-MM-dd')}T11:00`); setEventOpen(!eventOpen) }}><Plus size={16} /> Add Event</button></div>
-      <div className="community-calendar" role="group" aria-label="Calendar">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(name => <span className="weekday" key={name}>{name}</span>)}{days.map(date => { const count = events.filter(event => occursOn(event, date)).length; return <button type="button" key={date.toISOString()} className={`${isSameMonth(date, month) ? '' : 'outside'} ${isSameDay(date, day) ? 'selected' : ''}`} aria-label={`${format(date, 'EEEE, MMMM d, yyyy')}${count ? `, ${count} events` : ''}`} aria-pressed={isSameDay(date, day)} onClick={() => setDay(date)}><span>{format(date, 'd')}</span>{count > 0 && <small>{count}</small>}</button> })}</div>
+      <div className="community-calendar-toolbar"><button type="button" className="community-icon" title="Previous month" aria-label="Previous month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft /></button><h3>{format(month, 'MMMM yyyy')}</h3><button type="button" className="community-icon" title="Next month" aria-label="Next month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, 1))}><ChevronRight /></button><button type="button" disabled={eventOpen} onClick={() => { setMonth(new Date()); setDay(new Date()) }}>Today</button><button type="button" aria-expanded={eventOpen} aria-controls="community-event-editor" disabled={eventOpen || busy} onClick={() => { setStart(`${format(day, 'yyyy-MM-dd')}T10:00`); setEnd(`${format(day, 'yyyy-MM-dd')}T11:00`); setError(''); setNotice(''); setEventOpen(true) }}><Plus size={16} /> Add Event</button></div>
+      {!eventOpen && <div className="community-calendar" role="group" aria-label="Calendar">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(name => <span className="weekday" key={name}>{name}</span>)}{days.map(date => { const count = events.filter(event => occursOn(event, date)).length; return <button type="button" key={date.toISOString()} className={`${isSameMonth(date, month) ? '' : 'outside'} ${isSameDay(date, day) ? 'selected' : ''}`} aria-label={`${format(date, 'EEEE, MMMM d, yyyy')}${count ? `, ${count} events` : ''}`} aria-pressed={isSameDay(date, day)} onClick={() => setDay(date)}><span>{format(date, 'd')}</span>{count > 0 && <small>{count}</small>}</button> })}</div>}
       <p className="community-timezone">{Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
-      {eventOpen && <form className="community-event-form" onSubmit={event => { event.preventDefault(); void run(async () => {
+      {eventOpen && <form id="community-event-editor" ref={eventForm} className="community-event-form" onSubmit={event => { event.preventDefault(); void run(async () => {
         const startDate = new Date(start), endDate = new Date(end)
         if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) throw new Error('The event must end after it starts.')
         if (!poster) throw new Error('Choose an event poster.')
@@ -197,14 +205,14 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         const path = await uploadCommunityImage(poster, userId)
         const result = await supabase.from('community_posts').insert({ author_id: userId, kind: 'event', title: eventTitle.trim(), description: description.trim(), image_path: path, starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, event_type: eventType, location: eventType === 'studio' ? location.trim() : '', online_url: eventType !== 'studio' ? safeUrl(onlineUrl) : '' })
         if (result.error) { await supabase.storage.from('community-media').remove([path]); fail(result.error) }
-        setEventOpen(false); setEventTitle(''); setDescription(''); setPoster(null); await load(); onPublished(); setNotice('Event published.')
+        setEventOpen(false); setEventTitle(''); setDescription(''); setPoster(null); setMonth(startDate); setDay(startDate); onPublished(); setNotice('Event published.')
       }) }}>
         <h3>Add Event</h3><label>Title<input required maxLength={120} value={eventTitle} onChange={event => setEventTitle(event.target.value)} /></label>
         <label>Type<select value={eventType} onChange={event => setEventType(event.target.value)}><option value="studio">Studio event</option><option value="online">Online event</option><option value="contest">Online contest</option></select></label>
         <label>Starts<input required type="datetime-local" value={start} onChange={event => setStart(event.target.value)} /></label><label>Ends<input required type="datetime-local" value={end} onChange={event => setEnd(event.target.value)} /></label>
         {eventType === 'studio' ? <label>Studio / address<input required maxLength={300} value={location} onChange={event => setLocation(event.target.value)} /></label> : <label>Event link<input required type="url" maxLength={1000} value={onlineUrl} onChange={event => setOnlineUrl(event.target.value)} /></label>}
         <label>Description<textarea required maxLength={5000} value={description} onChange={event => setDescription(event.target.value)} /></label><label>Poster<input required type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setPoster(event.target.files?.[0] ?? null)} /></label>
-        <button disabled={busy} type="submit">Publish event</button><button type="button" onClick={() => setEventOpen(false)}>Cancel</button>
+        <button disabled={busy} type="submit">{busy ? 'Publishing...' : 'Publish event'}</button><button type="button" disabled={busy} onClick={() => setEventOpen(false)}>Cancel</button>
       </form>}
       <h3>{format(day, 'EEEE, MMMM d')}</h3>{!selectedEvents.length && <p>No events scheduled.</p>}<div className="community-agenda">{selectedEvents.map(event => <button type="button" key={event.id} onClick={() => setSelectedEvent(event)}><img src={imageUrl(event.image_path)} alt="" /><span><strong>{event.title}</strong><time>{event.starts_at && dateTime(event.starts_at)}</time><span>{event.community_members?.username}</span></span></button>)}</div>
     </section>}
