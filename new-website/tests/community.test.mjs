@@ -33,6 +33,7 @@ test('community migration and access policies', async context => {
     insert into public.user_profiles values ('${alice}', '{"notes":"PRIVATE PORTFOLIO"}');
   `)
   await db.exec(await readFile(new URL('../../supabase-community.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../supabase-community-editing.sql', import.meta.url), 'utf8'))
   await db.query('insert into public.community_moderators(user_id) values($1)', [admin])
   const asUser = async user => {
     await db.exec('reset role')
@@ -135,6 +136,19 @@ test('community migration and access policies', async context => {
     eventPost = (await db.query("insert into public.community_posts(author_id,kind,title,image_path,starts_at,ends_at,event_type,location) values($1,'event','Studio opening',$2,now(),now()+interval '1 hour','studio','Main Studio, London') returning id", [alice, path])).rows[0].id
     await asUser(bob)
     await assert.rejects(db.query('insert into public.community_ratings(post_id,user_id,score) values($1,$2,8)', [eventPost, bob]))
+  })
+
+  await context.test('only the author can edit, with no identity, timestamp, or media spoofing', async () => {
+    await asUser(outsider)
+    assert.equal((await db.query('update public.community_posts set title=$1 where id=$2 returning id', ['Not mine', post])).rows.length, 0)
+    await asUser(alice)
+    assert.equal((await db.query('update public.community_posts set title=$1, description=$2 where id=$3 returning title', ['Updated study', 'Updated public caption', post])).rows[0].title, 'Updated study')
+    assert.equal((await db.query('select * from public.community_ratings where post_id=$1', [post])).rows.length, 1)
+    assert.equal((await db.query('select * from public.community_comments where post_id=$1', [post])).rows.length, 1)
+    await assert.rejects(db.query('update public.community_posts set author_id=$1 where id=$2', [bob, post]))
+    await assert.rejects(db.query('update public.community_posts set created_at=now() where id=$1', [post]))
+    await assert.rejects(db.query('update public.community_posts set image_path=$1 where id=$2', [`${bob}/other.jpg`, post]))
+    await assert.rejects(db.query('update public.community_posts set timezone=$1 where id=$2', ['Not/AZone', eventPost]))
   })
 
   await context.test('only publisher or administrator can remove a publication', async () => {
