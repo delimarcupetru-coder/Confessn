@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
+import { MessageCircle, Share2 } from 'lucide-react'
+import { Community, CommunityFeed, uploadCommunityImage } from './Community'
 import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
@@ -1073,6 +1075,17 @@ function App() {
   })
   const [accountReady, setAccountReady] = useState(false)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [showCommunity, setShowCommunity] = useState(false)
+  const [communityRecipient, setCommunityRecipient] = useState<string | null>(null)
+  const [communityVersion, setCommunityVersion] = useState(0)
+  const [hasPublicPosts, setHasPublicPosts] = useState(false)
+  const [publishProject, setPublishProject] = useState<ProjectRecord | null>(null)
+  const [publishTitle, setPublishTitle] = useState('')
+  const [publishDescription, setPublishDescription] = useState('')
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState('')
+  const communityIdentityRef = useRef(authUserId)
+  communityIdentityRef.current = authUserId
   const [authReady, setAuthReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
   const [workspaceReadyForUser, setWorkspaceReadyForUser] = useState<string | null>(null)
@@ -2386,6 +2399,48 @@ function App() {
     if (selection) beginProjectDownload(project, selection)
   }
 
+  const openCommunityChat = (memberId: string) => {
+    setCommunityRecipient(memberId)
+    setShowCommunity(true)
+  }
+
+  const publishSavedProject = async () => {
+    if (!authUserId || !publishProject || publishing || !captureRef.current) return
+    const publisher = authUserId
+    let uploadedPath: string | null = null
+    setPublishing(true)
+    setPublishError('')
+    try {
+      const capture = captureRef.current
+      const image = capture.querySelector<HTMLImageElement>('img.uploaded-artwork')
+      const render = async () => {
+        if (image && !image.complete) await image.decode()
+        if (image && !image.naturalWidth) throw new Error('Artwork could not be loaded.')
+        await document.fonts.ready
+        return html2canvas(capture, { backgroundColor: null, scale: Math.min(2, 1600 / Math.max(capture.offsetWidth, capture.offsetHeight)), useCORS: true })
+      }
+      let timeoutId: number | undefined
+      let canvas: HTMLCanvasElement
+      try {
+        canvas = await Promise.race([render(), new Promise<never>((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('The image capture timed out. Please try publishing again.')), 20000) })])
+      } finally { window.clearTimeout(timeoutId) }
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+      if (!blob) throw new Error('The framed image could not be captured.')
+      if (communityIdentityRef.current !== publisher) throw new Error('Your account changed. Please sign in again.')
+      uploadedPath = await uploadCommunityImage(blob, publisher)
+      const { error } = await supabase.from('community_posts').insert({ author_id: publisher, kind: 'art', title: publishTitle.trim(), description: publishDescription.trim(), image_path: uploadedPath })
+      if (error) throw error
+      setPublishProject(null)
+      setCommunityVersion(current => current + 1)
+      setSaveMessage('Framed artwork published to the public gallery.')
+    } catch (issue) {
+      if (uploadedPath) await supabase.storage.from('community-media').remove([uploadedPath])
+      setPublishError(issue instanceof Error ? issue.message : 'Publication failed. Your saved project remains private.')
+    } finally { setPublishing(false) }
+  }
+
+  useEffect(() => { setShowCommunity(false); setCommunityRecipient(null); setPublishProject(null) }, [authUserId])
+
   const sendContactMessage = () => {
     const emailInput = document.getElementById('contact-email') as HTMLInputElement | null
     if (!emailInput?.reportValidity()) return
@@ -2691,6 +2746,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          <button type="button" className="community-menu-button" title="Messages and planning" aria-label="Messages" onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Messages</span></button>
           <button
             type="button"
             className="mobile-account-toggle"
@@ -3310,7 +3366,8 @@ function App() {
           </div>
         </div>
 
-        <div className="carousel" aria-label="Completed projects carousel">
+        <CommunityFeed userId={isLoggedIn ? authUserId : null} version={communityVersion} onChat={openCommunityChat} onSignIn={() => setAuthMode('login')} onCount={count => setHasPublicPosts(count > 0)} />
+        {!hasPublicPosts && <div className="carousel" aria-label="Completed projects carousel">
           {galleryItems.map((item) => {
             const matColor = matColorOptions.find((color) => color.id === item.matColorId)!
             const stripColor = stripColorOptions.find((color) => color.id === item.stripColorId)!
@@ -3345,7 +3402,7 @@ function App() {
               </div>
             </article>
           )})}
-        </div>
+        </div>}
       </section>
 
       <section id="about" className="bottom-grid">
@@ -3384,6 +3441,7 @@ function App() {
                     {project.notes && <span className="project-notes-preview">Notes: {project.notes}</span>}
                   </button>
                   <div className="project-row-actions">
+                    <button type="button" className="trash-button community-publish-button" aria-label={`Publish ${project.name}`} title="Publish framed artwork" disabled={!project.artwork || publishing || pendingDownload !== null || !isLoggedIn} onClick={() => { loadProject(project); setPublishProject(project); setPublishTitle(project.name); setPublishDescription(''); setPublishError('') }}><Share2 size={17} /></button>
                     <button
                       type="button"
                       className="trash-button project-download-button"
@@ -3435,6 +3493,9 @@ function App() {
           </div>
         </div>
       </section>
+
+      <Community userId={isLoggedIn ? authUserId : null} open={showCommunity} onClose={() => setShowCommunity(false)} onConnect={() => { setShowCommunity(false); setAuthMode('login') }} initialUser={communityRecipient} onPublished={() => setCommunityVersion(current => current + 1)} isAdmin={isConfessnAdmin} />
+      {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><label>Public description<textarea maxLength={5000} value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check"><input type="checkbox" required />Make this framed image public under my username.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
 
       <section id="contact" className="contact-section panel-block">
         <div className="contact-copy">

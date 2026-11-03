@@ -1,0 +1,85 @@
+.community-overlay, .community-detail-overlay { position: fixed; inset: 0; z-index: 60; background: #1015159c; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
+.community-panel, .community-detail { background: #f7faf9; color: #202c29; border: 1px solid #becbc6; border-radius: 8px; box-shadow: 0 16px 70px #0005; width: min(1120px, 100%); max-height: calc(100dvh - 32px); overflow: auto; font-size: 14px; }
+.community-panel { height: min(800px, calc(100dvh - 32px)); display: flex; flex-direction: column; }
+.community-panel *, .community-detail *, .community-feed * { box-sizing: border-box; letter-spacing: 0; }
+.community-heading, .community-detail header, .community-thread header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #cfdbd6; }
+.community-heading h2, .community-detail h2, .community-thread h3 { font-size: 20px; margin: 0; overflow-wrap: anywhere; }
+.community-panel button, .community-detail button, .community-post button, .community-feed > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid #b6c8c0; border-radius: 4px; background: #fff; color: #253e32; padding: 6px 10px; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.community-panel button:hover, .community-detail button:hover, .community-post button:hover { background: #e4efe9; }
+.community-panel button:disabled, .community-detail button:disabled { opacity: .45; cursor: not-allowed; }
+.community-panel .community-icon, .community-detail .community-icon { flex: 0 0 36px; width: 36px; padding: 5px; }
+.community-panel input, .community-panel select, .community-panel textarea, .community-detail textarea, .community-detail select { width: 100%; min-width: 0; background: #fff; color: #202c29; border: 1px solid #acbfb4; border-radius: 4px; padding: 9px; font: inherit; }
+.community-panel label, .community-detail label { display: grid; gap: 5px; margin-bottom: 10px; }
+.community-panel textarea, .community-detail textarea { min-height: 76px; resize: vertical; }
+.community-tabs { display: flex; gap: 6px; padding: 10px 18px; border-bottom: 1px solid #cfdbd6; }
+.community-tabs button[aria-selected="true"], .community-panel button.selected { background: #21573f; color: #fff; border-color: #21573f; }
+.community-error { padding: 10px 16px; margin: 0; background: #ffebe8; color: #8d2924; overflow-wrap: anywhere; }
+.community-chat { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 0; flex: 1; }
+.community-directory { border-right: 1px solid #cfdbd6; overflow: auto; padding: 12px; }
+.community-directory > button { width: 100%; justify-content: start; margin-top: 5px; }
+.community-directory h3 { font-size: 13px; text-transform: uppercase; margin: 20px 0 8px; color: #5f766a; }
+.community-person { display: flex; align-items: center; gap: 2px; margin: 3px 0; }
+.community-person > button:first-child { flex: 1; min-width: 0; justify-content: start; }
+.community-check { display: flex !important; align-items: center; padding: 4px 0; }
+.community-check input { width: auto; }
+.community-thread { display: flex; flex-direction: column; min-width: 0; min-height: 350px; overflow: hidden; }
+.community-participants { margin: 0; padding: 7px 18px; font-size: 12px; border-bottom: 1px solid #cfdbd6; overflow-wrap: anywhere; }
+.community-history { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.community-history article { max-width: 85%; align-self: flex-start; background: #e7ece9; border-radius: 6px; padding: 10px; overflow-wrap: anywhere; }
+.community-history article.own { align-self: flex-end; background: #d3eadc; }
+.community-history p, .community-comments p { white-space: pre-wrap; margin: 6px 0; }
+.community-history time, .community-comments time { font-size: 11px; color: #597362; }
+.community-composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #cfdbd6; align-items: end; }
+.community-composer textarea { flex: 1; }
+.community-planning { overflow: auto; padding: 16px; }
+.community-calendar-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.community-calendar-toolbar h3 { flex: 1; margin: 0; font-size: 18px; }
+.community-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.community-calendar .weekday { text-align: center; padding: 7px 0; color: #587261; }
+.community-calendar button { height: 66px; padding: 5px; align-items: start; justify-content: space-between; }
+.community-calendar .outside { opacity: .45; }
+.community-calendar small { display: grid; place-items: center; background: #b16a32; color: white; width: 20px; height: 20px; border-radius: 50%; }
+.community-timezone { font-size: 12px; color: #5f766a; }
+.community-event-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 0; border-block: 1px solid #bccfc3; }
+.community-event-form h3 { grid-column: 1 / -1; }
+.community-agenda { display: grid; gap: 8px; }
+.community-agenda > button { justify-content: start; text-align: left; gap: 14px; }
+.community-agenda img { width: 60px; height: 70px; object-fit: cover; }
+.community-agenda span { display: grid; gap: 5px; }
+.community-report, .community-moderation { margin: 12px; padding: 12px; border: 1px solid #c5b291; }
+.community-report button { margin-right: 6px; }
+.community-empty { padding: 40px; text-align: center; }
+.community-feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 18px; margin-bottom: 20px; }
+.community-post { border: 1px solid #59665f; border-radius: 6px; overflow: hidden; background: #f2f6f3; color: #24352c; }
+.community-post .community-post-image { display: block; width: 100%; aspect-ratio: 4/5; padding: 12px; background: #e3ebe5; border: 0; border-radius: 0; }
+.community-post-image img { width: 100%; height: 100%; object-fit: contain; }
+.community-post-copy { display: grid; gap: 5px; padding: 12px; }
+.community-post-copy .community-post-title { justify-content: start; text-align: left; font-weight: 700; border: 0; padding: 0; background: transparent; }
+.community-kind { color: #547961; font-size: 12px; }
+.community-post-copy time { font-size: 12px; }
+.community-detail-overlay { z-index: 70; }
+.community-detail { width: min(760px, 100%); padding: 18px; }
+.community-detail header { padding: 0 0 12px; }
+.community-detail-image { width: 100%; height: min(44vh, 480px); object-fit: contain; background: #e3ebe5; margin-top: 14px; }
+.community-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.community-event-details a { display: block; color: #21573f; margin-bottom: 8px; overflow-wrap: anywhere; }
+.community-rating { display: flex; align-items: center; gap: 10px; border-block: 1px solid #cfdbd6; padding: 12px 0; }
+.community-rating label { margin: 0 0 0 auto; }
+.community-comments article { position: relative; border-bottom: 1px solid #cfdbd6; padding: 12px 40px 12px 0; overflow-wrap: anywhere; }
+.community-comments .community-icon { position: absolute; right: 0; top: 10px; }
+.community-publish-button { display: inline-flex; gap: 5px; align-items: center; }
+.community-menu-button { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; color: #e8f5ee; border: 1px solid #61776b; border-radius: 4px; background: #254333; padding: 6px 8px; cursor: pointer; }
+@media (max-width: 620px) {
+  .community-overlay, .community-detail-overlay { padding: 5px; }
+  .community-panel { max-height: calc(100dvh - 10px); height: calc(100dvh - 10px); }
+  .community-chat { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .community-directory { max-height: 220px; border-bottom: 1px solid #cfdbd6; }
+  .community-thread { min-height: 430px; overflow: visible; }
+  .community-history { max-height: 300px; }
+  .community-calendar button { height: 48px; font-size: 12px; }
+  .community-event-form { grid-template-columns: 1fr; }
+  .community-calendar-toolbar h3 { font-size: 16px; }
+  .community-detail { max-height: calc(100dvh - 10px); padding: 12px; }
+  .community-menu-button { font-size: 12px; }
+}

@@ -138,3 +138,17 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Community Deployment Notes
+
+Run `npm run test:community` and `npm run build` in this directory before releasing. The tests execute the migration in local PostgreSQL (PGlite) with distinct authenticated and anonymous roles.
+
+1. Apply [supabase-community.sql](../supabase-community.sql) once as administrator in the app's Supabase SQL Editor. It adds isolated community tables, access policies, membership functions, an Auth username-sync trigger, a private `community_moderators` allowlist, and a public `community-media` bucket (JPG/PNG/WebP, 5 MB maximum). Existing `confessn_admins` are copied if that table is present; otherwise an administrator must insert the intended existing Auth user ID into `community_moderators`. It does not change wallets, passkeys, private profiles, or saved projects.
+2. Deploy the app and matching generated Pages output. No extra Edge Function, Google Maps key, or service-role key belongs in the browser.
+3. Verify with two authorized accounts: direct and group text chats; leaving a chat; two-way blocks; reports; explicit framed-art publication; updating a 1-10 rating; comments; and an event with poster, date range, and address or HTTPS online link. The calendar uses local display dates and preserves the organizer's timezone in event details.
+
+Messages polls the active conversation every three seconds while open, and refreshes the directory/conversation list every ten seconds. Group chats support up to 50 members; voice/video conferencing is not included. Username and user ID form the public directory; email, bank information, private portfolio records, and notes are never copied. Members explicitly publish a rendered image with a public title/caption. Events and art share a newest-first public feed; sample gallery items remain until publications exist.
+
+Visitors can view public posts and comments. Registered users can rate others' art once (and update their score), comment, message, block, and report. Blocks are enforced in the database for chat access and signed-in feed visibility; they cannot make an already-public image secret from logged-out visitors. A blocked participant pauses access to shared chats until unblocked. Reports are visible only to their reporter and administrators. Administrators can review/resolve reports in Messages and remove reported publications. Publishers can unpublish their own content. Uploaded media has public URLs; do not upload private material.
+
+Rate limits apply to new chats, messages, posts, comments, and reports. The calendar loads events overlapping the displayed month (up to 1,000 per month). Direct chat history displays the latest 200 messages. Production activation must use the real database; the desktop demonstration's sample adapter is browser-test-only and is not part of the shipped code.
