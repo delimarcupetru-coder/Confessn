@@ -15,7 +15,7 @@ export type CommunityPost = {
   community_members: { username: string } | null
 }
 type Comment = { id: string; author_id: string; body: string; created_at: string; community_members: { username: string } | null }
-type Rating = { user_id: string; score: number }
+type RatingSummary = { vote_count: string; average: number | null; my_score: number | null }
 type Report = { id: string; target_user_id: string; post_id: string | null; reason: string; created_at: string }
 
 const imageUrl = (path: string) => supabase.storage.from('community-media').getPublicUrl(path).data.publicUrl
@@ -34,32 +34,69 @@ export async function uploadCommunityImage(blob: Blob, userId: string) {
 }
 
 function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRated }: { post: CommunityPost; userId: string | null; compact?: boolean; onSignIn?: () => void; version?: number; onRated?: () => void }) {
-  const [ratings, setRatings] = useState<Rating[]>([])
+  const key = `${post.id}:${userId ?? 'guest'}`
+  const [snapshot, setSnapshot] = useState<{ key: string; summary: RatingSummary } | null>(null)
+  const [pendingVote, setPendingVote] = useState<{ key: string; score: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const identity = useRef(key)
+  const requestId = useRef(0)
+  const saving = useRef(false)
+  identity.current = key
+  const readSummary = (data: unknown): RatingSummary => {
+    const value = data as Partial<RatingSummary> | null
+    if (!value || typeof value.vote_count !== 'string' || !/^\d+$/.test(value.vote_count)
+      || (value.average !== null && (typeof value.average !== 'number' || !Number.isFinite(value.average) || value.average < 1 || value.average > 10))
+      || (value.my_score !== null && (typeof value.my_score !== 'number' || !Number.isInteger(value.my_score) || value.my_score < 1 || value.my_score > 10))) {
+      throw new Error('The rating summary could not be loaded. Please try again.')
+    }
+    return value as RatingSummary
+  }
   useEffect(() => {
     let active = true
-    void supabase.from('community_ratings').select('user_id,score').eq('post_id', post.id).then(result => {
-      if (!active) return
-      if (result.error) setError(result.error.message)
-      else { setRatings(result.data ?? []); setError('') }
-    })
-    return () => { active = false }
+    setError('')
+    const refresh = async () => {
+      if (saving.current || document.visibilityState === 'hidden') return
+      const request = ++requestId.current
+      try {
+        const result = await supabase.rpc('community_rating_summary', { p_post_id: post.id })
+        fail(result.error)
+        if (!active || identity.current !== key || request !== requestId.current || saving.current) return
+        setSnapshot({ key, summary: readSummary(result.data) })
+        setError('')
+      } catch (issue) {
+        if (active && identity.current === key && request === requestId.current) setError(errorText(issue))
+      }
+    }
+    const update = () => { void refresh() }
+    update()
+    const timer = window.setInterval(update, 10000)
+    window.addEventListener('focus', update)
+    document.addEventListener('visibilitychange', update)
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', update); document.removeEventListener('visibilitychange', update) }
   }, [post.id, userId, version])
-  const mine = ratings.find(rating => rating.user_id === userId)
-  const average = ratings.length ? (ratings.reduce((sum, rating) => sum + rating.score, 0) / ratings.length).toFixed(1) : '-'
+  const summary = snapshot?.key === key ? snapshot.summary : null
+  const selectedScore = pendingVote?.key === key ? pendingVote.score : summary?.my_score ?? ''
+  const average = summary?.average != null ? summary.average.toFixed(1) : '-'
+  const count = summary ? BigInt(summary.vote_count).toLocaleString('en-US') : '...'
   return <div className={compact ? 'community-rating community-rating-compact' : 'community-rating'}>
-    <span className="community-rating-average" title={`${ratings.length} ratings`}><Star size={15} /><strong>{average}</strong><small>({ratings.length})</small></span>
-    {userId ? <select aria-label={compact ? `Rate ${post.title}` : 'Your rating'} title={post.author_id === userId ? 'You cannot rate your own post' : 'Rate from 1 to 10'} value={mine?.score ?? ''} disabled={busy || post.author_id === userId} onChange={event => {
+    <span className="community-rating-average" title={summary ? `${count} ratings` : 'Loading ratings'} aria-live="polite" aria-atomic="true"><Star size={15} /><strong>{average}</strong><small>({count})</small></span>
+    {userId ? <select aria-label={compact ? `Rate ${post.title}` : 'Your rating'} title={post.author_id === userId ? 'You cannot rate your own post' : 'Rate from 1 to 10'} value={selectedScore} disabled={busy || post.author_id === userId} onChange={event => {
+      if (saving.current) return
       const score = Number(event.target.value)
+      saving.current = true
+      requestId.current += 1
+      setPendingVote({ key, score })
       setBusy(true); setError('')
       void (async () => {
         try {
-          const result = mine ? await supabase.from('community_ratings').update({ score }).eq('user_id', userId).eq('post_id', post.id) : await supabase.from('community_ratings').insert({ user_id: userId, post_id: post.id, score })
+          const result = await supabase.rpc('community_rate_post', { p_post_id: post.id, p_score: score })
           fail(result.error)
-          setRatings(current => [...current.filter(rating => rating.user_id !== userId), { user_id: userId, score }])
+          if (identity.current !== key) return
+          setSnapshot({ key, summary: readSummary(result.data) })
           onRated?.()
-        } catch (issue) { setError(errorText(issue)) } finally { setBusy(false) }
+        } catch (issue) { if (identity.current === key) setError(errorText(issue)) }
+        finally { saving.current = false; setPendingVote(null); setBusy(false) }
       })()
     }}><option value="" disabled>Rate</option>{Array.from({ length: 10 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}</select> : <button type="button" onClick={onSignIn}>Rate</button>}
     {error && <span role="alert" className="community-inline-error">{error}</span>}

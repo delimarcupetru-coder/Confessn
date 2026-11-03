@@ -34,6 +34,7 @@ test('community migration and access policies', async context => {
   `)
   await db.exec(await readFile(new URL('../../supabase-community.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-editing.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../supabase-community-ratings.sql', import.meta.url), 'utf8'))
   await db.query('insert into public.community_moderators(user_id) values($1)', [admin])
   const asUser = async user => {
     await db.exec('reset role')
@@ -138,12 +139,49 @@ test('community migration and access policies', async context => {
     await assert.rejects(db.query('insert into public.community_ratings(post_id,user_id,score) values($1,$2,8)', [eventPost, bob]))
   })
 
+  await context.test('rating selection persists as others vote and changing it does not add a vote', async () => {
+    await asUser(bob)
+    const first = (await db.query('select public.community_rate_post($1,8) as summary', [post])).rows[0].summary
+    assert.deepEqual(first, { vote_count: '1', average: 8, my_score: 8 })
+    await asUser(outsider)
+    await db.query('select public.community_rate_post($1,4)', [post])
+    await asUser(bob)
+    const refreshed = (await db.query('select public.community_rating_summary($1) as summary', [post])).rows[0].summary
+    assert.deepEqual(refreshed, { vote_count: '2', average: 6, my_score: 8 })
+    const changed = (await db.query('select public.community_rate_post($1,10) as summary', [post])).rows[0].summary
+    assert.deepEqual(changed, { vote_count: '2', average: 7, my_score: 10 })
+    await asUser(null)
+    const guest = (await db.query('select public.community_rating_summary($1) as summary', [post])).rows[0].summary
+    assert.deepEqual(guest, { vote_count: '2', average: 7, my_score: null })
+    await assert.rejects(db.query('select public.community_rate_post($1,1)', [post]))
+    await asUser(alice)
+    await assert.rejects(db.query('select public.community_rate_post($1,8)', [post]))
+    await asUser(bob)
+    await assert.rejects(db.query('select public.community_rate_post($1,11)', [post]))
+  })
+
+  await context.test('rating totals include more than a REST page of votes without hiding my selection', async () => {
+    await db.exec('reset role')
+    await db.exec(`
+      insert into auth.users(id,raw_user_meta_data)
+        select gen_random_uuid(), '{"username":"Rating fixture"}'::jsonb from generate_series(1,1005);
+    `)
+    await db.query('insert into public.community_ratings(post_id,user_id,score) select $1,user_id,6 from public.community_members where user_id not in ($2,$3,$4,$5)', [post,alice,bob,outsider,admin])
+    await asUser(bob)
+    const summary = (await db.query('select public.community_rating_summary($1) as summary', [post])).rows[0].summary
+    assert.equal(summary.vote_count, '1007')
+    assert.equal(summary.my_score, 10)
+    assert.equal(summary.average, 6)
+    await db.exec('reset role')
+    await db.query('delete from auth.users where id not in ($1,$2,$3,$4)', [alice,bob,outsider,admin])
+  })
+
   await context.test('only the author can edit, with no identity, timestamp, or media spoofing', async () => {
     await asUser(outsider)
     assert.equal((await db.query('update public.community_posts set title=$1 where id=$2 returning id', ['Not mine', post])).rows.length, 0)
     await asUser(alice)
     assert.equal((await db.query('update public.community_posts set title=$1, description=$2 where id=$3 returning title', ['Updated study', 'Updated public caption', post])).rows[0].title, 'Updated study')
-    assert.equal((await db.query('select * from public.community_ratings where post_id=$1', [post])).rows.length, 1)
+    assert.equal((await db.query('select * from public.community_ratings where post_id=$1', [post])).rows.length, 2)
     assert.equal((await db.query('select * from public.community_comments where post_id=$1', [post])).rows.length, 1)
     await assert.rejects(db.query('update public.community_posts set author_id=$1 where id=$2', [bob, post]))
     await assert.rejects(db.query('update public.community_posts set created_at=now() where id=$1', [post]))

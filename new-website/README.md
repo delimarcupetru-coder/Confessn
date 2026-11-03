@@ -141,6 +141,8 @@ See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rule
 
 ## Community Deployment Notes
 
+After the base community and editing migrations, apply [supabase-community-ratings.sql](../supabase-community-ratings.sql) before publishing the persistent-rating UI. It preserves existing votes, saves one score per member/post atomically, and computes full totals independently of REST row limits. The UI refreshes summaries every ten seconds while visible and on focus, while keeping the member's saved selection separate from the average and count.
+
 Run `npm run test:community` and `npm run build` in this directory before releasing. The tests execute the migration in local PostgreSQL (PGlite) with distinct authenticated and anonymous roles.
 
 1. Apply [supabase-community.sql](../supabase-community.sql) once as administrator in the app's Supabase SQL Editor. It adds isolated community tables, access policies, membership functions, an Auth username-sync trigger, a private `community_moderators` allowlist, and a public `community-media` bucket (JPG/PNG/WebP, 5 MB maximum). Existing `confessn_admins` are copied if that table is present; otherwise an administrator must insert the intended existing Auth user ID into `community_moderators`. It does not change wallets, passkeys, private profiles, or saved projects.
