@@ -2705,11 +2705,11 @@ function App() {
             <a
               href="#confessn-university"
               className="nav-university-link"
-              aria-label="Confessn University"
+              aria-label="Novanta University"
               aria-controls="cun-notification"
               aria-expanded={cunActive}
-              data-cun-title="Confessn University"
-              data-cun="Turn on guide mode. Hover over or focus a workspace control to see its instructions. Open the full manual from the CUN notification."
+              data-cun-title="Novanta University"
+              data-cun="Turn on guide mode for framing, posts, Messages, Planning, Basket, and Bank. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
                 setCunActive(true)
@@ -2718,7 +2718,7 @@ function App() {
                 setShowCunManual(false)
                 setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
               }}
-            ><span>Confessn</span><span>University</span></a>
+            ><span>Novanta</span><span>University</span></a>
             {authUserId && isLoggedIn && (
               <button
                 type="button"
@@ -2727,6 +2727,8 @@ function App() {
                 aria-haspopup="dialog"
                 aria-expanded={showWalletDialog}
                 aria-controls="tzol-wallet-dialog"
+                data-cun-title="Tzol Bank"
+                data-cun="Open Bank and approve your passkey to view private account details. Bank access expires after five minutes while your website session stays signed in."
                 onClick={() => { setShowMobileNav(false); setShowMobileAccountMenu(false); setShowWalletDialog(true) }}
               >
                 <span>Tzol Bank</span>
@@ -2744,7 +2746,7 @@ function App() {
               <a
                 href="#confessn-university"
                 className="nav-university-link"
-                aria-label="Confessn University"
+                aria-label="Novanta University"
                 onClick={(event) => {
                   event.preventDefault()
                   setShowMobileNav(false)
@@ -2754,7 +2756,7 @@ function App() {
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
-              ><span>Confessn</span><span>University</span></a>
+              ><span>Novanta</span><span>University</span></a>
               <a href="#about" onClick={() => setShowMobileNav(false)}>{t.navAbout}</a>
               <a href="#contact" onClick={() => setShowMobileNav(false)}>{t.navContact}</a>
             </div>
@@ -2762,7 +2764,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="community-menu-button" title="Messages and planning" aria-label="Messages" onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Messages</span></button>
+          <button type="button" className="community-menu-button" title="Messages and planning" aria-label="Messages" data-cun-title="Messages" data-cun="Open Chat for direct and group text conversations, or Planning to create and view events. Sign in to participate." onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Messages</span></button>
           <button
             type="button"
             className="mobile-account-toggle"
@@ -2813,7 +2815,7 @@ function App() {
       </header>
 
       {cunActive && (
-        <aside id="cun-notification" className="cun-notification" aria-label="Confessn University Notification" role="status">
+        <aside id="cun-notification" className="cun-notification" aria-label="Novanta University Notification" role="status">
           <div className="cun-notification-heading">
             <button
               type="button"
@@ -2854,11 +2856,11 @@ function App() {
                 positionCunNotification(bounds.left + step.x, bounds.top + step.y)
               }}
             ><span aria-hidden="true">&#8942;&#8942;</span></button>
-            <span>Confessn University</span>
+            <span>Novanta University</span>
             <button type="button" aria-label="Close university guide" title="Close guide" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
-          <strong>{cunMessage.key === 'ready' ? ui.guideReady : language !== 'en' && guideLesson ? guideLesson.title : cunMessage.title}</strong>
-          <p>{cunMessage.key === 'ready' ? ui.guideReadyBody : language !== 'en' && guideLesson ? guideLesson.body : cunMessage.description}</p>
+          <strong>{cunMessage.key === 'ready' ? ui.guideReady : guideLesson ? guideLesson.title : cunMessage.title}</strong>
+          <p>{cunMessage.key === 'ready' ? ui.guideReadyBody : guideLesson ? guideLesson.body : cunMessage.description}</p>
           <button type="button" className="cun-manual-button" onClick={() => setShowCunManual(true)}>{ui.manualButton}</button>
         </aside>
       )}
@@ -3457,7 +3459,7 @@ function App() {
                     {project.notes && <span className="project-notes-preview">Notes: {project.notes}</span>}
                   </button>
                   <div className="project-row-actions">
-                    <button type="button" className="trash-button community-publish-button" aria-label={`Publish ${project.name}`} title="Publish framed artwork" disabled={!project.artwork || publishing || pendingDownload !== null || !isLoggedIn} onClick={() => { loadProject(project); setPublishProject(project); setPublishTitle(project.name); setPublishDescription(''); setPublishError('') }}><Share2 size={17} /></button>
+                    <button type="button" className="trash-button community-publish-button" aria-label={`Publish ${project.name}`} title="Publish framed artwork" data-cun-title="Publish artwork" data-cun="Explicitly publish the framed image with a public title and caption. Private project notes remain private." disabled={!project.artwork || publishing || pendingDownload !== null || !isLoggedIn} onClick={() => { loadProject(project); setPublishProject(project); setPublishTitle(project.name); setPublishDescription(''); setPublishError('') }}><Share2 size={17} /></button>
                     <button
                       type="button"
                       className="trash-button project-download-button"
@@ -3656,12 +3658,13 @@ function App() {
           >
             <div className="dialog-header university-header">
               <div>
-                <p className="university-eyebrow">Confessn University</p>
+                <p className="university-eyebrow">Novanta University</p>
                 <h2 id="cun-manual-title">{ui.manualTitle}</h2>
               </div>
               <button type="button" aria-label={ui.closeManual} onClick={() => setShowCunManual(false)}>×</button>
             </div>
             <p className="university-intro">{ui.manualIntro}</p>
+            <nav className="university-topics" aria-label="University manual topics">{[10, 13, 14, 15].map(index => <a key={index} href={`#university-lesson-${index}`} onClick={event => { event.preventDefault(); document.getElementById(`university-lesson-${index}`)?.scrollIntoView({ block: 'start', behavior: 'instant' }) }}>{ui.lessons[index].title}</a>)}</nav>
 
             <div className="university-diagrams">
               <div className="university-frame-diagram" role="img" aria-label="Frame, outer top mat, colored offcut, inner bottom mat, and artwork layers">
@@ -3682,15 +3685,17 @@ function App() {
               </div>
               <div className="university-gesture-guide" aria-label="Drag adjustment controls">
                 <div><kbd>F</kbd><span>{ui.frameWidth}</span></div>
-                <div><kbd>M</kbd><span>{ui.matWidth}</span></div>
+                <div><kbd>M1</kbd><span>{ui.topMat}</span></div>
+                <div><kbd>M2</kbd><span>{ui.bottomMat}</span></div>
                 <div><kbd>S</kbd><span>{ui.offcutWidth}</span></div>
+                <div><kbd>B</kbd><span>{ui.bottomMatBevel}</span></div>
                 <p>{ui.dragHint}</p>
               </div>
             </div>
 
             <div className="university-manual-grid">
-              {ui.lessons.map((lesson) => (
-                <section className="university-guide-section" key={lesson.title}>
+              {ui.lessons.map((lesson, index) => (
+                <section className="university-guide-section" id={`university-lesson-${index}`} key={lesson.title}>
                   <h3>{lesson.title}</h3>
                   <p>{lesson.body}</p>
                 </section>
@@ -3824,7 +3829,7 @@ function App() {
 
       {showWalletDialog && authUserId && isLoggedIn && (
         <div className="dialog-overlay">
-          <div id="tzol-wallet-dialog" className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" onClick={(event) => event.stopPropagation()}>
+          <div id="tzol-wallet-dialog" className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" data-cun-title="Tzol Bank" data-cun="Use your bank passkey, not a chat message or SMS, to open private wallet details. Refresh balance updates the verified wallet. Close with X when finished." onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4 id="tzol-wallet-title">Tzol Bank</h4>
               <button type="button" autoFocus aria-label="Close TZOL wallet" onClick={() => setShowWalletDialog(false)}>×</button>

@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test:community": "node --test tests/community.test.mjs",
     "test:marketplace": "node --test tests/marketplace.test.mjs",
+    "test:university": "node --experimental-strip-types --test tests/university.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -79,7 +79,7 @@ function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRa
   const selectedScore = pendingVote?.key === key ? pendingVote.score : summary?.my_score ?? ''
   const average = summary?.average != null ? summary.average.toFixed(1) : '-'
   const count = summary ? BigInt(summary.vote_count).toLocaleString('en-US') : '...'
-  return <div className={compact ? 'community-rating community-rating-compact' : 'community-rating'}>
+  return <div className={compact ? 'community-rating community-rating-compact' : 'community-rating'} data-cun-title="Artwork ratings" data-cun="Select one score from 1 to 10 on another member's artwork. Your saved score remains selected as the average and voter count update.">
     <span className="community-rating-average" title={summary ? `${count} ratings` : 'Loading ratings'} aria-live="polite" aria-atomic="true"><Star size={15} /><strong>{average}</strong><small>({count})</small></span>
     {userId ? <select aria-label={compact ? `Rate ${post.title}` : 'Your rating'} title={post.author_id === userId ? 'You cannot rate your own post' : 'Rate from 1 to 10'} value={selectedScore} disabled={busy || post.author_id === userId} onChange={event => {
       if (saving.current) return
@@ -108,7 +108,7 @@ function QuickComment({ post, userId, onSignIn }: { post: CommunityPost; userId:
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  return <details className="community-quick-comment"><summary><MessageSquare size={15} /> Comment</summary>
+  return <details className="community-quick-comment" data-cun-title="Post comments" data-cun="Expand to write a comment directly on the card. Open the post to read comments and remove your own."><summary><MessageSquare size={15} /> Comment</summary>
     {userId ? <form onSubmit={event => { event.preventDefault(); setBusy(true); setError(''); setNotice(''); void (async () => {
       try { const result = await supabase.from('community_comments').insert({ post_id: post.id, author_id: userId, body: body.trim() }); fail(result.error); setBody(''); setNotice('Comment posted.') }
       catch (issue) { setError(errorText(issue)) } finally { setBusy(false) }
@@ -128,7 +128,7 @@ function PostEditor({ post, userId, onSaved, onCancel }: { post: CommunityPost; 
   const [url, setUrl] = useState(post.online_url)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  return <form className="community-post-editor" aria-label="Edit post" onSubmit={event => {
+  return <form className="community-post-editor" aria-label="Edit post" data-cun-title="Edit post" data-cun="Only the publisher can edit this post. Saving preserves its existing ratings and comments." onSubmit={event => {
     event.preventDefault(); setBusy(true); setError('')
     void (async () => {
       let uploaded: string | null = null
@@ -285,6 +285,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     const previous = document.activeElement as HTMLElement | null
     panel.current?.focus()
     const handler = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('#cun-notification, .university-dialog')) return
       if (event.key === 'Escape') onClose()
       if (event.key !== 'Tab') return
       const nodes = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') ?? []).filter(node => node.getClientRects().length)
@@ -304,12 +305,12 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   return <div className="community-overlay"><div className="community-panel" ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Messages and planning">
     <header className="community-heading"><h2>Messages</h2><button type="button" className="community-icon" onClick={onClose} aria-label="Close messages" title="Close"><X size={20} /></button></header>
     <div role="tablist" aria-label="Community views" className="community-tabs">
-      <button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')}><MessageCircle size={17} /> Chat</button>
-      <button type="button" role="tab" aria-selected={tab === 'planning'} onClick={() => setTab('planning')}><CalendarDays size={17} /> Planning</button>
+      <button type="button" role="tab" aria-selected={tab === 'chat'} data-cun-title="Chat" data-cun="Find members, start direct or group text conversations, and manage blocks or reports." onClick={() => setTab('chat')}><MessageCircle size={17} /> Chat</button>
+      <button type="button" role="tab" aria-selected={tab === 'planning'} data-cun-title="Planning" data-cun="Choose a calendar date, add a studio event or online contest, and open published event details." onClick={() => setTab('planning')}><CalendarDays size={17} /> Planning</button>
     </div>
     {error && <p role="alert" className="community-error">{error} <button type="button" onClick={() => void run(load)}>Retry</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat">
+    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and select Send. Groups are text-only; blocking prevents direct and shared-chat access.">
       <aside className="community-directory"><input aria-label="Search users" placeholder="Search users" value={search} onChange={event => setSearch(event.target.value)} />
         <button type="button" onClick={() => setGroupOpen(!groupOpen)}><Users size={16} /> New group</button>
         {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
@@ -331,11 +332,11 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
           <textarea aria-label="Message" placeholder="Message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} disabled={!selected || busy} /><button type="submit" className="community-icon" title="Send message" aria-label="Send message" disabled={!selected || !draft.trim() || busy}><Send size={20} /></button>
         </form>
       </section>
-    </div> : <section role="tabpanel" aria-label="Planning" className="community-planning">
+    </div> : <section role="tabpanel" aria-label="Planning" className="community-planning" data-cun-title="Planning" data-cun="Use Add Event to publish an event with dates, a poster, and a studio address or HTTPS online link.">
       <div className="community-calendar-toolbar"><button type="button" className="community-icon" title="Previous month" aria-label="Previous month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft /></button><h3>{format(month, 'MMMM yyyy')}</h3><button type="button" className="community-icon" title="Next month" aria-label="Next month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, 1))}><ChevronRight /></button><button type="button" disabled={eventOpen} onClick={() => { setMonth(new Date()); setDay(new Date()) }}>Today</button><button type="button" aria-expanded={eventOpen} aria-controls="community-event-editor" disabled={eventOpen || busy} onClick={() => { setStart(`${format(day, 'yyyy-MM-dd')}T10:00`); setEnd(`${format(day, 'yyyy-MM-dd')}T11:00`); setError(''); setNotice(''); setEventOpen(true) }}><Plus size={16} /> Add Event</button></div>
       {!eventOpen && <div className="community-calendar" role="group" aria-label="Calendar">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(name => <span className="weekday" key={name}>{name}</span>)}{days.map(date => { const count = events.filter(event => occursOn(event, date)).length; return <button type="button" key={date.toISOString()} className={`${isSameMonth(date, month) ? '' : 'outside'} ${isSameDay(date, day) ? 'selected' : ''}`} aria-label={`${format(date, 'EEEE, MMMM d, yyyy')}${count ? `, ${count} events` : ''}`} aria-pressed={isSameDay(date, day)} onClick={() => setDay(date)}><span>{format(date, 'd')}</span>{count > 0 && <small>{count}</small>}</button> })}</div>}
       <p className="community-timezone">{Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
-      {eventOpen && <form id="community-event-editor" ref={eventForm} className="community-event-form" onSubmit={event => { event.preventDefault(); void run(async () => {
+      {eventOpen && <form id="community-event-editor" ref={eventForm} className="community-event-form" data-cun-title="Add Event" data-cun="Enter a title, event type, start and end, description, studio address or online HTTPS link, and a JPG/PNG/WebP poster under 5 MB. Publish event makes it public." onSubmit={event => { event.preventDefault(); void run(async () => {
         const startDate = new Date(start), endDate = new Date(end)
         if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) throw new Error('The event must end after it starts.')
         if (!poster) throw new Error('Choose an event poster.')
@@ -354,7 +355,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       </form>}
       <h3>{format(day, 'EEEE, MMMM d')}</h3>{!selectedEvents.length && <p>No events scheduled.</p>}<div className="community-agenda">{selectedEvents.map(event => <button type="button" key={event.id} onClick={() => setSelectedEvent(event)}><img src={imageUrl(event.image_path)} alt="" /><span><strong>{event.title}</strong><time>{event.starts_at && dateTime(event.starts_at)}</time><span>{event.community_members?.username}</span></span></button>)}</div>
     </section>}
-    {reportTarget && <form className="community-report" onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.from('community_reports').insert({ reporter_id: userId, target_user_id: reportTarget, reason: reason.trim() }); fail(result.error); setReportTarget(null); setReason(''); setNotice('Report sent to the administrators.') }) }}><h3>Report user</h3><label>Reason<textarea required minLength={5} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label><button type="submit" disabled={busy}>Submit report</button><button type="button" onClick={() => setReportTarget(null)}>Cancel</button></form>}
+    {reportTarget && <form className="community-report" data-cun-title="Report user" data-cun="Provide a reason for moderators. Reports are visible only to you and authorized moderators." onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.from('community_reports').insert({ reporter_id: userId, target_user_id: reportTarget, reason: reason.trim() }); fail(result.error); setReportTarget(null); setReason(''); setNotice('Report sent to the administrators.') }) }}><h3>Report user</h3><label>Reason<textarea required minLength={5} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label><button type="submit" disabled={busy}>Submit report</button><button type="button" onClick={() => setReportTarget(null)}>Cancel</button></form>}
     {(isAdmin || communityAdmin) && <details className="community-moderation"><summary onClick={() => void run(async () => { const result = await supabase.from('community_reports').select('*').eq('resolved', false).order('created_at'); fail(result.error); setReports(result.data ?? []) })}>Moderation reports</summary>{reports.map(report => <article key={report.id}><strong>{username(report.target_user_id)}</strong><p>{report.reason}</p>{report.post_id && <button type="button" onClick={() => void run(async () => { const result = await supabase.from('community_posts').delete().eq('id', report.post_id); fail(result.error); onPublished(); setNotice('Reported publication removed.') })}>Remove publication</button>}<button type="button" onClick={() => void run(async () => { const result = await supabase.from('community_reports').update({ resolved: true }).eq('id', report.id); fail(result.error); setReports(current => current.filter(item => item.id !== report.id)) })}>Resolve</button></article>)}</details>}
     {selectedEvent && <PublicationDetails post={selectedEvent} userId={userId} onClose={() => setSelectedEvent(null)} onChat={id => { setSelectedEvent(null); setTab('chat'); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [id], p_title: '' }); fail(result.error); setSelected(result.data); await load() }) }} onChanged={() => { onPublished(); void run(load) }} onEdited={updated => { setSelectedEvent(updated); setEvents(current => current.map(item => item.id === updated.id ? updated : item)); onPublished() }} />}
   </div></div>
@@ -377,7 +378,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn, onCount }: { 
     })
     return () => { active = false }
   }, [userId, version, pageSize, refresh])
-  return <div className="community-feed">{error && <p role="status">{error}</p>}<div className="community-feed-grid">{posts.map(post => <article key={post.id} className="community-post">
+  return <div className="community-feed" data-cun-title="Public gallery" data-cun="Artwork and event posters appear newest first. Open a post for details; use the card's quick rating, Message, and Comment controls.">{error && <p role="status">{error}</p>}<div className="community-feed-grid">{posts.map(post => <article key={post.id} className="community-post">
     <button type="button" className="community-post-image" onClick={() => setSelected(post)} aria-label={`Open ${post.title}`}><img loading="lazy" src={imageUrl(post.image_path)} alt={post.title} /></button>
     <div className="community-post-copy">
       {post.kind === 'event' && <span className="community-kind">{post.event_type === 'contest' ? 'Contest' : 'Event'}</span>}
