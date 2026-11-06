@@ -385,7 +385,7 @@ type UniversityUpdate = {
 
 const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate> = {
   en: {
-    title: 'Novanta University Manual', button: 'Complete manual', close: 'Close university manual',
+    title: 'Confessn University Manual', button: 'Complete manual', close: 'Close university manual',
     bank: 'Open Tzol Bank in the top bar. After verification, use Refresh balance to update the verified wallet; the displayed bank account ID stays the same. Never share your password, device PIN, recovery codes, or passkey secrets. Bank approval does not activate Basket trading or add a cash purchase/redemption service.',
     intro: 'Framing, saved projects, public posts, ratings, Messages, Planning, Basket, and secure Tzol Bank access. Trading is currently disabled.',
     mats: 'Top Mat is the outer layer; choose its size and color. Bottom Mat is an independent inner layer. Mat Offcut is the colored strip between the layers. Bevel Cut adds a mitered inner edge to Bottom Mat; toggle it independently and choose one of 20 finishes. Its color and depth are separate from the mat colors and offcut width. Turning Bottom Mat off disables its bevel controls.',
@@ -401,7 +401,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   ro: {
-    title: 'Manualul Novanta University', button: 'Manual complet', close: 'Închide manualul universității',
+    title: 'Manualul Confessn University', button: 'Manual complet', close: 'Închide manualul universității',
     bank: 'Deschide Tzol Bank din bara de sus. După verificare, Actualizează soldul reîncarcă portofelul verificat; ID-ul contului rămâne același. Nu distribui parola, PIN-ul dispozitivului, codurile de recuperare sau secretele cheii de acces. Verificarea băncii nu activează tranzacțiile Basket și nu adaugă un serviciu de cumpărare/răscumpărare în bani.',
     intro: 'Înrămare, proiecte, postări publice, evaluări, Messages, Planning, Basket și acces sigur la Tzol Bank. Tranzacțiile sunt momentan dezactivate.',
     mats: 'Top Mat este stratul exterior, iar Bottom Mat este stratul interior independent. Alege dimensiunile și culorile. Mat Offcut este banda colorată dintre straturi. Bevel Cut adaugă muchia interioară cu colțuri la 45 de grade; o poți activa separat și alege dintre 20 de finisaje. Culoarea și adâncimea ei sunt independente de culorile paspartului și lățimea benzii. Dezactivarea Bottom Mat dezactivează controalele teșiturii.',
@@ -417,7 +417,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   ru: {
-    title: 'Руководство Novanta University', button: 'Полное руководство', close: 'Закрыть руководство университета',
+    title: 'Руководство Confessn University', button: 'Полное руководство', close: 'Закрыть руководство университета',
     bank: 'Откройте Tzol Bank в верхней панели. После проверки кнопка обновления баланса обновляет подтверждённый кошелёк; ID счёта остаётся прежним. Не передавайте пароль, PIN устройства, коды восстановления и секреты ключа доступа. Проверка банка не включает торговлю Basket и не создаёт сервис покупки или погашения за деньги.',
     intro: 'Оформление, проекты, публикации, оценки, Messages, Planning, Basket и безопасный Tzol Bank. Торговля сейчас отключена.',
     mats: 'Top Mat — внешний слой, Bottom Mat — независимый внутренний. Выберите размер и цвет. Mat Offcut — цветная полоска между слоями. Bevel Cut добавляет внутренний срез с углами 45°; включается отдельно и имеет 20 отделок. Его цвет и глубина не зависят от цветов паспарту и ширины полоски. Выключение Bottom Mat отключает настройки среза.',
@@ -433,7 +433,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   fr: {
-    title: 'Manuel Novanta University', button: 'Manuel complet', close: 'Fermer le manuel universitaire',
+    title: 'Manuel Confessn University', button: 'Manuel complet', close: 'Fermer le manuel universitaire',
     bank: 'Ouvrez Tzol Bank dans la barre supérieure. Après vérification, Actualiser le solde met à jour le portefeuille vérifié ; son identifiant reste inchangé. Ne partagez jamais mot de passe, PIN de l’appareil, codes de récupération ou secrets de clé. La vérification bancaire n’active ni le commerce Basket ni un service d’achat/remboursement monétaire.',
     intro: 'Encadrement, projets, publications, notes, Messages, Planning, Basket et accès sécurisé à Tzol Bank. Les transactions sont désactivées.',
     mats: 'Top Mat est la couche extérieure et Bottom Mat la couche intérieure indépendante. Choisissez taille et couleur. Mat Offcut est le liseré entre les couches. Bevel Cut ajoute un biseau intérieur à angles de 45°, activable séparément avec 20 finitions. Sa couleur et sa profondeur sont indépendantes des passe-partout et du liseré. Désactiver Bottom Mat désactive ses contrôles de biseau.',
@@ -449,7 +449,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   de: {
-    title: 'Novanta University Handbuch', button: 'Vollständiges Handbuch', close: 'Universitätshandbuch schließen',
+    title: 'Confessn University Handbuch', button: 'Vollständiges Handbuch', close: 'Universitätshandbuch schließen',
     bank: 'Tzol Bank über die Kopfzeile öffnen. Nach Prüfung aktualisiert Guthaben aktualisieren den verifizierten Wallet; die Konto-ID bleibt gleich. Passwort, Geräte-PIN, Wiederherstellungscodes und Passkey-Geheimnisse nie weitergeben. Bankfreigabe aktiviert weder Basket-Handel noch einen Dienst für Geldkauf oder Einlösung.',
     intro: 'Rahmung, Projekte, Beiträge, Bewertungen, Messages, Planning, Basket und sichere Tzol Bank. Handel ist derzeit deaktiviert.',
     mats: 'Top Mat ist die äußere, Bottom Mat die unabhängige innere Lage. Größe und Farbe sind wählbar. Mat Offcut ist der Farbstreifen dazwischen. Bevel Cut ergänzt eine innere Schnittkante mit 45°-Ecken und 20 separat wählbaren Ausführungen. Farbe und Tiefe sind unabhängig von Passepartout und Streifenbreite. Ohne Bottom Mat sind die Schnittregler deaktiviert.',
@@ -465,7 +465,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   it: {
-    title: 'Manuale Novanta University', button: 'Manuale completo', close: 'Chiudi il manuale universitario',
+    title: 'Manuale Confessn University', button: 'Manuale completo', close: 'Chiudi il manuale universitario',
     bank: 'Apri Tzol Bank dalla barra superiore. Dopo la verifica, Aggiorna saldo aggiorna il portafoglio verificato; l’ID del conto resta uguale. Non condividere password, PIN del dispositivo, codici di recupero o segreti della chiave. La verifica bancaria non attiva il commercio Basket né servizi di acquisto/riscatto in denaro.',
     intro: 'Cornici, progetti, pubblicazioni, voti, Messages, Planning, Basket e Tzol Bank. Le transazioni sono attualmente disattivate.',
     mats: 'Top Mat è lo strato esterno, Bottom Mat quello interno indipendente. Scegli dimensione e colore. Mat Offcut è il bordo colorato tra gli strati. Bevel Cut aggiunge il taglio interno con angoli a 45°, attivabile separatamente con 20 finiture. Colore e profondità sono indipendenti dai passe-partout e dal bordo. Disattivare Bottom Mat disabilita i controlli del taglio.',
@@ -481,7 +481,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   es: {
-    title: 'Manual de Novanta University', button: 'Manual completo', close: 'Cerrar el manual universitario',
+    title: 'Manual de Confessn University', button: 'Manual completo', close: 'Cerrar el manual universitario',
     bank: 'Abre Tzol Bank desde la barra superior. Tras verificar, Actualizar saldo actualiza el monedero verificado; el ID de cuenta no cambia. Nunca compartas contraseña, PIN del dispositivo, códigos de recuperación ni secretos de la clave. La aprobación bancaria no activa el comercio Basket ni un servicio de compra/canje por dinero.',
     intro: 'Marcos, proyectos, publicaciones, valoraciones, Messages, Planning, Basket y Tzol Bank. Las transacciones están desactivadas.',
     mats: 'Top Mat es la capa exterior y Bottom Mat la interior independiente. Elige tamaño y color. Mat Offcut es la tira entre las capas. Bevel Cut añade un borde interior con esquinas a 45°, activable por separado con 20 acabados. Su color y profundidad son independientes del paspartú y de la tira. Al desactivar Bottom Mat se desactivan los controles del bisel.',
@@ -497,7 +497,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   zh: {
-    title: 'Novanta University 使用手册', button: '完整手册', close: '关闭大学手册',
+    title: 'Confessn University 使用手册', button: '完整手册', close: '关闭大学手册',
     bank: '从顶栏打开 Tzol Bank。验证后使用刷新余额按钮更新已验证钱包，账户 ID 保持不变。不要分享密码、设备 PIN、恢复码或通行密钥机密。银行验证不会启用 Basket 交易，也不会提供现金购买或赎回服务。',
     intro: '装裱、保存项目、公开作品、评分、Messages、Planning、Basket 与 Tzol Bank。交易目前未启用。',
     mats: 'Top Mat 是外层卡纸，Bottom Mat 是独立的内层卡纸，可分别选择尺寸和颜色。Mat Offcut 是两层之间的彩色细条。Bevel Cut 为内开口添加45度拼角切边，可单独开关并选择20种饰面。切边颜色和深度不依赖卡纸颜色或细条宽度。关闭 Bottom Mat 会禁用切边控件。',
@@ -513,7 +513,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
     ],
   },
   ja: {
-    title: 'Novanta University マニュアル', button: '完全マニュアル', close: '大学マニュアルを閉じる',
+    title: 'Confessn University マニュアル', button: '完全マニュアル', close: '大学マニュアルを閉じる',
     bank: 'トップバーからTzol Bankを開きます。認証後の残高更新ボタンは認証済みウォレットを更新し、口座IDは変わりません。パスワード、デバイスPIN、復旧コード、パスキーの秘密を共有しないでください。銀行承認はBasket取引や現金購入・換金サービスを有効化しません。',
     intro: '額装、保存プロジェクト、公開投稿、評価、Messages、Planning、Basket、Tzol Bank。取引は現在無効です。',
     mats: 'Top Matは外側、Bottom Matは独立した内側のマットです。サイズと色を選びます。Mat Offcutは層間の細い色帯です。Bevel Cutは45度の接合角を持つ内側カットで、個別に切り替え、20種類の仕上げを選べます。色と深さはマットや帯幅とは独立しています。Bottom Matを切るとカットの設定も無効になります。',

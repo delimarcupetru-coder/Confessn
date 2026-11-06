@@ -6,7 +6,7 @@ import { guideLessonByControl, interfaceCopy } from '../src/interface-copy.ts'
 test('all supported languages include the complete current university manual', () => {
   assert.deepEqual(Object.keys(interfaceCopy).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'ro', 'ru', 'zh'])
   for (const [language, copy] of Object.entries(interfaceCopy)) {
-    assert.match(copy.manualTitle, /Novanta University/, language)
+    assert.match(copy.manualTitle, /Confessn University/, language)
     assert.equal(copy.lessons.length, 18, language)
     assert.equal(new Set(copy.lessons.map(lesson => lesson.title)).size, 18, language)
     for (const lesson of copy.lessons) {
@@ -47,5 +47,5 @@ test('rendered manual includes the five actual adjustment labels and all lessons
   for (const label of ['F', 'M1', 'M2', 'S', 'B']) assert.ok(app.includes(`<kbd>${label}</kbd>`), label)
   assert.ok(app.includes('ui.lessons.map((lesson, index)'))
   assert.ok(app.includes('id={`university-lesson-${index}`}'))
-  assert.ok(!app.includes('aria-label="Confessn University"'))
+  assert.ok(app.includes('aria-label="Confessn University"'))
 })

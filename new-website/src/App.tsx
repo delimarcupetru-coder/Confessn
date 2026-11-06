@@ -2705,10 +2705,10 @@ function App() {
             <a
               href="#confessn-university"
               className="nav-university-link"
-              aria-label="Novanta University"
+              aria-label="Confessn University"
               aria-controls="cun-notification"
               aria-expanded={cunActive}
-              data-cun-title="Novanta University"
+              data-cun-title="Confessn University"
               data-cun="Turn on guide mode for framing, posts, Messages, Planning, Basket, and Bank. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
@@ -2718,7 +2718,7 @@ function App() {
                 setShowCunManual(false)
                 setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
               }}
-            ><span>Novanta</span><span>University</span></a>
+            ><span>Confessn</span><span>University</span></a>
             {authUserId && isLoggedIn && (
               <button
                 type="button"
@@ -2746,7 +2746,7 @@ function App() {
               <a
                 href="#confessn-university"
                 className="nav-university-link"
-                aria-label="Novanta University"
+                aria-label="Confessn University"
                 onClick={(event) => {
                   event.preventDefault()
                   setShowMobileNav(false)
@@ -2756,7 +2756,7 @@ function App() {
                   setShowCunManual(false)
                   setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
                 }}
-              ><span>Novanta</span><span>University</span></a>
+              ><span>Confessn</span><span>University</span></a>
               <a href="#about" onClick={() => setShowMobileNav(false)}>{t.navAbout}</a>
               <a href="#contact" onClick={() => setShowMobileNav(false)}>{t.navContact}</a>
             </div>
@@ -2815,7 +2815,7 @@ function App() {
       </header>
 
       {cunActive && (
-        <aside id="cun-notification" className="cun-notification" aria-label="Novanta University Notification" role="status">
+        <aside id="cun-notification" className="cun-notification" aria-label="Confessn University Notification" role="status">
           <div className="cun-notification-heading">
             <button
               type="button"
@@ -2856,7 +2856,7 @@ function App() {
                 positionCunNotification(bounds.left + step.x, bounds.top + step.y)
               }}
             ><span aria-hidden="true">&#8942;&#8942;</span></button>
-            <span>Novanta University</span>
+            <span>Confessn University</span>
             <button type="button" aria-label="Close university guide" title="Close guide" onClick={() => { setCunActive(false); setShowCunManual(false) }}>×</button>
           </div>
           <strong>{cunMessage.key === 'ready' ? ui.guideReady : guideLesson ? guideLesson.title : cunMessage.title}</strong>
@@ -3658,7 +3658,7 @@ function App() {
           >
             <div className="dialog-header university-header">
               <div>
-                <p className="university-eyebrow">Novanta University</p>
+                <p className="university-eyebrow">Confessn University</p>
                 <h2 id="cun-manual-title">{ui.manualTitle}</h2>
               </div>
               <button type="button" aria-label={ui.closeManual} onClick={() => setShowCunManual(false)}>×</button>
