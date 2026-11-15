@@ -14,13 +14,13 @@ test('all supported languages include the complete current university manual', (
       assert.ok(lesson.body.trim().length > 30, `${language}: ${lesson.title}`)
     }
     for (const control of ['F', 'M1', 'M2', 'S', 'B']) assert.ok(copy.lessons[5].body.includes(control), `${language}: ${control}`)
-    for (const topic of ['Messages', 'Planning', 'Basket', 'Tzol Bank']) assert.ok(copy.manualIntro.includes(topic), `${language}: ${topic}`)
+    for (const topic of ['Community', 'Planning', 'Basket', 'Tzol Bank']) assert.ok(copy.manualIntro.includes(topic), `${language}: ${topic}`)
     assert.match(copy.lessons[3].body, /20/, language)
   }
 })
 
 test('contextual guide targets preserve existing indices and cover new workflows', () => {
-  const expected = { 'Upload artwork': 0, 'Frame type': 1, 'M1 · Top mat width': 5, 'M2 · Bottom mat width': 5, 'B · Bevel cut depth': 5, 'Tzol Bank': 10, 'Publish artwork': 11, 'Edit post': 11, 'Artwork ratings': 12, 'Post comments': 12, Messages: 13, Chat: 13, Planning: 14, 'Add Event': 14, Basket: 15, 'Tzol checkout': 16, 'Place bid': 17 }
+  const expected = { 'Upload artwork': 0, 'Frame type': 1, 'M1 · Top mat width': 5, 'M2 · Bottom mat width': 5, 'B · Bevel cut depth': 5, 'Tzol Bank': 10, 'Publish artwork': 11, 'Edit post': 11, 'Artwork ratings': 12, 'Post comments': 12, Community: 13, Chat: 13, Planning: 14, 'Add Event': 14, Basket: 15, 'Tzol checkout': 16, 'Place bid': 17 }
   for (const [control, index] of Object.entries(expected)) assert.equal(guideLessonByControl[control], index, control)
   for (const index of Object.values(guideLessonByControl)) assert.ok(index >= 0 && index < interfaceCopy.en.lessons.length)
 })

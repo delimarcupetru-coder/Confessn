@@ -302,8 +302,8 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   if (!open) return null
   const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) })
   const selectedEvents = events.filter(event => occursOn(event, day))
-  return <div className="community-overlay"><div className="community-panel" ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Messages and planning">
-    <header className="community-heading"><h2>Messages</h2><button type="button" className="community-icon" onClick={onClose} aria-label="Close messages" title="Close"><X size={20} /></button></header>
+  return <div className="community-overlay"><div className="community-panel" ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Community">
+    <header className="community-heading"><h2>Community</h2><button type="button" className="community-icon" onClick={onClose} aria-label="Close community" title="Close"><X size={20} /></button></header>
     <div role="tablist" aria-label="Community views" className="community-tabs">
       <button type="button" role="tab" aria-selected={tab === 'chat'} data-cun-title="Chat" data-cun="Find members, start direct or group text conversations, and manage blocks or reports." onClick={() => setTab('chat')}><MessageCircle size={17} /> Chat</button>
       <button type="button" role="tab" aria-selected={tab === 'planning'} data-cun-title="Planning" data-cun="Choose a calendar date, add a studio event or online contest, and open published event details." onClick={() => setTab('planning')}><CalendarDays size={17} /> Planning</button>

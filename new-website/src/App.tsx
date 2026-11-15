@@ -2709,7 +2709,7 @@ function App() {
               aria-controls="cun-notification"
               aria-expanded={cunActive}
               data-cun-title="Confessn University"
-              data-cun="Turn on guide mode for framing, posts, Messages, Planning, Basket, and Bank. Open the complete manual from the university guide."
+              data-cun="Turn on guide mode for framing, posts, Community, Planning, Basket, and Bank. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
                 setCunActive(true)
@@ -2764,7 +2764,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="community-menu-button" title="Messages and planning" aria-label="Messages" data-cun-title="Messages" data-cun="Open Chat for direct and group text conversations, or Planning to create and view events. Sign in to participate." onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Messages</span></button>
+          <button type="button" className="community-menu-button" title="Community" aria-label="Community" data-cun-title="Community" data-cun="Open Chat for direct and group text conversations, or Planning to create and view events. Sign in to participate." onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Community</span></button>
           <button
             type="button"
             className="mobile-account-toggle"
@@ -3510,7 +3510,7 @@ function App() {
       </section>
 
       <Community userId={isLoggedIn ? authUserId : null} open={showCommunity} onClose={() => setShowCommunity(false)} onConnect={() => { setShowCommunity(false); setAuthMode('login') }} initialUser={communityRecipient} onPublished={() => setCommunityVersion(current => current + 1)} isAdmin={isConfessnAdmin} />
-      {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><label>Public description<textarea maxLength={5000} value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check"><input type="checkbox" required />Make this framed image public under my username.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
+      {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><label>Public description<textarea maxLength={5000} value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check" data-cun-title="Publish artwork" data-cun="Your public framed image is displayed under your username. Private project notes remain private."><input type="checkbox" required />Make this framed image public.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
 
       <section id="contact" className="contact-section panel-block">
         <div className="contact-copy">
