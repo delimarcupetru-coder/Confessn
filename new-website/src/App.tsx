@@ -8,6 +8,8 @@ import { Basket, MarketplaceProvider } from './Marketplace'
 import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
+import { describeProject } from './project-description'
+import { captureProject } from './capture-project'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja' | 'ro' | 'ru'
@@ -1060,6 +1062,7 @@ function App() {
   const artZoomRef = useRef(zoom)
   const artPositionRef = useRef(artPosition)
   const autoFitDefaultArtworkRef = useRef(true)
+  const measureArtworkOnLoadRef = useRef(true)
   const previousMatSizeRef = useRef(selectedSize)
   const restoringProjectRef = useRef(2)
 
@@ -1994,6 +1997,7 @@ function App() {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           autoFitDefaultArtworkRef.current = false
+          measureArtworkOnLoadRef.current = true
           setArtWidthInches(12)
           setArtHeightInches(15)
           setDimensionsConfirmed(false)
@@ -2186,6 +2190,7 @@ function App() {
     if (project.stripColorId) setSelectedStripColor(stripColorOptions.find((color) => color.id === project.stripColorId) ?? selectedStripColor)
     setStripEnabled(project.stripEnabled ?? true)
     autoFitDefaultArtworkRef.current = false
+    measureArtworkOnLoadRef.current = false
     const savedArtworkRatio = project.artworkRatio ?? 4 / 5
     const savedArtWidth = project.artWidthInches ?? 12
     const savedArtHeight = project.artHeightInches ?? savedArtWidth / savedArtworkRatio
@@ -2198,7 +2203,8 @@ function App() {
     setShowDimensions(project.artWidthInches !== undefined && project.artHeightInches !== undefined)
     artZoomRef.current = Math.min(maxArtZoom, Math.max(minArtZoom, project.zoom ?? 1))
     setZoom(artZoomRef.current)
-    moveArtwork(project.artPosition ?? { x: 0, y: 0 })
+    artPositionRef.current = project.artPosition ?? { x: 0, y: 0 }
+    setArtPosition(artPositionRef.current)
     if (project.frameThickness !== undefined) setFrameThickness(project.frameThickness)
     if (project.matMargin !== undefined) setMatMargin(project.matMargin)
     setBottomMatMargin(project.bottomMatMargin ?? 12)
@@ -2278,6 +2284,7 @@ function App() {
     restoringProjectRef.current = 2
     setSelectedProjectId(null)
     autoFitDefaultArtworkRef.current = false
+    measureArtworkOnLoadRef.current = true
     setSelectedFrameType(item.profile)
     setSelectedStyle(item.material)
     setFrameThickness(item.frameWidth)
@@ -2426,21 +2433,11 @@ function App() {
     setPublishing(true)
     setPublishError('')
     try {
-      const capture = captureRef.current
-      const image = capture.querySelector<HTMLImageElement>('img.uploaded-artwork')
-      const render = async () => {
-        if (image && !image.complete) await image.decode()
-        if (image && !image.naturalWidth) throw new Error('Artwork could not be loaded.')
-        await document.fonts.ready
-        return html2canvas(capture, { backgroundColor: null, scale: Math.min(2, 1600 / Math.max(capture.offsetWidth, capture.offsetHeight)), useCORS: true })
-      }
       let timeoutId: number | undefined
-      let canvas: HTMLCanvasElement
+      let blob: Blob
       try {
-        canvas = await Promise.race([render(), new Promise<never>((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('The image capture timed out. Please try publishing again.')), 20000) })])
+        blob = await Promise.race([captureProject(captureRef.current), new Promise<never>((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('The image capture timed out. Please try publishing again.')), 20000) })])
       } finally { window.clearTimeout(timeoutId) }
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-      if (!blob) throw new Error('The framed image could not be captured.')
       if (communityIdentityRef.current !== publisher) throw new Error('Your account changed. Please sign in again.')
       uploadedPath = await uploadCommunityImage(blob, publisher)
       const { error } = await supabase.from('community_posts').insert({ author_id: publisher, kind: 'art', title: publishTitle.trim(), description: publishDescription.trim(), image_path: uploadedPath })
@@ -3214,7 +3211,8 @@ function App() {
                               onPointerDown={handleArtworkPointerDown}
                               onLoad={(event) => {
                                 const image = event.currentTarget
-                                if (image.naturalWidth && image.naturalHeight && !dimensionsConfirmed) {
+                                if (measureArtworkOnLoadRef.current && image.naturalWidth && image.naturalHeight && !dimensionsConfirmed) {
+                                  measureArtworkOnLoadRef.current = false
                                   const naturalRatio = image.naturalWidth / image.naturalHeight
                                   setArtworkRatio(naturalRatio)
                                   setArtHeightInches(artWidthInches / naturalRatio)
@@ -3459,7 +3457,7 @@ function App() {
                     {project.notes && <span className="project-notes-preview">Notes: {project.notes}</span>}
                   </button>
                   <div className="project-row-actions">
-                    <button type="button" className="trash-button community-publish-button" aria-label={`Publish ${project.name}`} title="Publish framed artwork" data-cun-title="Publish artwork" data-cun="Explicitly publish the framed image with a public title and caption. Private project notes remain private." disabled={!project.artwork || publishing || pendingDownload !== null || !isLoggedIn} onClick={() => { loadProject(project); setPublishProject(project); setPublishTitle(project.name); setPublishDescription(''); setPublishError('') }}><Share2 size={17} /></button>
+                    <button type="button" className="trash-button community-publish-button" aria-label={`Publish ${project.name}`} title="Publish framed artwork" data-cun-title="Publish artwork" data-cun="Review the framed image and edit the suggested public description before publishing. Private project notes remain private." disabled={!project.artwork || publishing || pendingDownload !== null || !isLoggedIn} onClick={() => { loadProject(project); setPublishProject(project); setPublishTitle(project.name.slice(0, 120)); setPublishDescription(describeProject(project, { frameTypes: frameTypeOptions, materials: materialOptions, matColors: matColorOptions, bottomMatColors: bottomMatColorOptions, bevelColors: bevelColorOptions, stripColors: stripColorOptions, frameSizes: standardFrameSizes, floatingFrameSize: { width: frameWidthInches, height: frameHeightInches } })); setPublishError('') }}><Share2 size={17} /></button>
                     <button
                       type="button"
                       className="trash-button project-download-button"
@@ -3510,7 +3508,7 @@ function App() {
       </section>
 
       <Community userId={isLoggedIn ? authUserId : null} open={showCommunity} onClose={() => setShowCommunity(false)} onConnect={() => { setShowCommunity(false); setAuthMode('login') }} initialUser={communityRecipient} onPublished={() => setCommunityVersion(current => current + 1)} isAdmin={isConfessnAdmin} />
-      {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><label>Public description<textarea maxLength={5000} value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check" data-cun-title="Publish artwork" data-cun="Your public framed image is displayed under your username. Private project notes remain private."><input type="checkbox" required />Make this framed image public.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
+      {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><p id="publish-description-hint">Suggested from your saved framing settings. Edit it or add details about the artwork before publishing. Private project notes are not copied.</p><label>Public description<textarea maxLength={5000} aria-describedby="publish-description-hint" value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check" data-cun-title="Publish artwork" data-cun="Your public framed image is displayed under your username. Private project notes remain private."><input type="checkbox" required />Make this framed image public.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
 
       <section id="contact" className="contact-section panel-block">
         <div className="contact-copy">
