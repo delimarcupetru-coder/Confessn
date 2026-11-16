@@ -288,7 +288,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       if (event.target instanceof Element && event.target.closest('#cun-notification, .university-dialog')) return
       if (event.key === 'Escape') onClose()
       if (event.key !== 'Tab') return
-      const nodes = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') ?? []).filter(node => node.getClientRects().length)
+      const nodes = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href], [tabindex="0"]') ?? []).filter(node => node.getClientRects().length)
       const first = nodes[0], last = nodes[nodes.length - 1]
       if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { event.preventDefault(); last?.focus() }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
@@ -310,26 +310,33 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     </div>
     {error && <p role="alert" className="community-error">{error} <button type="button" onClick={() => void run(load)}>Retry</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and select Send. Groups are text-only; blocking prevents direct and shared-chat access.">
-      <aside className="community-directory"><input aria-label="Search users" placeholder="Search users" value={search} onChange={event => setSearch(event.target.value)} />
+    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and press Enter or select Send. Use Shift+Enter for a new line. Groups are text-only; blocking prevents direct and shared-chat access.">
+      <aside className="community-directory">
         <button type="button" onClick={() => setGroupOpen(!groupOpen)}><Users size={16} /> New group</button>
         {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
           <label>Group name<input required maxLength={100} value={groupTitle} onChange={event => setGroupTitle(event.target.value)} /></label>
           {members.filter(member => member.user_id !== userId && !blocks.includes(member.user_id)).map(member => <label className="community-check" key={member.user_id}><input type="checkbox" checked={groupMembers.includes(member.user_id)} onChange={event => setGroupMembers(event.target.checked ? [...groupMembers, member.user_id] : groupMembers.filter(id => id !== member.user_id))} />{member.username}</label>)}
           <button disabled={busy || groupMembers.length < 2} type="submit">Create group</button>
         </form>}
-        <h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}</button>)}
-        <h3>Members</h3>{members.filter(member => member.user_id !== userId && member.username.toLowerCase().includes(search.toLowerCase())).map(member => <div className="community-person" key={member.user_id}>
+        <h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}{chat.is_group && <span className="community-group-badge">Group</span>}</button>)}
+        <details className="community-members"><summary>Members</summary>
+          <input type="search" aria-label="Search for members" placeholder="Search for members" value={search} onChange={event => setSearch(event.target.value)} />
+          {members.filter(member => member.user_id !== userId && member.username.toLowerCase().includes(search.trim().toLowerCase())).map(member => <div className="community-person" key={member.user_id}>
           <button type="button" disabled={blocks.includes(member.user_id) || busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [member.user_id], p_title: '' }); fail(result.error); setSelected(result.data); await load() })}>{member.username}</button>
           <button type="button" className="community-icon" title={blocks.includes(member.user_id) ? 'Unblock user' : 'Block user'} aria-label={`${blocks.includes(member.user_id) ? 'Unblock' : 'Block'} ${member.username}`} disabled={busy} onClick={() => void run(async () => { const result = blocks.includes(member.user_id) ? await supabase.from('community_blocks').delete().eq('blocker_id', userId).eq('blocked_id', member.user_id) : await supabase.from('community_blocks').insert({ blocker_id: userId, blocked_id: member.user_id }); fail(result.error); await load(); setNotice('Block settings updated.') })}><ShieldBan size={15} /></button>
           <button type="button" className="community-icon" title="Report user" aria-label={`Report ${member.username}`} onClick={() => setReportTarget(member.user_id)}><Flag size={15} /></button>
-        </div>)}
+          </div>)}
+        </details>
       </aside>
-      <section className="community-thread"><header><h3>{conversation ? label(conversation) : 'Conversations'}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); await load() })}>Leave chat</button>}</header>
+      <section className="community-thread"><header><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); await load() })}>Leave chat</button>}</header>
         {conversation && <p className="community-participants">{participants.map(username).join(', ')}</p>}
         <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => <article key={message.id} className={message.sender_id === userId ? 'own' : ''}><strong>{username(message.sender_id)}</strong><p>{message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></article>)}{selected && !messages.length && <p>No messages yet.</p>}</div>
         <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: selected, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); setDraft('') }) }}>
-          <textarea aria-label="Message" placeholder="Message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} disabled={!selected || busy} /><button type="submit" className="community-icon" title="Send message" aria-label="Send message" disabled={!selected || !draft.trim() || busy}><Send size={20} /></button>
+          <textarea aria-label="Message" placeholder="Message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+            if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+            event.preventDefault()
+            if (!event.repeat && !busy && selected && draft.trim()) event.currentTarget.form?.requestSubmit()
+          }} disabled={!selected || busy} /><button type="submit" className="community-icon" title="Send message" aria-label="Send message" disabled={!selected || !draft.trim() || busy}><Send size={20} /></button>
         </form>
       </section>
     </div> : <section role="tabpanel" aria-label="Planning" className="community-planning" data-cun-title="Planning" data-cun="Use Add Event to publish an event with dates, a poster, and a studio address or HTTPS online link.">
