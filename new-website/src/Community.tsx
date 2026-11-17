@@ -329,10 +329,11 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         </details>
       </aside>
       <section className="community-thread"><header><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); await load() })}>Leave chat</button>}</header>
+        <p className="community-privacy-notice">Messages are not end-to-end encrypted. The service can access message contents and conversation details.</p>
         {conversation && <p className="community-participants">{participants.map(username).join(', ')}</p>}
         <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => <article key={message.id} className={message.sender_id === userId ? 'own' : ''}><strong>{username(message.sender_id)}</strong><p>{message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></article>)}{selected && !messages.length && <p>No messages yet.</p>}</div>
         <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: selected, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); setDraft('') }) }}>
-          <textarea aria-label="Message" placeholder="Message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+          <textarea aria-label="Message" placeholder="End-to-end encryption not yet available" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
             event.preventDefault()
             if (!event.repeat && !busy && selected && draft.trim()) event.currentTarget.form?.requestSubmit()

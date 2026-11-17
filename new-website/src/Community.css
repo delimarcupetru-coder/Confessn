@@ -29,6 +29,7 @@
 .community-check { display: flex !important; align-items: center; padding: 4px 0; }
 .community-check input { width: auto; }
 .community-thread { display: flex; flex-direction: column; min-width: 0; min-height: 350px; overflow: hidden; }
+.community-privacy-notice { margin: 0; padding: 8px 18px; background: #fff3d6; color: #604615; font-size: 12px; }
 .community-participants { margin: 0; padding: 7px 18px; font-size: 12px; border-bottom: 1px solid #cfdbd6; overflow-wrap: anywhere; }
 .community-history { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .community-history article { max-width: 85%; align-self: flex-start; background: #e7ece9; border-radius: 6px; padding: 10px; overflow-wrap: anywhere; }
