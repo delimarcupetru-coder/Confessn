@@ -2706,7 +2706,7 @@ function App() {
               aria-controls="cun-notification"
               aria-expanded={cunActive}
               data-cun-title="Confessn University"
-              data-cun="Turn on guide mode for framing, posts, Community, Planning, Basket, and Bank. Open the complete manual from the university guide."
+              data-cun="Turn on guide mode for framing, posts, Community, Events, Basket, and Bank. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
                 setCunActive(true)
@@ -2761,7 +2761,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="community-menu-button" title="Community" aria-label="Community" data-cun-title="Community" data-cun="Open Chat for direct and group text conversations, or Planning to create and view events. Sign in to participate." onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Community</span></button>
+          <button type="button" className="community-menu-button" title="Community" aria-label="Community" data-cun-title="Community" data-cun="Open Chat for direct and group text conversations, or Events to create and view events. Sign in to participate." onClick={() => { setCommunityRecipient(null); setShowMobileAccountMenu(false); setShowMobileNav(false); setShowCommunity(true) }}><MessageCircle size={17} /><span>Community</span></button>
           <button
             type="button"
             className="mobile-account-toggle"

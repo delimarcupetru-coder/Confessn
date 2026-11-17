@@ -142,6 +142,7 @@ See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rule
 ## Community Deployment Notes
 
 After the base community and editing migrations, apply [supabase-community-ratings.sql](../supabase-community-ratings.sql) before publishing the persistent-rating UI. It preserves existing votes, saves one score per member/post atomically, and computes full totals independently of REST row limits. The UI refreshes summaries every ten seconds while visible and on focus, while keeping the member's saved selection separate from the average and count.
+Apply [supabase-community-message-deletion.sql](../supabase-community-message-deletion.sql) before releasing message deletion. Members can select their own message and confirm its deletion for everyone; they cannot delete another member's messages.
 
 Run `npm run test:community` and `npm run build` in this directory before releasing. The tests execute the migration in local PostgreSQL (PGlite) with distinct authenticated and anonymous roles.
 

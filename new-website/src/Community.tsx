@@ -209,6 +209,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const panel = useRef<HTMLDivElement>(null)
   const eventForm = useRef<HTMLFormElement>(null)
   const identity = useRef(userId)
+  const messageRefreshVersion = useRef(0)
   identity.current = userId
   const conversation = conversations.find(item => item.id === selected)
   const username = (id: string) => members.find(member => member.user_id === id)?.username ?? 'Member'
@@ -255,11 +256,12 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     let active = true
     setMessages([]); setParticipants([])
     const refresh = async () => {
+      const version = messageRefreshVersion.current
       const [history, people] = await Promise.all([
         supabase.from('community_messages').select('id,sender_id,body,created_at').eq('conversation_id', selected).order('created_at', { ascending: false }).limit(200),
         supabase.from('community_participants').select('user_id').eq('conversation_id', selected),
       ])
-      if (!active) return
+      if (!active || version !== messageRefreshVersion.current) return
       fail(history.error); fail(people.error)
       setMessages((history.data ?? []).reverse()); setParticipants((people.data ?? []).map(item => item.user_id))
     }
@@ -306,11 +308,11 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     <header className="community-heading"><h2>Community</h2><button type="button" className="community-icon" onClick={onClose} aria-label="Close community" title="Close"><X size={20} /></button></header>
     <div role="tablist" aria-label="Community views" className="community-tabs">
       <button type="button" role="tab" aria-selected={tab === 'chat'} data-cun-title="Chat" data-cun="Find members, start direct or group text conversations, and manage blocks or reports." onClick={() => setTab('chat')}><MessageCircle size={17} /> Chat</button>
-      <button type="button" role="tab" aria-selected={tab === 'planning'} data-cun-title="Planning" data-cun="Choose a calendar date, add a studio event or online contest, and open published event details." onClick={() => setTab('planning')}><CalendarDays size={17} /> Planning</button>
+      <button type="button" role="tab" aria-selected={tab === 'planning'} data-cun-title="Events" data-cun="Choose a calendar date, add a studio event or online contest, and open published event details." onClick={() => setTab('planning')}><CalendarDays size={17} /> Events</button>
     </div>
     {error && <p role="alert" className="community-error">{error} <button type="button" onClick={() => void run(load)}>Retry</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and press Enter or select Send. Use Shift+Enter for a new line. Groups are text-only; blocking prevents direct and shared-chat access.">
+    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and press Enter or select Send. Use Shift+Enter for a new line. Select your own message to delete it for everyone after confirmation. Groups are text-only; blocking prevents direct and shared-chat access.">
       <aside className="community-directory">
         <button type="button" onClick={() => setGroupOpen(!groupOpen)}><Users size={16} /> New group</button>
         {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
@@ -331,7 +333,22 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       <section className="community-thread"><header><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); await load() })}>Leave chat</button>}</header>
         <p className="community-privacy-notice">Messages are not end-to-end encrypted. The service can access message contents and conversation details.</p>
         {conversation && <p className="community-participants">{participants.map(username).join(', ')}</p>}
-        <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => <article key={message.id} className={message.sender_id === userId ? 'own' : ''}><strong>{username(message.sender_id)}</strong><p>{message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></article>)}{selected && !messages.length && <p>No messages yet.</p>}</div>
+        {messages.some(message => message.sender_id === userId) && <p className="community-delete-hint">Select your message to delete it for everyone.</p>}
+        <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => {
+          const own = message.sender_id === userId
+          const content = <><strong>{username(message.sender_id)}</strong><p>{message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
+          return <article key={message.id} className={own ? 'own' : ''}>{own ? <button type="button" className="community-message" disabled={busy} title="Delete your message for everyone" aria-label={`Delete your message for everyone: ${message.body}`} onClick={() => {
+            if (!window.confirm('Delete this message for everyone?')) return
+            void run(async () => {
+              const result = await supabase.from('community_messages').delete().eq('id', message.id).eq('sender_id', userId).select('id').maybeSingle()
+              fail(result.error)
+              if (!result.data) throw new Error('The message could not be deleted. It may already have been removed.')
+              messageRefreshVersion.current += 1
+              setMessages(current => current.filter(item => item.id !== message.id))
+              setNotice('Message deleted for everyone.')
+            })
+          }}>{content}</button> : content}</article>
+        })}{selected && !messages.length && <p>No messages yet.</p>}</div>
         <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: selected, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); setDraft('') }) }}>
           <textarea aria-label="Message" placeholder="End-to-end encryption not yet available" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
@@ -340,7 +357,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
           }} disabled={!selected || busy} /><button type="submit" className="community-icon" title="Send message" aria-label="Send message" disabled={!selected || !draft.trim() || busy}><Send size={20} /></button>
         </form>
       </section>
-    </div> : <section role="tabpanel" aria-label="Planning" className="community-planning" data-cun-title="Planning" data-cun="Use Add Event to publish an event with dates, a poster, and a studio address or HTTPS online link.">
+    </div> : <section role="tabpanel" aria-label="Events" className="community-planning" data-cun-title="Events" data-cun="Use Add Event to publish an event with dates, a poster, and a studio address or HTTPS online link.">
       <div className="community-calendar-toolbar"><button type="button" className="community-icon" title="Previous month" aria-label="Previous month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft /></button><h3>{format(month, 'MMMM yyyy')}</h3><button type="button" className="community-icon" title="Next month" aria-label="Next month" disabled={eventOpen} onClick={() => setMonth(addMonths(month, 1))}><ChevronRight /></button><button type="button" disabled={eventOpen} onClick={() => { setMonth(new Date()); setDay(new Date()) }}>Today</button><button type="button" aria-expanded={eventOpen} aria-controls="community-event-editor" disabled={eventOpen || busy} onClick={() => { setStart(`${format(day, 'yyyy-MM-dd')}T10:00`); setEnd(`${format(day, 'yyyy-MM-dd')}T11:00`); setError(''); setNotice(''); setEventOpen(true) }}><Plus size={16} /> Add Event</button></div>
       {!eventOpen && <div className="community-calendar" role="group" aria-label="Calendar">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(name => <span className="weekday" key={name}>{name}</span>)}{days.map(date => { const count = events.filter(event => occursOn(event, date)).length; return <button type="button" key={date.toISOString()} className={`${isSameMonth(date, month) ? '' : 'outside'} ${isSameDay(date, day) ? 'selected' : ''}`} aria-label={`${format(date, 'EEEE, MMMM d, yyyy')}${count ? `, ${count} events` : ''}`} aria-pressed={isSameDay(date, day)} onClick={() => setDay(date)}><span>{format(date, 'd')}</span>{count > 0 && <small>{count}</small>}</button> })}</div>}
       <p className="community-timezone">{Intl.DateTimeFormat().resolvedOptions().timeZone}</p>

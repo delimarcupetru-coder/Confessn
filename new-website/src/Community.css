@@ -31,9 +31,13 @@
 .community-thread { display: flex; flex-direction: column; min-width: 0; min-height: 350px; overflow: hidden; }
 .community-privacy-notice { margin: 0; padding: 8px 18px; background: #fff3d6; color: #604615; font-size: 12px; }
 .community-participants { margin: 0; padding: 7px 18px; font-size: 12px; border-bottom: 1px solid #cfdbd6; overflow-wrap: anywhere; }
+.community-delete-hint { margin: 0; padding: 7px 18px 0; color: #5f766a; font-size: 12px; }
 .community-history { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .community-history article { max-width: 85%; align-self: flex-start; background: #e7ece9; border-radius: 6px; padding: 10px; overflow-wrap: anywhere; }
-.community-history article.own { align-self: flex-end; background: #d3eadc; }
+.community-history article.own { align-self: flex-end; background: #d3eadc; padding: 0; }
+.community-panel .community-history .community-message { display: block; width: 100%; min-height: 0; padding: 10px; border: 0; background: transparent; color: inherit; text-align: left; }
+.community-panel .community-history .community-message:hover { background: #c5e1d0; }
+.community-panel .community-history .community-message:focus-visible { outline: 2px solid #397851; outline-offset: -2px; }
 .community-history p, .community-comments p { white-space: pre-wrap; margin: 6px 0; }
 .community-history time, .community-comments time { font-size: 11px; color: #597362; }
 .community-composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #cfdbd6; align-items: end; }

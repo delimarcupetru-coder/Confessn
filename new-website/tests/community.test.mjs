@@ -35,6 +35,9 @@ test('community migration and access policies', async context => {
   await db.exec(await readFile(new URL('../../supabase-community.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-editing.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-ratings.sql', import.meta.url), 'utf8'))
+  const messageDeletionMigration = await readFile(new URL('../../supabase-community-message-deletion.sql', import.meta.url), 'utf8')
+  await db.exec(messageDeletionMigration)
+  await db.exec(messageDeletionMigration)
   await db.query('insert into public.community_moderators(user_id) values($1)', [admin])
   const asUser = async user => {
     await db.exec('reset role')
@@ -65,8 +68,24 @@ test('community migration and access policies', async context => {
     await assert.rejects(db.query('insert into public.community_participants(conversation_id,user_id) values($1,$2)', [chat, outsider]))
   })
 
+  await context.test('only a sender can delete their own message for everyone', async () => {
+    await asUser(alice)
+    const message = (await db.query('insert into public.community_messages(conversation_id,sender_id,body) values($1,$2,$3) returning id', [chat, alice, 'Delete me'])).rows[0].id
+    await asUser(bob)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 0)
+    await asUser(outsider)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 0)
+    await asUser(null)
+    await assert.rejects(db.query('delete from public.community_messages where id=$1', [message]))
+    await asUser(alice)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 1)
+    await asUser(bob)
+    assert.equal((await db.query('select id from public.community_messages where id=$1', [message])).rows.length, 0)
+  })
+
   await context.test('blocks prevent incoming messages and new shared conversations in both directions', async () => {
     await asUser(alice)
+    const message = (await db.query('insert into public.community_messages(conversation_id,sender_id,body) values($1,$2,$3) returning id', [chat, alice, 'Blocked chat message'])).rows[0].id
     await db.query('insert into public.community_blocks(blocker_id,blocked_id) values($1,$2)', [alice, bob])
     await asUser(bob)
     assert.equal((await db.query('select * from public.community_messages')).rows.length, 0)
@@ -75,14 +94,22 @@ test('community migration and access policies', async context => {
     await asUser(outsider)
     await assert.rejects(db.query('select public.community_start_chat($1::uuid[], $2)', [[alice, bob], 'Bypass block']))
     await asUser(alice)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 0)
     await db.query('delete from public.community_blocks where blocker_id=$1 and blocked_id=$2', [alice, bob])
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 1)
   })
 
   await context.test('group membership and leaving are enforced', async () => {
     await asUser(alice)
     group = (await db.query('select public.community_start_chat($1::uuid[], $2) as id', [[bob, outsider], 'Exhibition group'])).rows[0].id
     assert.equal((await db.query('select * from public.community_participants where conversation_id=$1', [group])).rows.length, 3)
+    const message = (await db.query('insert into public.community_messages(conversation_id,sender_id,body) values($1,$2,$3) returning id', [group, alice, 'Group message'])).rows[0].id
+    await asUser(bob)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 0)
+    await asUser(alice)
+    assert.equal((await db.query('delete from public.community_messages where id=$1 returning id', [message])).rows.length, 1)
     await asUser(outsider)
+    assert.equal((await db.query('select id from public.community_messages where id=$1', [message])).rows.length, 0)
     await db.query('select public.community_leave_chat($1)', [group])
     await assert.rejects(db.query('insert into public.community_messages(conversation_id,sender_id,body) values($1,$2,$3)', [group, outsider, 'Former member']))
     await assert.rejects(db.query('select public.community_leave_chat($1)', [group]))
