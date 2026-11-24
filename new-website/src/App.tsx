@@ -15,6 +15,8 @@ import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja' | 'ro' | 'ru'
 
+const tzolBankVisible = false
+
 type Folder = {
   id: string
   name: string
@@ -1169,7 +1171,7 @@ function App() {
   }, [saveAfterAuth, accountReady, authUserId, isLoggedIn, authMode])
 
   useEffect(() => {
-    if (!authUserId || !isLoggedIn) {
+    if (!tzolBankVisible || !authUserId || !isLoggedIn) {
       setWallet(null)
       setWalletSummary(null)
       setWalletError('')
@@ -1203,7 +1205,7 @@ function App() {
   }, [authReady, authUserId, isLoggedIn, walletRequest])
 
   useEffect(() => {
-    if (!authUserId || !isLoggedIn) return
+    if (!tzolBankVisible || !authUserId || !isLoggedIn) return
     const refreshWallet = () => {
       if (document.visibilityState === 'visible') setWalletRequest((current) => current + 1)
     }
@@ -1363,6 +1365,7 @@ function App() {
   }
 
   const authorizeMarketplace = () => new Promise<string>((resolve, reject) => {
+    if (!tzolBankVisible) { reject(new Error('Tzol Bank is temporarily unavailable.')); return }
     if (!authUserId || !isLoggedIn) { reject(new Error('Sign in before trading.')); return }
     const access = bankUnlockRef.current
     if (access?.userId === authUserId && bankAccessExpiresAt > Date.now()) { resolve(access.token); return }
@@ -1396,7 +1399,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (!authReady || !authUserId || !isLoggedIn || !welcomeBonusPending) return
+    if (!tzolBankVisible || !authReady || !authUserId || !isLoggedIn || !welcomeBonusPending) return
     let mounted = true
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -2552,7 +2555,7 @@ function App() {
       onFocusCapture={(event) => updateCunMessage(event.target)}
     >
       {authSuccessMessage && <div className="auth-success-message" role="status">{authSuccessMessage}</div>}
-      {welcomeBonusUserId === authUserId && authUserId && isLoggedIn && (
+      {tzolBankVisible && welcomeBonusUserId === authUserId && authUserId && isLoggedIn && (
         <aside className="cun-notification tzol-welcome-notification" aria-label="Tzol Bank notification">
           <div className="cun-notification-heading">
             <span>Tzol Bank</span>
@@ -2592,7 +2595,7 @@ function App() {
               aria-controls="cun-notification"
               aria-expanded={cunActive}
               data-cun-title="Confessn University"
-              data-cun="Turn on guide mode for framing, posts, Community, Events, and Bank. Open the complete manual from the university guide."
+              data-cun="Turn on guide mode for framing, posts, Community, and Events. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
                 setCunActive(true)
@@ -2602,7 +2605,7 @@ function App() {
                 setCunMessage({ key: 'ready', title: 'Guide mode is ready', description: 'Hover over or focus a highlighted control to see what it does and how to use it.' })
               }}
             ><span>Confessn</span><span>University</span></a>
-            {authUserId && isLoggedIn && (
+            {tzolBankVisible && authUserId && isLoggedIn && (
               <button
                 type="button"
                 className="nav-bank-tab"
@@ -3511,7 +3514,7 @@ function App() {
               <button type="button" aria-label={ui.closeManual} onClick={() => setShowCunManual(false)}>×</button>
             </div>
             <p className="university-intro">{ui.manualIntro}</p>
-            <nav className="university-topics" aria-label="University manual topics">{[10, 13, 14, 15].map(index => <a key={index} href={`#university-lesson-${index}`} onClick={event => { event.preventDefault(); document.getElementById(`university-lesson-${index}`)?.scrollIntoView({ block: 'start', behavior: 'instant' }) }}>{ui.lessons[index].title}</a>)}</nav>
+            <nav className="university-topics" aria-label="University manual topics">{[10, 13, 14, 15].filter(index => tzolBankVisible || index !== 10).map(index => <a key={index} href={`#university-lesson-${index}`} onClick={event => { event.preventDefault(); document.getElementById(`university-lesson-${index}`)?.scrollIntoView({ block: 'start', behavior: 'instant' }) }}>{ui.lessons[index].title}</a>)}</nav>
 
             <div className="university-diagrams">
               <div className="university-frame-diagram" role="img" aria-label="Frame, outer top mat, colored offcut, inner bottom mat, and artwork layers">
@@ -3541,7 +3544,7 @@ function App() {
             </div>
 
             <div className="university-manual-grid">
-              {ui.lessons.map((lesson, index) => (
+              {ui.lessons.map((lesson, index) => (tzolBankVisible || index !== 10) && (
                 <section className="university-guide-section" id={`university-lesson-${index}`} key={lesson.title}>
                   <h3>{lesson.title}</h3>
                   <p>{lesson.body}</p>
@@ -3674,7 +3677,7 @@ function App() {
         </div>
       )}
 
-      {showWalletDialog && authUserId && isLoggedIn && (
+      {tzolBankVisible && showWalletDialog && authUserId && isLoggedIn && (
         <div className="dialog-overlay">
           <div id="tzol-wallet-dialog" className="dialog-box small-dialog tzol-wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="tzol-wallet-title" data-cun-title="Tzol Bank" data-cun="Use your bank passkey, not a chat message or SMS, to open private wallet details. Refresh balance updates the verified wallet. Close with X when finished." onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">

@@ -10,6 +10,8 @@ After changing these settings, request a new reset email; use the newest email r
 
 ## TZOL Wallet Setup
 
+The Tzol Bank interface and welcome notification are currently hidden; the details below describe the retained backend and the interface when enabled.
+
 Run [supabase-tzol-wallet.sql](../supabase-tzol-wallet.sql) in the SQL Editor of the Supabase project used by this app before enabling wallets in production. No service-role key should be added to the frontend.
 
 ### Tzol Bank Passkeys
@@ -40,9 +42,9 @@ New accounts created after applying the SQL receive one wallet and a one-time 50
 
 Apply the script as administrator in Supabase SQL Editor. It enables `pg_cron`; if the extension cannot be enabled, enable Supabase Cron in the dashboard first and rerun the script. Verify the job and its run history under **Supabase > Cron**. Website deployment alone does not activate database jobs. Never put service-role credentials in the frontend.
 
-The FRAME Bank tab beside FRAME University opens the wallet, with the current balance on its second line. Loading a member wallet automatically credits its missing one-time bonus server-side, so eligible existing members do not need to wait for the Cron scan. Repeated loads cannot award another bonus. Balances refresh every minute while the page is visible and when the member returns to the tab. Guests and anonymous sessions cannot create or access member wallets. Loading failures show a retry action, not a fabricated balance.
+When enabled, the FRAME Bank tab beside FRAME University opens the wallet, with the current balance on its second line. Loading a member wallet automatically credits its missing one-time bonus server-side, so eligible existing members do not need to wait for the Cron scan. Repeated loads cannot award another bonus. Balances refresh every minute while the page is visible and when the member returns to the tab. Guests and anonymous sessions cannot create or access member wallets. Loading failures show a retry action, not a fabricated balance.
 
-Members never need Supabase access, SQL, or administrative actions. The administrator must install the database script once; thereafter registration, wallet loading, periodic scans, issuance records, and welcome notifications operate automatically. The frontend cannot install privileged database functions or safely fabricate credits if setup is missing.
+Members never need Supabase access, SQL, or administrative actions. The administrator must install the database script once; thereafter registration, periodic scans, and issuance records operate automatically. The frontend cannot install privileged database functions or safely fabricate credits if setup is missing.
 
 ### Total Tzols Released
 
@@ -92,7 +94,7 @@ select public.record_tzol_purchase(
 
 This represents spending existing Tzols, not buying tokens with money. The function locks the bank account, prevents overdrafts, updates the balance and transaction record atomically, and returns the same transaction when an identical purchase reference is retried. Reusing a reference with a different amount or bank account is rejected. Financial history has no cascading foreign key and survives wallet deletion. Only operations made through this function are recorded as purchases; no checkout or payment-provider integration currently exists. Historical unrecorded purchases cannot be reconstructed. Ordinary members cannot call the purchase recorder or accounting report, and service-role access cannot directly edit these ledger tables.
 
-The welcome notification appears about 1.2 seconds after the credited member's authenticated wallet loads. For email-confirmed sign-ups, it appears after confirmation and sign-in. A server-side atomic claim prevents repeated notifications across refreshes and devices. The notification remains visible until dismissed.
+Tzol Bank and its welcome notification are temporarily hidden in the website. While hidden, the frontend does not claim pending welcome notifications; existing wallets and server-side bonus processing are unchanged.
 
 TZOL is an in-app token, not a blockchain asset or cryptocurrency. This implementation awards the welcome bonus and supports trusted server-side recording of purchases paid in Tzols; it does not accept money or implement transfers. Balances are stored separately from editable account profiles. Members can read only their own wallet; only trusted server-side administration can otherwise modify balances.
 

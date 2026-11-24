@@ -387,7 +387,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   en: {
     title: 'Confessn University Manual', button: 'Complete manual', close: 'Close university manual',
     bank: 'Open Tzol Bank in the top bar. After verification, use Refresh balance to update the verified wallet; the displayed bank account ID stays the same. Never share your password, device PIN, recovery codes, or passkey secrets. Bank approval does not activate Basket trading or add a cash purchase/redemption service.',
-    intro: 'Framing, saved projects, public posts, ratings, Community, Events, Basket, and secure Tzol Bank access. Trading is currently disabled.',
+    intro: 'Framing, saved projects, public posts, ratings, Community, and Events. Basket and Tzol Bank are hidden for now; trading is currently disabled.',
     mats: 'Top Mat is the outer layer; choose its size and color. Bottom Mat is an independent inner layer. Mat Offcut is the colored strip between the layers. Bevel Cut adds a mitered inner edge to Bottom Mat; toggle it independently and choose one of 20 finishes. Its color and depth are separate from the mat colors and offcut width. Turning Bottom Mat off disables its bevel controls.',
     controls: 'Press and drag F vertically for frame thickness, M1 for Top Mat width, M2 for Bottom Mat width, S for offcut width, and B for bevel depth. Up increases; down decreases. These controls are independent. M2 needs Bottom Mat enabled; B needs both Bottom Mat and Bevel Cut enabled. Values are retained in saved projects and account workspace drafts.',
     lessons: [
@@ -403,7 +403,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   ro: {
     title: 'Manualul Confessn University', button: 'Manual complet', close: 'Închide manualul universității',
     bank: 'Deschide Tzol Bank din bara de sus. După verificare, Actualizează soldul reîncarcă portofelul verificat; ID-ul contului rămâne același. Nu distribui parola, PIN-ul dispozitivului, codurile de recuperare sau secretele cheii de acces. Verificarea băncii nu activează tranzacțiile Basket și nu adaugă un serviciu de cumpărare/răscumpărare în bani.',
-    intro: 'Înrămare, proiecte, postări publice, evaluări, Community, Events, Basket și acces sigur la Tzol Bank. Tranzacțiile sunt momentan dezactivate.',
+    intro: 'Înrămare, proiecte, postări publice, evaluări, Community și Events. Basket și Tzol Bank sunt ascunse momentan; tranzacțiile sunt dezactivate.',
     mats: 'Top Mat este stratul exterior, iar Bottom Mat este stratul interior independent. Alege dimensiunile și culorile. Mat Offcut este banda colorată dintre straturi. Bevel Cut adaugă muchia interioară cu colțuri la 45 de grade; o poți activa separat și alege dintre 20 de finisaje. Culoarea și adâncimea ei sunt independente de culorile paspartului și lățimea benzii. Dezactivarea Bottom Mat dezactivează controalele teșiturii.',
     controls: 'Apasă și trage vertical F pentru grosimea ramei, M1 pentru lățimea Top Mat, M2 pentru Bottom Mat, S pentru banda decorativă și B pentru adâncimea teșiturii. În sus mărești, în jos micșorezi. Controalele sunt independente. M2 necesită Bottom Mat activ; B necesită și Bevel Cut activ. Valorile se păstrează în proiecte și schița contului.',
     lessons: [
@@ -419,7 +419,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   ru: {
     title: 'Руководство Confessn University', button: 'Полное руководство', close: 'Закрыть руководство университета',
     bank: 'Откройте Tzol Bank в верхней панели. После проверки кнопка обновления баланса обновляет подтверждённый кошелёк; ID счёта остаётся прежним. Не передавайте пароль, PIN устройства, коды восстановления и секреты ключа доступа. Проверка банка не включает торговлю Basket и не создаёт сервис покупки или погашения за деньги.',
-    intro: 'Оформление, проекты, публикации, оценки, Community, Events, Basket и безопасный Tzol Bank. Торговля сейчас отключена.',
+    intro: 'Оформление, проекты, публикации, оценки, Community и Events. Basket и Tzol Bank пока скрыты; торговля отключена.',
     mats: 'Top Mat — внешний слой, Bottom Mat — независимый внутренний. Выберите размер и цвет. Mat Offcut — цветная полоска между слоями. Bevel Cut добавляет внутренний срез с углами 45°; включается отдельно и имеет 20 отделок. Его цвет и глубина не зависят от цветов паспарту и ширины полоски. Выключение Bottom Mat отключает настройки среза.',
     controls: 'Тяните вертикально F для толщины рамы, M1 для ширины Top Mat, M2 для Bottom Mat, S для полоски и B для глубины среза. Вверх — больше, вниз — меньше. Настройки независимы. M2 требует включённого Bottom Mat, B — также Bevel Cut. Значения сохраняются в проектах и черновике аккаунта.',
     lessons: [
@@ -435,7 +435,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   fr: {
     title: 'Manuel Confessn University', button: 'Manuel complet', close: 'Fermer le manuel universitaire',
     bank: 'Ouvrez Tzol Bank dans la barre supérieure. Après vérification, Actualiser le solde met à jour le portefeuille vérifié ; son identifiant reste inchangé. Ne partagez jamais mot de passe, PIN de l’appareil, codes de récupération ou secrets de clé. La vérification bancaire n’active ni le commerce Basket ni un service d’achat/remboursement monétaire.',
-    intro: 'Encadrement, projets, publications, notes, Community, Events, Basket et accès sécurisé à Tzol Bank. Les transactions sont désactivées.',
+    intro: 'Encadrement, projets, publications, notes, Community et Events. Basket et Tzol Bank sont masqués pour le moment ; les transactions sont désactivées.',
     mats: 'Top Mat est la couche extérieure et Bottom Mat la couche intérieure indépendante. Choisissez taille et couleur. Mat Offcut est le liseré entre les couches. Bevel Cut ajoute un biseau intérieur à angles de 45°, activable séparément avec 20 finitions. Sa couleur et sa profondeur sont indépendantes des passe-partout et du liseré. Désactiver Bottom Mat désactive ses contrôles de biseau.',
     controls: 'F règle l’épaisseur du cadre, M1 la largeur de Top Mat, M2 celle de Bottom Mat, S le liseré et B la profondeur du biseau. Glissez vers le haut pour augmenter, vers le bas pour diminuer. Les réglages sont indépendants. M2 exige Bottom Mat actif ; B exige aussi Bevel Cut. Les valeurs sont conservées dans les projets et le brouillon du compte.',
     lessons: [
@@ -451,7 +451,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   de: {
     title: 'Confessn University Handbuch', button: 'Vollständiges Handbuch', close: 'Universitätshandbuch schließen',
     bank: 'Tzol Bank über die Kopfzeile öffnen. Nach Prüfung aktualisiert Guthaben aktualisieren den verifizierten Wallet; die Konto-ID bleibt gleich. Passwort, Geräte-PIN, Wiederherstellungscodes und Passkey-Geheimnisse nie weitergeben. Bankfreigabe aktiviert weder Basket-Handel noch einen Dienst für Geldkauf oder Einlösung.',
-    intro: 'Rahmung, Projekte, Beiträge, Bewertungen, Community, Events, Basket und sichere Tzol Bank. Handel ist derzeit deaktiviert.',
+    intro: 'Rahmung, Projekte, Beiträge, Bewertungen, Community und Events. Basket und Tzol Bank sind vorerst ausgeblendet; Handel ist deaktiviert.',
     mats: 'Top Mat ist die äußere, Bottom Mat die unabhängige innere Lage. Größe und Farbe sind wählbar. Mat Offcut ist der Farbstreifen dazwischen. Bevel Cut ergänzt eine innere Schnittkante mit 45°-Ecken und 20 separat wählbaren Ausführungen. Farbe und Tiefe sind unabhängig von Passepartout und Streifenbreite. Ohne Bottom Mat sind die Schnittregler deaktiviert.',
     controls: 'F vertikal ziehen für Rahmendicke, M1 für Top-Mat-Breite, M2 für Bottom Mat, S für Streifenbreite und B für Schnitttiefe. Nach oben vergrößern, nach unten verkleinern. Alle Werte sind unabhängig. M2 braucht Bottom Mat; B zusätzlich Bevel Cut. Projekte und Kontoentwurf speichern die Werte.',
     lessons: [
@@ -467,7 +467,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   it: {
     title: 'Manuale Confessn University', button: 'Manuale completo', close: 'Chiudi il manuale universitario',
     bank: 'Apri Tzol Bank dalla barra superiore. Dopo la verifica, Aggiorna saldo aggiorna il portafoglio verificato; l’ID del conto resta uguale. Non condividere password, PIN del dispositivo, codici di recupero o segreti della chiave. La verifica bancaria non attiva il commercio Basket né servizi di acquisto/riscatto in denaro.',
-    intro: 'Cornici, progetti, pubblicazioni, voti, Community, Events, Basket e Tzol Bank. Le transazioni sono attualmente disattivate.',
+    intro: 'Cornici, progetti, pubblicazioni, voti, Community ed Events. Basket e Tzol Bank sono nascosti per ora; le transazioni sono disattivate.',
     mats: 'Top Mat è lo strato esterno, Bottom Mat quello interno indipendente. Scegli dimensione e colore. Mat Offcut è il bordo colorato tra gli strati. Bevel Cut aggiunge il taglio interno con angoli a 45°, attivabile separatamente con 20 finiture. Colore e profondità sono indipendenti dai passe-partout e dal bordo. Disattivare Bottom Mat disabilita i controlli del taglio.',
     controls: 'Trascina verticalmente F per lo spessore della cornice, M1 per Top Mat, M2 per Bottom Mat, S per il bordo e B per la profondità del taglio. In alto aumenta, in basso diminuisce. I valori sono indipendenti. M2 richiede Bottom Mat attivo; B anche Bevel Cut. Progetti e bozza dell’account conservano i valori.',
     lessons: [
@@ -483,7 +483,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   es: {
     title: 'Manual de Confessn University', button: 'Manual completo', close: 'Cerrar el manual universitario',
     bank: 'Abre Tzol Bank desde la barra superior. Tras verificar, Actualizar saldo actualiza el monedero verificado; el ID de cuenta no cambia. Nunca compartas contraseña, PIN del dispositivo, códigos de recuperación ni secretos de la clave. La aprobación bancaria no activa el comercio Basket ni un servicio de compra/canje por dinero.',
-    intro: 'Marcos, proyectos, publicaciones, valoraciones, Community, Events, Basket y Tzol Bank. Las transacciones están desactivadas.',
+    intro: 'Marcos, proyectos, publicaciones, valoraciones, Community y Events. Basket y Tzol Bank están ocultos por ahora; las transacciones están desactivadas.',
     mats: 'Top Mat es la capa exterior y Bottom Mat la interior independiente. Elige tamaño y color. Mat Offcut es la tira entre las capas. Bevel Cut añade un borde interior con esquinas a 45°, activable por separado con 20 acabados. Su color y profundidad son independientes del paspartú y de la tira. Al desactivar Bottom Mat se desactivan los controles del bisel.',
     controls: 'Arrastra verticalmente F para grosor del marco, M1 para Top Mat, M2 para Bottom Mat, S para la tira y B para profundidad del bisel. Arriba aumenta, abajo disminuye. Son independientes. M2 necesita Bottom Mat activado; B también Bevel Cut. Los proyectos y el borrador de la cuenta conservan los valores.',
     lessons: [
@@ -499,7 +499,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   zh: {
     title: 'Confessn University 使用手册', button: '完整手册', close: '关闭大学手册',
     bank: '从顶栏打开 Tzol Bank。验证后使用刷新余额按钮更新已验证钱包，账户 ID 保持不变。不要分享密码、设备 PIN、恢复码或通行密钥机密。银行验证不会启用 Basket 交易，也不会提供现金购买或赎回服务。',
-    intro: '装裱、保存项目、公开作品、评分、Community、Events、Basket 与 Tzol Bank。交易目前未启用。',
+    intro: '装裱、保存项目、公开作品、评分、Community 和 Events。Basket 与 Tzol Bank 暂时隐藏，交易目前未启用。',
     mats: 'Top Mat 是外层卡纸，Bottom Mat 是独立的内层卡纸，可分别选择尺寸和颜色。Mat Offcut 是两层之间的彩色细条。Bevel Cut 为内开口添加45度拼角切边，可单独开关并选择20种饰面。切边颜色和深度不依赖卡纸颜色或细条宽度。关闭 Bottom Mat 会禁用切边控件。',
     controls: '按住并上下拖动：F 调整框宽，M1 调整 Top Mat 宽度，M2 调整 Bottom Mat 宽度，S 调整细条宽度，B 调整切边深度。向上增加，向下减少，各控件互不影响。M2 需要开启 Bottom Mat；B 还需要开启 Bevel Cut。设置保存在项目和账户工作草稿中。',
     lessons: [
@@ -515,7 +515,7 @@ const universityUpdates: Record<keyof typeof baseInterfaceCopy, UniversityUpdate
   ja: {
     title: 'Confessn University マニュアル', button: '完全マニュアル', close: '大学マニュアルを閉じる',
     bank: 'トップバーからTzol Bankを開きます。認証後の残高更新ボタンは認証済みウォレットを更新し、口座IDは変わりません。パスワード、デバイスPIN、復旧コード、パスキーの秘密を共有しないでください。銀行承認はBasket取引や現金購入・換金サービスを有効化しません。',
-    intro: '額装、保存プロジェクト、公開投稿、評価、Community、Events、Basket、Tzol Bank。取引は現在無効です。',
+    intro: '額装、保存プロジェクト、公開投稿、評価、Community、Events。BasketとTzol Bankは現在非表示で、取引は無効です。',
     mats: 'Top Matは外側、Bottom Matは独立した内側のマットです。サイズと色を選びます。Mat Offcutは層間の細い色帯です。Bevel Cutは45度の接合角を持つ内側カットで、個別に切り替え、20種類の仕上げを選べます。色と深さはマットや帯幅とは独立しています。Bottom Matを切るとカットの設定も無効になります。',
     controls: 'Fで額縁の厚さ、M1でTop Mat幅、M2でBottom Mat幅、Sで帯幅、Bでカットの深さを上下ドラッグします。上で増加、下で減少し、それぞれ独立しています。M2にはBottom Mat、BにはさらにBevel Cutの有効化が必要です。値は保存プロジェクトとアカウントの作業下書きに記録されます。',
     lessons: [
