@@ -435,7 +435,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   </div></div>
 }
 
-export function CommunityFeed({ userId, version, onChat, onSignIn, onCount }: { userId: string | null; version: number; onChat: (id: string) => void; onSignIn: () => void; onCount: (count: number) => void }) {
+export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: string | null; version: number; onChat: (id: string) => void; onSignIn: () => void }) {
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [selected, setSelected] = useState<CommunityPost | null>(null)
   const [error, setError] = useState('')
@@ -450,7 +450,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn, onCount }: { 
     void supabase.from('community_posts').select('*,community_members:community_members!community_posts_author_id_fkey(username)').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(pageSize).then(({ data, error: issue }) => {
       if (!active) return
       if (issue) setError(issue.code === '42P01' || issue.code === 'PGRST205' ? 'Community publishing is not yet available.' : issue.message)
-      else { setError(''); setPosts(data as CommunityPost[] ?? []); onCount(data?.length ?? 0) }
+      else { setError(''); setPosts(data as CommunityPost[] ?? []) }
     })
     return () => { active = false }
   }, [userId, version, pageSize, refresh])

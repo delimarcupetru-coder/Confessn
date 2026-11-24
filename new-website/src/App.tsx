@@ -10,6 +10,7 @@ import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
 import { describeProject } from './project-description'
 import { captureProject } from './capture-project'
+import { readStoredAccount, readStoredRecord, writeStoredAccount, writeStoredRecord } from './account-storage'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja' | 'ro' | 'ru'
@@ -135,13 +136,6 @@ function mergeProfileAccount(local: Account, remote: Account): Account {
   }
 }
 
-type LocalAuth = {
-  email: string
-  username: string
-  passwordHash: string
-  account: Account
-}
-
 type FrameOption = {
   id: string
   label: string
@@ -168,54 +162,6 @@ const defaultAccount: Account = {
   folders: [{ id: 'all', name: 'All projects' }],
   activeFolderId: 'all',
   projects: [],
-}
-
-const accountStorageKey = 'virtual-art-framing-studio-account'
-
-function openAccountDatabase() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('virtual-art-framing-studio-projects', 1)
-    request.onupgradeneeded = () => request.result.createObjectStore('accounts')
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
-}
-
-async function readStoredRecord<RecordType>(key: string): Promise<RecordType | undefined> {
-  const database = await openAccountDatabase()
-  try {
-    return await new Promise<RecordType | undefined>((resolve, reject) => {
-      const request = database.transaction('accounts', 'readonly').objectStore('accounts').get(key)
-      request.onsuccess = () => resolve(request.result as RecordType | undefined)
-      request.onerror = () => reject(request.error)
-    })
-  } finally {
-    database.close()
-  }
-}
-
-async function writeStoredRecord(key: string, record: Account | WorkspaceDraft) {
-  const database = await openAccountDatabase()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction('accounts', 'readwrite')
-      transaction.objectStore('accounts').put(record, key)
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-      transaction.onabort = () => reject(transaction.error)
-    })
-  } finally {
-    database.close()
-  }
-}
-
-function readStoredAccount() {
-  return readStoredRecord<Account>('current')
-}
-
-async function writeStoredAccount(account: Account) {
-  await writeStoredRecord('current', account)
-  window.localStorage.removeItem(accountStorageKey)
 }
 
 const translations = {
@@ -1066,23 +1012,12 @@ function App() {
   const previousMatSizeRef = useRef(selectedSize)
   const restoringProjectRef = useRef(2)
 
-  const [account, setAccount] = useState<Account>(() => {
-    const saved = window.localStorage.getItem(accountStorageKey)
-    if (saved) {
-      try {
-        return JSON.parse(saved) as Account
-      } catch {
-        return defaultAccount
-      }
-    }
-    return defaultAccount
-  })
-  const [accountReady, setAccountReady] = useState(false)
+  const [account, setAccount] = useState<Account>(defaultAccount)
+  const [accountUserId, setAccountUserId] = useState<string | null>(null)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [showCommunity, setShowCommunity] = useState(false)
   const [communityRecipient, setCommunityRecipient] = useState<string | null>(null)
   const [communityVersion, setCommunityVersion] = useState(0)
-  const [hasPublicPosts, setHasPublicPosts] = useState(false)
   const [publishProject, setPublishProject] = useState<ProjectRecord | null>(null)
   const [publishTitle, setPublishTitle] = useState('')
   const [publishDescription, setPublishDescription] = useState('')
@@ -1092,6 +1027,7 @@ function App() {
   communityIdentityRef.current = authUserId
   const [authReady, setAuthReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
+  const accountReady = authReady && (!authUserId || accountUserId === authUserId)
   const [workspaceReadyForUser, setWorkspaceReadyForUser] = useState<string | null>(null)
   const [wallet, setWallet] = useState<TzolWallet | null>(null)
   const [walletSummary, setWalletSummary] = useState<TzolSummary | null>(null)
@@ -1145,31 +1081,24 @@ function App() {
 
   useEffect(() => {
     let mounted = true
-    void readStoredAccount().then((stored) => {
-      if (mounted && stored) setAccount({
-        ...stored,
-        name: authenticatedUserRef.current?.user_metadata.username ?? stored.name,
-        email: authenticatedUserRef.current?.email ?? stored.email,
-      })
-    }).catch(() => {
-      if (mounted) setSaveMessage('Browser project storage is unavailable.')
-    }).finally(() => {
-      if (mounted) setAccountReady(true)
-    })
-    return () => { mounted = false }
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
     let sessionEventReceived = false
     const restoreSession = (user: User | null) => {
       if (!mounted) return
+      if (authenticatedUserRef.current?.id !== user?.id) {
+        setAccountUserId(null)
+        setProfileReady(false)
+      }
+      if (authenticatedUserRef.current && authenticatedUserRef.current.id !== user?.id) {
+        setArtwork(galleryItems.find((item) => item.title === 'Golden Hour Pumpkins')!.image)
+        setProjectNotes('')
+        setSelectedProjectId(null)
+        setShowSaveDialog(false)
+        setShowFolderDialog(false)
+        setPublishProject(null)
+      }
       authenticatedUserRef.current = user
       setAuthUserId(user?.id ?? null)
       setIsLoggedIn(Boolean(user))
-      if (user) {
-        setAccount((current) => ({ ...current, name: user.user_metadata.username ?? current.name, email: user.email ?? current.email }))
-      }
       setAuthReady(true)
     }
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -1197,32 +1126,47 @@ function App() {
 
   useEffect(() => {
     setProfileReady(false)
-    if (!accountReady || !authUserId) return
+    if (!authReady || !authUserId || !isLoggedIn) return
     let mounted = true
     void (async () => {
+      let local: Account | undefined
+      try {
+        local = await readStoredAccount<Account>(authUserId)
+      } catch {
+        if (mounted) setSaveMessage('Browser project storage is unavailable.')
+      }
       try {
         const { data: profile, error } = await supabase.from('user_profiles').select('account').eq('user_id', authUserId).maybeSingle()
         if (error) throw error
         if (!mounted) return
-        if (profile?.account) setAccount((current) => ({
-          ...mergeProfileAccount(current, profile.account as Account),
-          name: authenticatedUserRef.current?.user_metadata.username ?? (profile.account as Account).name,
-          email: authenticatedUserRef.current?.email ?? (profile.account as Account).email,
-        }))
+        const remote = profile?.account as Account | undefined
+        const loaded = local && remote ? mergeProfileAccount(local, remote) : local ?? remote ?? defaultAccount
+        setAccount({
+          ...loaded,
+          name: authenticatedUserRef.current?.user_metadata.username ?? loaded.name,
+          email: authenticatedUserRef.current?.email ?? loaded.email,
+        })
+        setAccountUserId(authUserId)
         setProfileReady(true)
       } catch {
-        if (mounted) setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
+        if (mounted) {
+          if (local) {
+            setAccount(local)
+            setAccountUserId(authUserId)
+          }
+          setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
+        }
       }
     })()
     return () => { mounted = false }
-  }, [accountReady, authUserId])
+  }, [authReady, authUserId, isLoggedIn])
 
   useEffect(() => {
-    if (!saveAfterAuth || !authReady || !authUserId || !isLoggedIn || authMode === 'reset') return
+    if (!saveAfterAuth || !accountReady || !authUserId || !isLoggedIn || authMode === 'reset') return
     setSaveAfterAuth(false)
     setAuthMode(null)
     setShowSaveDialog(true)
-  }, [saveAfterAuth, authReady, authUserId, isLoggedIn, authMode])
+  }, [saveAfterAuth, accountReady, authUserId, isLoggedIn, authMode])
 
   useEffect(() => {
     if (!authUserId || !isLoggedIn) {
@@ -1467,12 +1411,6 @@ function App() {
     return () => { mounted = false; window.clearTimeout(timer) }
   }, [authReady, authUserId, isLoggedIn, welcomeBonusPending, walletRequest])
 
-  const hashPassword = async (password: string) => {
-    const data = new TextEncoder().encode(password)
-    const digest = await crypto.subtle.digest('SHA-256', data)
-    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
-  }
-
   const submitPasswordRecovery = async () => {
     if (authSubmitting) return
     const email = authEmail.trim().toLowerCase()
@@ -1573,14 +1511,6 @@ function App() {
       return
     }
 
-    const user = supabaseResult.data.user
-    const nextAccount = {
-      ...account,
-      name: user?.user_metadata.username ?? username ?? account.name,
-      email: user?.email ?? email,
-    }
-    setAccount(nextAccount)
-    setIsLoggedIn(true)
     setAuthMessage(authMode === 'create' ? 'Account created.' : 'Logged in.')
     setAuthPassword('')
     setAuthMode(null)
@@ -1674,7 +1604,7 @@ function App() {
       setProfileMessage('Enter a username and email address.')
       return
     }
-    if (!authUserId || !isLoggedIn) {
+    if (!authUserId || !isLoggedIn || accountUserId !== authUserId) {
       setProfileMessage('Sign in to save your profile.')
       return
     }
@@ -1710,6 +1640,7 @@ function App() {
     })
     if (error) throw error
     if (!data.user || data.user.id !== authUserId) throw new Error('Could not verify the updated profile. Please sign in again.')
+    if (authenticatedUserRef.current?.id !== authUserId) throw new Error('The signed-in account changed. Please try again.')
     authenticatedUserRef.current = data.user
     const nextAccount = { ...account, name: data.user.user_metadata.username ?? username, email: data.user.email ?? account.email, avatar: savedAvatar }
     setAccount(nextAccount)
@@ -1725,19 +1656,9 @@ function App() {
     let browserStorageUnavailable = !accountReady
     if (accountReady) {
       try {
-        await writeStoredAccount(nextAccount)
+        await writeStoredAccount(authUserId, nextAccount)
       } catch {
         browserStorageUnavailable = true
-      }
-    }
-    const storedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
-    if (storedAuth) {
-      try {
-        const auth = JSON.parse(storedAuth) as LocalAuth
-        const passwordHash = profilePassword ? await hashPassword(profilePassword) : auth.passwordHash
-        window.localStorage.setItem('virtual-art-framing-studio-auth', JSON.stringify({ ...auth, email, username, passwordHash, account: nextAccount }))
-      } catch {
-        // Keep the profile update local even if an old auth record is malformed.
       }
     }
     setProfilePassword('')
@@ -1952,21 +1873,14 @@ function App() {
   }, [artDrag])
 
   useEffect(() => {
-    if (!accountReady) return
-    void writeStoredAccount(account).catch(() => setSaveMessage('Could not keep your projects in this browser.'))
-    const savedAuth = window.localStorage.getItem('virtual-art-framing-studio-auth')
-    if (savedAuth) {
-      try {
-        const auth = JSON.parse(savedAuth) as LocalAuth
-        window.localStorage.setItem('virtual-art-framing-studio-auth', JSON.stringify({ ...auth, account }))
-      } catch {
-        // Ignore malformed local auth data and keep the profile usable.
-      }
+    if (!isLoggedIn || !authUserId || accountUserId !== authUserId) return
+    void writeStoredAccount(authUserId, account).catch(() => setSaveMessage('Could not keep your projects in this browser.'))
+    if (profileReady) {
+      void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() }).then(({ error }) => {
+        if (error) setSaveMessage('Account sync failed. Your browser projects have been kept.')
+      }, () => setSaveMessage('Account sync failed. Your browser projects have been kept.'))
     }
-    if (authReady && authUserId && profileReady) {
-      void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() })
-    }
-  }, [account, accountReady, authReady, authUserId, profileReady])
+  }, [account, accountUserId, authUserId, isLoggedIn, profileReady])
 
   const activeFolderProjects = useMemo(() => {
     return account.projects.filter((project) => {
@@ -2097,11 +2011,12 @@ function App() {
 
     const filePromise = artwork ? chooseSaveFile(nextProject) : null
     try {
-      await writeStoredAccount(nextAccount)
+      await writeStoredAccount(authUserId, nextAccount)
     } catch {
       setSaveError('Could not save in this browser. Check your available device storage.')
       return
     }
+    if (authenticatedUserRef.current?.id !== authUserId) return
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
     setSaveMessage(`Saved in this browser: ${safeFileName}`)
@@ -2279,35 +2194,6 @@ function App() {
     }
     void writeStoredRecord(`workspace:${authUserId}`, draft).catch(() => setSaveMessage('Could not keep the workspace draft in this browser. Check available device storage.'))
   }, [workspaceReadyForUser, authUserId, isLoggedIn, selectedProjectId, projectFileName, projectNotes, exportFormat, wallTone, showDimensions, selectedSize, selectedFrameType, selectedStyle, selectedColor, account.activeFolderId, artwork, frameEnabled, matEnabled, selectedMatColor, bottomMatEnabled, selectedBottomMatColor, bottomMatBevelEnabled, selectedBottomMatBevelColor, bevelDepth, selectedStripColor, stripEnabled, standardFrameSizeIndex, frameOrientation, artworkRatio, artWidthInches, artHeightInches, dimensionsConfirmed, zoom, artPosition, frameThickness, matMargin, bottomMatMargin, stripThickness])
-
-  const applyGalleryLook = (item: (typeof galleryItems)[number]) => {
-    restoringProjectRef.current = 2
-    setSelectedProjectId(null)
-    autoFitDefaultArtworkRef.current = false
-    measureArtworkOnLoadRef.current = true
-    setSelectedFrameType(item.profile)
-    setSelectedStyle(item.material)
-    setFrameThickness(item.frameWidth)
-    setFrameEnabled(true)
-    setSelectedSize(item.matSize)
-    setMatMargin(item.matWidth)
-    setSelectedMatColor(matColorOptions.find((color) => color.id === item.matColorId)!)
-    setMatEnabled(true)
-    setBottomMatEnabled(false)
-    setSelectedStripColor(stripColorOptions.find((color) => color.id === item.stripColorId)!)
-    setStripThickness(item.stripWidth)
-    setStripEnabled(true)
-    setArtWidthInches(12)
-    setArtHeightInches(15)
-    setDimensionsConfirmed(false)
-    setShowDimensions(false)
-    setArtwork(item.image)
-    setArtworkRatio(1)
-    artZoomRef.current = 1
-    setZoom(1)
-    moveArtwork({ x: 0, y: 0 })
-    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
 
   useEffect(() => {
     if (!pendingDownload || selectedProjectId !== pendingDownload.id) return
@@ -2696,7 +2582,7 @@ function App() {
             {ui.menu} <span aria-hidden="true">{showMobileNav ? '−' : '+'}</span>
           </button>
           <a href="#workspace" data-cun-title="Workspace" data-cun="The framing workspace is where you upload artwork, choose frame and mat settings, adjust the image, and save a project.">{t.navWork}</a>
-          <a href="#projects" data-cun-title="Projects" data-cun="Browse saved projects, open one to continue editing, download its framed image, or organize projects into folders.">{t.navProjects}</a>
+          <a href="#projects" data-cun-title="Projects" data-cun="Browse publicly published artwork and events.">{t.navProjects}</a>
           {isConfessnAdmin && <a href="#admin" data-cun-title="Admin" data-cun="Open the restricted account summary for user identity, project counts, and storage estimates." onClick={(event) => { event.preventDefault(); openAdminDialog() }}>Admin</a>}
           <div className="nav-learning-tabs">
             <a
@@ -3382,47 +3268,11 @@ function App() {
           </div>
         </div>
 
-        <CommunityFeed userId={isLoggedIn ? authUserId : null} version={communityVersion} onChat={openCommunityChat} onSignIn={() => setAuthMode('login')} onCount={count => setHasPublicPosts(count > 0)} />
-        {!hasPublicPosts && <div className="carousel" aria-label="Completed projects carousel">
-          {galleryItems.map((item) => {
-            const matColor = matColorOptions.find((color) => color.id === item.matColorId)!
-            const stripColor = stripColorOptions.find((color) => color.id === item.stripColorId)!
-            return (
-            <article key={item.title} className="gallery-card">
-              <div
-                className={`gallery-frame frame-${item.material} frame-${item.profile}`}
-                style={{
-                  '--frame-width': `${item.frameWidth}px`,
-                  '--frame-texture-horizontal': `url("${frameTextures[item.material].horizontal}")`,
-                  '--frame-texture-vertical': `url("${frameTextures[item.material].vertical}")`,
-                  '--gallery-mat-color': matColor.hex,
-                  '--gallery-mat-width': `${item.matWidth}px`,
-                  '--gallery-strip-color': stripColor.hex,
-                  '--gallery-strip-width': `${item.stripWidth}px`,
-                } as React.CSSProperties}
-              >
-                <div className="gallery-mat">
-                  <img src={item.image} alt={item.title} />
-                </div>
-                <div className="frame-shell" aria-hidden="true">
-                  <span className="frame-side frame-side-top" />
-                  <span className="frame-side frame-side-right" />
-                  <span className="frame-side frame-side-bottom" />
-                  <span className="frame-side frame-side-left" />
-                </div>
-              </div>
-              <div className="gallery-info">
-                <strong>{item.title}</strong>
-                <span>{item.details}</span>
-                <button type="button" className="gallery-use-button" onClick={() => applyGalleryLook(item)} aria-label={`Use ${item.title} look`} data-cun-title={`Use ${item.title} look`} data-cun="Load this example artwork and its matching frame and mat settings into the workspace.">Use this look</button>
-              </div>
-            </article>
-          )})}
-        </div>}
+        <CommunityFeed userId={isLoggedIn ? authUserId : null} version={communityVersion} onChat={openCommunityChat} onSignIn={() => setAuthMode('login')} />
       </section>
 
       <section id="about" className="bottom-grid">
-        <div className="project-list panel-block">
+        {isLoggedIn && authUserId && accountUserId === authUserId && <div className="project-list panel-block">
           <div className="saved-projects-heading">
             <h3>{t.savedProjects}</h3>
             <button type="button" className="folder-plus-button" aria-label="Create folder" title="Create folder" data-cun-title="Create project folder" data-cun="Create a folder to organize saved framing projects." onClick={() => setShowFolderDialog(true)}>+</button>
@@ -3485,7 +3335,7 @@ function App() {
               ))}
             </ul>
           )}
-        </div>
+        </div>}
 
         <Basket />
         <div className="follow-panel panel-block">
