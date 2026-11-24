@@ -81,6 +81,13 @@
 .community-post .community-rating-compact, .community-detail .community-rating-compact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; border: 0; font-size: 13px; }
 .community-rating-compact select { width: 65px; min-height: 30px; border: 1px solid #b9cbbf; border-radius: 4px; background: #fff; color: #254333; font: inherit; padding: 3px 5px; }
 .community-post .community-small-message { margin-left: auto; min-height: 30px; font-size: 12px; padding: 4px 7px; background: #edf5f0; border-color: #ccdcd2; }
+.community-share { position: relative; }
+.community-share > summary { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 8px; border: 1px solid #ccdcd2; border-radius: 4px; background: #edf5f0; color: #254333; font-size: 12px; cursor: pointer; list-style: none; }
+.community-share > summary::-webkit-details-marker { display: none; }
+.community-share-menu { display: grid; width: max-content; max-width: min(250px, 80vw); min-width: 190px; gap: 4px; padding: 8px; border: 1px solid #b9cbbf; border-radius: 5px; background: #fff; box-shadow: 0 4px 14px #172e2226; }
+.community-share-menu a, .community-share-menu button { display: block; width: 100%; padding: 7px 9px; border: 0; border-radius: 3px; background: transparent; color: #254333; font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer; }
+.community-share-menu a:hover, .community-share-menu button:hover { background: #edf5f0; }
+.community-share-menu [role="status"], .community-share-menu [role="alert"] { padding: 5px; font-size: 12px; overflow-wrap: anywhere; }
 .community-quick-comment { border-top: 1px solid #e1e9e4; padding-top: 8px; font-size: 13px; }
 .community-quick-comment summary { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #426650; min-height: 30px; }
 .community-quick-comment summary:focus-visible { outline: 2px solid #397851; outline-offset: 3px; }
