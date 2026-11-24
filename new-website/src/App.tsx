@@ -4,7 +4,7 @@ import heic2any from 'heic2any'
 import html2canvas from 'html2canvas'
 import { MessageCircle, Share2 } from 'lucide-react'
 import { Community, CommunityFeed, uploadCommunityImage } from './Community'
-import { Basket, MarketplaceProvider } from './Marketplace'
+import { MarketplaceProvider } from './Marketplace'
 import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { supabase } from './supabase'
 import { guideLessonByControl, interfaceCopy } from './interface-copy'
@@ -2592,7 +2592,7 @@ function App() {
               aria-controls="cun-notification"
               aria-expanded={cunActive}
               data-cun-title="Confessn University"
-              data-cun="Turn on guide mode for framing, posts, Community, Events, Basket, and Bank. Open the complete manual from the university guide."
+              data-cun="Turn on guide mode for framing, posts, Community, Events, and Bank. Open the complete manual from the university guide."
               onClick={(event) => {
                 event.preventDefault()
                 setCunActive(true)
@@ -3337,7 +3337,6 @@ function App() {
           )}
         </div>}
 
-        <Basket />
         <div className="follow-panel panel-block">
           <h3>{t.follow}</h3>
           <div className="social-list">
