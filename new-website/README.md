@@ -1,5 +1,13 @@
 # FRAME
 
+## Public link previews
+
+Pages deployment runs `npm run build:share-previews` after the normal build. It anonymously reads only public publications and generates `/publication/<id>/index.html` with the artwork image, title, and `Virtually framed - by <creator>` Open Graph metadata (events use `Event - by <creator>`). Share controls use these URLs; people are redirected to the selected publication in the app. LinkedIn and other platforms supply their own profile header and editable posting message; neither is embedded in the image card.
+
+This is the approved template, not a per-post approval step. New or edited publications require redeployment before their link previews update. Redeploy also removes pages for unpublished posts. Platforms may cache old previews and control their final layout; test with the new publication URL rather than the old homepage/query-only link. Generation failures stop deployment instead of publishing missing previews. The generator accepts only a Supabase publishable key and never reads private profiles or changes account data.
+
+Public gallery images and detail views use each image's natural proportions. Saved-project thumbnails show the complete artwork without square cropping. Saved dimensions and frame orientation are retained, and publication capture uses the rendered project's width and height rather than forcing a square. Existing image files and project records are not rewritten.
+
 The signed-in Account editor remains available while project sync is loading or unavailable, with Log out inside it. Username, email, and password changes use the authenticated account. If its project profile could not be loaded, profile pictures are kept in a separate browser-only record and the editor reports this limitation; unavailable project data is never replaced with an empty account.
 
 ## Password Recovery Redirects

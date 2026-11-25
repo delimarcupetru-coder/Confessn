@@ -31,6 +31,10 @@ jobs:
         working-directory: new-website
         continue-on-error: false
 
+      - name: Generate public sharing previews
+        run: npm run build:share-previews
+        working-directory: new-website
+
       - name: List deployment folder
         run: ls -la new-website/dist/
 

@@ -5,9 +5,10 @@ let render
 mock.module('html2canvas', { defaultExport: (...args) => render(...args) })
 const { captureProject } = await import('../src/capture-project.ts')
 
-test('captures the isolated project as a lossless PNG', async context => {
+for (const [width, height] of [[400, 500], [600, 300], [400, 400]]) {
+test(`captures ${width} x ${height} project proportions as a lossless PNG`, async context => {
   const image = { currentSrc: 'data:image/png;base64,cHJvamVjdA==', naturalWidth: 100, naturalHeight: 100, decode: async () => {} }
-  const capture = { querySelector: () => image, getBoundingClientRect: () => ({ width: 400, height: 500 }) }
+  const capture = { querySelector: () => image, getBoundingClientRect: () => ({ width, height }) }
   const clonedImage = { src: '', decode: async () => {} }
   const clonedCapture = { style: {}, querySelector: () => clonedImage }
   let appended
@@ -17,21 +18,22 @@ test('captures the isolated project as a lossless PNG', async context => {
   render = async (target, options) => {
     assert.equal(target, capture)
     assert.equal(options.foreignObjectRendering, true)
-    assert.deepEqual([options.x, options.y, options.width, options.height], [0, 0, 400, 500])
+    assert.deepEqual([options.x, options.y, options.width, options.height], [0, 0, width, height])
     await options.onclone(clonedDocument, clonedCapture)
     assert.equal(appended, clonedCapture)
     assert.equal(clonedCapture.style.position, 'fixed')
-    assert.equal(clonedCapture.style.width, '400px')
-    assert.equal(clonedCapture.style.height, '500px')
+    assert.equal(clonedCapture.style.width, `${width}px`)
+    assert.equal(clonedCapture.style.height, `${height}px`)
     assert.equal(clonedImage.src, image.currentSrc)
     return {
-      width: 800, height: 1000,
+      width: width * 2, height: height * 2,
       getContext: () => ({ getImageData: () => ({ data: [0, 0, 0, 255] }) }),
       toBlob: callback => callback(new Blob(['image'], { type: 'image/png' })),
     }
   }
   assert.equal((await captureProject(capture)).type, 'image/png')
 })
+}
 
 test('rejects missing artwork and unsupported blank captures', async context => {
   await assert.rejects(captureProject({ querySelector: () => null }), /artwork is unavailable/)

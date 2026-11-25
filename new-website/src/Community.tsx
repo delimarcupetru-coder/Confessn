@@ -25,8 +25,7 @@ const safeUrl = (value: string) => { try { const url = new URL(value); return ur
 const dateTime = (value: string, timeZone?: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone })
 const occursOn = (event: CommunityPost, date: Date) => Boolean(event.starts_at && event.ends_at && new Date(event.starts_at) <= endOfDay(date) && new Date(event.ends_at) > startOfDay(date))
 const publicationUrl = (post: CommunityPost) => {
-  const url = new URL(window.location.pathname, window.location.origin)
-  url.searchParams.set('publication', post.id)
+  const url = new URL(`/publication/${encodeURIComponent(post.id)}/`, window.location.origin)
   return url.href
 }
 
@@ -57,6 +56,7 @@ function PublicationShare({ post }: { post: CommunityPost }) {
     }
   }
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url })}`
+  const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url })}`
   const threadsUrl = `https://www.threads.net/intent/post?${new URLSearchParams({ text: `${shareText} ${url}` })}`
   const emailUrl = `mailto:?${new URLSearchParams({ subject: post.title, body: `${shareText}\n${url}` })}`
   return <details className="community-share">
@@ -65,9 +65,11 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       {typeof navigator.share === 'function' && <button type="button" onClick={() => void shareWithApps()}>Share with apps</button>}
       <button type="button" onClick={() => void copyLink()}>Copy public link</button>
       <a href={facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href={threadsUrl} target="_blank" rel="noopener noreferrer">Threads</a>
       <button type="button" onClick={() => void copyLink()}>Copy link for Instagram</button>
       <a href={emailUrl}>Email</a>
+      <span>Image previews for new posts become available after the next website deployment.</span>
       {notice && <span role="status">{notice}</span>}
       {error && <span role="alert" className="community-inline-error">{error}</span>}
     </div>

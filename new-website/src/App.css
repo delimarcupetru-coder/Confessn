@@ -1794,9 +1794,11 @@
 }
 
 .saved-project-thumb {
-  width: 64px;
-  height: 64px;
-  object-fit: cover;
+  width: auto;
+  height: auto;
+  max-width: 64px;
+  max-height: 96px;
+  object-fit: contain;
   float: left;
   margin-right: 10px;
   border-radius: 4px;
