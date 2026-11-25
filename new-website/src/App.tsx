@@ -159,8 +159,8 @@ type BevelColorOption = {
 }
 
 const defaultAccount: Account = {
-  name: 'Guest customer',
-  email: 'hello@virtualartframingstudio.com',
+  name: '',
+  email: '',
   folders: [{ id: 'all', name: 'All projects' }],
   activeFolderId: 'all',
   projects: [],
@@ -937,6 +937,7 @@ function App() {
   const [authPassword, setAuthPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [recoveryRequested, setRecoveryRequested] = useState(false)
   const [loginFailed, setLoginFailed] = useState(false)
   const [passwordRecoveryUserId, setPasswordRecoveryUserId] = useState<string | null>(null)
   const recoveryLinkRequestedRef = useRef(
@@ -1238,6 +1239,7 @@ function App() {
 
   const t = translations[language]
   const ui = interfaceCopy[language]
+  const accountDisplayName = account.name && account.name !== 'Guest customer' ? account.name : ui.account
   const guideLesson = ui.lessons[guideLessonByControl[cunMessage.key]]
   const memberWallet = wallet?.user_id === authUserId ? wallet : null
   const memberSummary = walletSummary?.user_id === authUserId ? walletSummary : null
@@ -1427,6 +1429,7 @@ function App() {
     }
     setAuthSubmitting(true)
     setAuthMessage('')
+    setRecoveryRequested(false)
     try {
       if (authMode === 'forgot') {
         const redirect = new URL('https://delimarcupetru-coder.github.io/Confessn/')
@@ -1435,7 +1438,7 @@ function App() {
         redirect.searchParams.set('recovery', '1')
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect.toString() })
         if (error) throw error
-        setAuthMessage('If an account exists for this email, a password reset link has been sent. Check your inbox and spam folder.')
+        setRecoveryRequested(true)
       } else if (authMode === 'reset') {
         const { data, error: sessionError } = await supabase.auth.getUser()
         if (sessionError || data.user?.id !== passwordRecoveryUserId) {
@@ -1557,8 +1560,9 @@ function App() {
   }
 
   const openAccountDialog = () => {
+    if (!authUserId || accountUserId !== authUserId) return
     setProfileMessage('')
-    setProfileUsername(account.name)
+    setProfileUsername(account.name === 'Guest customer' ? '' : account.name)
     setProfileEmail(account.email)
     setProfilePassword('')
     setProfileAvatar(account.avatar)
@@ -2665,7 +2669,7 @@ function App() {
             <div id="mobile-account-dropdown" className="mobile-account-dropdown">
               {isLoggedIn ? (
                 <>
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>{ui.profile}</button>
+                  {accountUserId === authUserId && <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>{ui.profile}</button>}
                   <button type="button" onClick={() => { setShowMobileAccountMenu(false); logOut() }}>{ui.logOut}</button>
                 </>
               ) : (
@@ -2678,10 +2682,10 @@ function App() {
           )}
           {isLoggedIn ? (
             <>
-              <button type="button" className="profile-badge" aria-label={`Open account for ${account.name}`} data-cun-title="Account profile" data-cun="Open your account to update the profile name, email, password, or profile photo." onClick={openAccountDialog}>
-                {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{account.name.slice(0, 1).toUpperCase()}</span>}
-                <span className="profile-name">{account.name}</span>
-              </button>
+              {authUserId && accountUserId === authUserId && <button type="button" className="profile-badge" aria-label={`Open account for ${accountDisplayName}`} data-cun-title="Account profile" data-cun="Open your account to update the profile name, email, password, or profile photo." onClick={openAccountDialog}>
+                {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{accountDisplayName.slice(0, 1).toUpperCase()}</span>}
+                <span className="profile-name">{accountDisplayName}</span>
+              </button>}
               <button type="button" className="header-link-button" data-cun-title="Log out" data-cun="Sign out of the current account on this device." onClick={logOut}>{ui.logOut}</button>
             </>
           ) : (
@@ -3390,7 +3394,7 @@ function App() {
       </section>
 
       {showAdminDialog && isConfessnAdmin && (
-        <div className="dialog-overlay admin-overlay" onClick={() => setShowAdminDialog(false)}>
+        <div className="dialog-overlay admin-overlay">
           <section
             className="dialog-box admin-dialog"
             role="dialog"
@@ -3498,7 +3502,7 @@ function App() {
       )}
 
       {showCunManual && (
-        <div className="dialog-overlay university-overlay" onClick={() => setShowCunManual(false)}>
+        <div className="dialog-overlay university-overlay">
           <section
             className="dialog-box university-dialog"
             role="dialog"
@@ -3561,11 +3565,11 @@ function App() {
       )}
 
       {authMode && (
-        <div className="dialog-overlay" onClick={() => { if (!authSubmitting) { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') } }}>
+        <div className="dialog-overlay">
           <form className="dialog-box small-dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void (authMode === 'forgot' || authMode === 'reset' ? submitPasswordRecovery() : submitAuth()) }}>
             <div className="dialog-header">
               <h4 id="auth-dialog-title">{authMode === 'create' ? t.createAccount : authMode === 'forgot' ? ui.resetPassword : authMode === 'reset' ? ui.choosePassword : t.logIn}</h4>
-              <button type="button" disabled={authSubmitting} aria-label="Close account window" onClick={() => { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword('') }}>×</button>
+              <button type="button" disabled={authSubmitting} aria-label="Close account window" onClick={() => { setAuthMode(null); setSaveAfterAuth(false); setAuthPassword(''); setConfirmPassword(''); setRecoveryRequested(false) }}>×</button>
             </div>
             {authMode === 'create' && (
               <div className="field-group">
@@ -3575,7 +3579,7 @@ function App() {
             )}
             <div className="field-group">
               <label htmlFor="auth-email">{ui.email}</label>
-              <input id="auth-email" type="email" autoComplete="email" required readOnly={authMode === 'reset'} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+              <input id="auth-email" type="email" autoComplete="email" required readOnly={authMode === 'reset'} value={authEmail} onChange={(event) => { setAuthEmail(event.target.value); setRecoveryRequested(false) }} />
             </div>
             {authMode !== 'forgot' && (
               <div className="field-group">
@@ -3608,6 +3612,7 @@ function App() {
               </fieldset>
             )}
             {authMessage && <p className="dialog-hint" role={authMode === 'login' && loginFailed ? 'alert' : 'status'}>{authMessage}</p>}
+            {authMode === 'forgot' && recoveryRequested && <p className="auth-recovery-notice" role="status">Reset request received. If an account exists for this email, a reset link may be sent. Check your inbox and spam folder; delivery is not guaranteed.</p>}
             {authMode === 'login' && loginFailed && authMessage && (
               <button type="button" className="auth-recovery-button auth-recovery-prominent" autoFocus onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>{ui.forgotPassword}</button>
             )}
@@ -3616,13 +3621,13 @@ function App() {
             </button>
             {authMode === 'login' && (!loginFailed || !authMessage) && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setLoginFailed(false) }}>{ui.forgotPassword}</button>}
             {authMode === 'reset' && !passwordRecoveryUserId && <button type="button" className="auth-recovery-button" onClick={() => { setAuthMode('forgot'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>{ui.requestReset}</button>}
-            {(authMode === 'forgot' || authMode === 'reset') && <button type="button" className="auth-recovery-button" disabled={authSubmitting} onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword('') }}>{ui.backToLogin}</button>}
+            {(authMode === 'forgot' || authMode === 'reset') && <button type="button" className={`auth-recovery-button${recoveryRequested && authMode === 'forgot' ? ' auth-recovery-prominent' : ''}`} disabled={authSubmitting} onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthPassword(''); setConfirmPassword(''); setRecoveryRequested(false) }}>{ui.backToLogin}</button>}
           </form>
         </div>
       )}
 
       {showSaveDialog && (
-        <div className="dialog-overlay" onClick={() => setShowSaveDialog(false)}>
+        <div className="dialog-overlay">
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>{t.save}</h4>
@@ -3720,7 +3725,7 @@ function App() {
       )}
 
       {showAccountDialog && (
-        <div className="dialog-overlay" onClick={() => { if (!profileSaving) setShowAccountDialog(false) }}>
+        <div className="dialog-overlay">
           <div className="dialog-box small-dialog account-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>{ui.account}</h4>
@@ -3772,7 +3777,7 @@ function App() {
       )}
 
       {showFolderDialog && (
-        <div className="dialog-overlay" onClick={() => setShowFolderDialog(false)}>
+        <div className="dialog-overlay">
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>Create folder</h4>
@@ -3788,7 +3793,7 @@ function App() {
       )}
 
       {showDimensionsDialog && (
-        <div className="dialog-overlay" onClick={() => setShowDimensionsDialog(false)}>
+        <div className="dialog-overlay">
           <div className="dialog-box small-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="dialog-header">
               <h4>Actual artwork dimensions</h4>

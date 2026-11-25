@@ -337,7 +337,6 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     panel.current?.focus()
     const handler = (event: KeyboardEvent) => {
       if (event.target instanceof Element && event.target.closest('#cun-notification, .university-dialog')) return
-      if (event.key === 'Escape') onClose()
       if (event.key !== 'Tab') return
       const nodes = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href], [tabindex="0"]') ?? []).filter(node => node.getClientRects().length)
       const first = nodes[0], last = nodes[nodes.length - 1]

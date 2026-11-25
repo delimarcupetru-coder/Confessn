@@ -8,6 +8,8 @@ FRAME requests the live recovery URL even when the reset email is requested from
 
 After changing these settings, request a new reset email; use the newest email rather than the old localhost link. Never share passwords or full recovery URLs, which contain private tokens.
 
+A successful reset request does not confirm that an account exists or that an email was delivered. Check spam and the Supabase Auth email logs and SMTP configuration if messages do not arrive. Dialogs remain open when clicking their backdrop; use their close or action buttons.
+
 ## TZOL Wallet Setup
 
 The Tzol Bank interface and welcome notification are currently hidden; the details below describe the retained backend and the interface when enabled.

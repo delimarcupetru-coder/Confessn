@@ -1191,6 +1191,13 @@
   text-decoration: none;
 }
 
+.auth-recovery-notice {
+  padding: 10px 12px;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  color: #e0f2fe;
+}
+
 .dialog-header {
   display: flex;
   align-items: center;
