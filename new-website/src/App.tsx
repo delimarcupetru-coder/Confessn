@@ -11,6 +11,7 @@ import { guideLessonByControl, interfaceCopy } from './interface-copy'
 import { describeProject } from './project-description'
 import { captureProject } from './capture-project'
 import { readStoredAccount, readStoredRecord, writeStoredAccount, writeStoredRecord } from './account-storage'
+import { profileEmailChanged, profileFormIdentity } from './profile-identity'
 import './App.css'
 
 type Language = 'en' | 'fr' | 'zh' | 'de' | 'it' | 'es' | 'ja' | 'ro' | 'ru'
@@ -1562,8 +1563,9 @@ function App() {
   const openAccountDialog = () => {
     if (!authUserId || accountUserId !== authUserId) return
     setProfileMessage('')
-    setProfileUsername(account.name === 'Guest customer' ? '' : account.name)
-    setProfileEmail(account.email)
+    const identity = profileFormIdentity(account, authenticatedUserRef.current)
+    setProfileUsername(identity.name)
+    setProfileEmail(identity.email)
     setProfilePassword('')
     setProfileAvatar(account.avatar)
     setProfileAvatarZoom(1)
@@ -1611,7 +1613,7 @@ function App() {
       setProfileMessage('Enter a username and email address.')
       return
     }
-    if (!authUserId || !isLoggedIn || accountUserId !== authUserId) {
+    if (!authUserId || !isLoggedIn || accountUserId !== authUserId || authenticatedUserRef.current?.id !== authUserId) {
       setProfileMessage('Sign in to save your profile.')
       return
     }
@@ -1640,9 +1642,11 @@ function App() {
         }
       }
     }
+    const currentUser = authenticatedUserRef.current
+    if (!currentUser || currentUser.id !== authUserId) throw new Error('The signed-in account changed. Please try again.')
     const { data, error } = await supabase.auth.updateUser({
       data: { username },
-      ...(email !== account.email ? { email } : {}),
+      ...(profileEmailChanged(email, currentUser) ? { email } : {}),
       ...(profilePassword ? { password: profilePassword } : {}),
     })
     if (error) throw error
@@ -3753,7 +3757,7 @@ function App() {
             </div>
             <div className="field-group">
               <label htmlFor="profile-password">{ui.password}</label>
-              <input id="profile-password" type="password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
+              <input id="profile-password" type="password" autoComplete="new-password" placeholder="Leave blank to keep current password" value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             </div>
             <fieldset className="email-preference-options account-email-preferences" disabled={emailPreferencesLoading || emailPreferencesSaving}>
               <legend>Email preferences</legend>
