@@ -955,6 +955,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState('')
   const [authSuccessMessage, setAuthSuccessMessage] = useState('')
   const [showAccountDialog, setShowAccountDialog] = useState(false)
+  const [accountDialogProfileLoaded, setAccountDialogProfileLoaded] = useState(false)
   const [profileUsername, setProfileUsername] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
@@ -1091,6 +1092,7 @@ function App() {
       if (authenticatedUserRef.current?.id !== user?.id) {
         setAccountUserId(null)
         setProfileReady(false)
+        setShowAccountDialog(false)
       }
       if (authenticatedUserRef.current && authenticatedUserRef.current.id !== user?.id) {
         setArtwork(galleryItems.find((item) => item.title === 'Golden Hour Pumpkins')!.image)
@@ -1134,8 +1136,10 @@ function App() {
     let mounted = true
     void (async () => {
       let local: Account | undefined
+      let browserAvatar: string | undefined
       try {
         local = await readStoredAccount<Account>(authUserId)
+        browserAvatar = await readStoredRecord<string>(`profile-avatar:${authUserId}`)
       } catch {
         if (mounted) setSaveMessage('Browser project storage is unavailable.')
       }
@@ -1149,6 +1153,7 @@ function App() {
           ...loaded,
           name: authenticatedUserRef.current?.user_metadata.username ?? loaded.name,
           email: authenticatedUserRef.current?.email ?? loaded.email,
+          avatar: browserAvatar ?? loaded.avatar,
         })
         setAccountUserId(authUserId)
         setProfileReady(true)
@@ -1240,7 +1245,7 @@ function App() {
 
   const t = translations[language]
   const ui = interfaceCopy[language]
-  const accountDisplayName = account.name && account.name !== 'Guest customer' ? account.name : ui.account
+  const accountDisplayName = accountUserId === authUserId && account.name && account.name !== 'Guest customer' ? account.name : ui.account
   const guideLesson = ui.lessons[guideLessonByControl[cunMessage.key]]
   const memberWallet = wallet?.user_id === authUserId ? wallet : null
   const memberSummary = walletSummary?.user_id === authUserId ? walletSummary : null
@@ -1524,6 +1529,8 @@ function App() {
   }
 
   const logOut = () => {
+    setShowAccountDialog(false)
+    setProfilePassword('')
     window.localStorage.removeItem('virtual-art-framing-studio-session')
     void supabase.auth.signOut()
     setIsLoggedIn(false)
@@ -1560,14 +1567,23 @@ function App() {
     }
   }
 
-  const openAccountDialog = () => {
-    if (!authUserId || accountUserId !== authUserId) return
+  const openAccountDialog = async () => {
+    if (!authUserId || authenticatedUserRef.current?.id !== authUserId) return
+    const loaded = accountUserId === authUserId
+    setAccountDialogProfileLoaded(loaded)
     setProfileMessage('')
-    const identity = profileFormIdentity(account, authenticatedUserRef.current)
+    let avatar = loaded ? account.avatar : undefined
+    try {
+      avatar = await readStoredRecord<string>(`profile-avatar:${authUserId}`) ?? avatar
+    } catch {
+      setProfileMessage('Could not load your profile picture from this browser.')
+    }
+    if (authenticatedUserRef.current?.id !== authUserId) return
+    const identity = profileFormIdentity(loaded ? account : defaultAccount, authenticatedUserRef.current)
     setProfileUsername(identity.name)
     setProfileEmail(identity.email)
     setProfilePassword('')
-    setProfileAvatar(account.avatar)
+    setProfileAvatar(avatar)
     setProfileAvatarZoom(1)
     setShowAccountDialog(true)
     if (!emailPreferencesDirty) {
@@ -1613,7 +1629,7 @@ function App() {
       setProfileMessage('Enter a username and email address.')
       return
     }
-    if (!authUserId || !isLoggedIn || accountUserId !== authUserId || authenticatedUserRef.current?.id !== authUserId) {
+    if (!authUserId || !isLoggedIn || authenticatedUserRef.current?.id !== authUserId) {
       setProfileMessage('Sign in to save your profile.')
       return
     }
@@ -1653,10 +1669,11 @@ function App() {
     if (!data.user || data.user.id !== authUserId) throw new Error('Could not verify the updated profile. Please sign in again.')
     if (authenticatedUserRef.current?.id !== authUserId) throw new Error('The signed-in account changed. Please try again.')
     authenticatedUserRef.current = data.user
-    const nextAccount = { ...account, name: data.user.user_metadata.username ?? username, email: data.user.email ?? account.email, avatar: savedAvatar }
-    setAccount(nextAccount)
-    let profileSyncUnavailable = !profileReady
-    if (profileReady) {
+    const loaded = accountDialogProfileLoaded && accountUserId === authUserId
+    const nextAccount = { ...(loaded ? account : defaultAccount), name: data.user.user_metadata.username ?? username, email: data.user.email ?? currentUser.email ?? '', avatar: savedAvatar }
+    if (loaded) setAccount(nextAccount)
+    let profileSyncUnavailable = !loaded || !profileReady
+    if (loaded && profileReady) {
       try {
         const { error: profileError } = await supabase.from('user_profiles').upsert({ user_id: authUserId, account: nextAccount, updated_at: new Date().toISOString() })
         profileSyncUnavailable = Boolean(profileError)
@@ -1664,20 +1681,27 @@ function App() {
         profileSyncUnavailable = true
       }
     }
-    let browserStorageUnavailable = !accountReady
-    if (accountReady) {
+    let browserStorageUnavailable = false
+    if (loaded) {
       try {
         await writeStoredAccount(authUserId, nextAccount)
       } catch {
         browserStorageUnavailable = true
       }
     }
+    if (savedAvatar) {
+      try {
+        await writeStoredRecord(`profile-avatar:${authUserId}`, savedAvatar)
+      } catch {
+        browserStorageUnavailable = true
+      }
+    }
     setProfilePassword('')
     const confirmationMessage = email !== nextAccount.email ? ' Check your email to confirm the email address change.' : ''
-    setSaveMessage(`${profileSyncUnavailable
-      ? 'Username saved to your account. Project sync is unavailable; saved projects were not overwritten.'
-      : browserStorageUnavailable
-        ? 'Profile saved to your account. Browser storage is unavailable.'
+    setSaveMessage(`${browserStorageUnavailable
+      ? 'Account changes saved, but the profile picture could not be kept in this browser.'
+      : profileSyncUnavailable
+        ? 'Account changes saved. Your profile picture is kept in this browser only while cloud sync is unavailable. Saved projects were not overwritten.'
         : 'Profile saved.'}${confirmationMessage}`)
     setShowAccountDialog(false)
     } catch (error) {
@@ -2673,8 +2697,7 @@ function App() {
             <div id="mobile-account-dropdown" className="mobile-account-dropdown">
               {isLoggedIn ? (
                 <>
-                  {accountUserId === authUserId && <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>{ui.profile}</button>}
-                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); logOut() }}>{ui.logOut}</button>
+                  <button type="button" onClick={() => { setShowMobileAccountMenu(false); openAccountDialog() }}>{ui.profile}</button>
                 </>
               ) : (
                 <>
@@ -2686,11 +2709,10 @@ function App() {
           )}
           {isLoggedIn ? (
             <>
-              {authUserId && accountUserId === authUserId && <button type="button" className="profile-badge" aria-label={`Open account for ${accountDisplayName}`} data-cun-title="Account profile" data-cun="Open your account to update the profile name, email, password, or profile photo." onClick={openAccountDialog}>
-                {account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{accountDisplayName.slice(0, 1).toUpperCase()}</span>}
+              {authUserId && <button type="button" className="profile-badge" aria-label={`Open account for ${accountDisplayName}`} data-cun-title="Account profile" data-cun="Open your account to update your profile or sign out." onClick={openAccountDialog}>
+                {accountUserId === authUserId && account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{accountDisplayName.slice(0, 1).toUpperCase()}</span>}
                 <span className="profile-name">{accountDisplayName}</span>
               </button>}
-              <button type="button" className="header-link-button" data-cun-title="Log out" data-cun="Sign out of the current account on this device." onClick={logOut}>{ui.logOut}</button>
             </>
           ) : (
             <>
@@ -3735,6 +3757,8 @@ function App() {
               <h4>{ui.account}</h4>
               <button type="button" disabled={profileSaving} onClick={() => setShowAccountDialog(false)}>×</button>
             </div>
+            <button type="button" className="menu-action" disabled={profileSaving || emailPreferencesSaving} onClick={logOut}>{ui.logOut}</button>
+            {!accountDialogProfileLoaded && <p className="dialog-hint" role="status">Project sync is unavailable. You can edit your account; profile pictures will be saved in this browser only until cloud sync is restored. Saved projects will not be overwritten.</p>}
             <div className="account-photo-editor">
               <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>
                 {profileImageLoading ? <span className="upload-dots" aria-label="Uploading photo">...</span> : profileAvatar ? <img src={profileAvatar} alt="Profile" style={{ transform: `scale(${profileAvatarZoom})` }} /> : <span>{profileUsername.slice(0, 1).toUpperCase()}</span>}

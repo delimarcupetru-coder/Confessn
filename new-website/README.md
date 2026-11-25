@@ -1,5 +1,7 @@
 # FRAME
 
+The signed-in Account editor remains available while project sync is loading or unavailable, with Log out inside it. Username, email, and password changes use the authenticated account. If its project profile could not be loaded, profile pictures are kept in a separate browser-only record and the editor reports this limitation; unavailable project data is never replaced with an empty account.
+
 ## Password Recovery Redirects
 
 In Supabase, open **Authentication > URL Configuration** and set **Site URL** to `https://delimarcupetru-coder.github.io/Confessn/`. Add `https://delimarcupetru-coder.github.io/Confessn/?recovery=1` to **Redirect URLs** and save. If using the custom domain as the site URL, also allow `https://confessn.com/?recovery=1`.

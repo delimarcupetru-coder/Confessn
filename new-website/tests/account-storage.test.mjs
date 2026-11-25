@@ -41,6 +41,10 @@ test('account caches are isolated and do not import the old shared cache', async
     assert.deepEqual(await readStoredAccount('alice'), { projects: ['alice'] })
     assert.deepEqual(await readStoredAccount('bob'), { projects: ['bob'] })
     assert.deepEqual(await readStoredRecord('current'), { projects: ['legacy'] })
+    await writeStoredRecord('profile-avatar:alice', 'data:image/png;base64,test')
+    assert.deepEqual(await readStoredAccount('alice'), { projects: ['alice'] })
+    assert.equal(await readStoredRecord('profile-avatar:bob'), undefined)
+    assert.equal(await readStoredRecord('profile-avatar:alice'), 'data:image/png;base64,test')
   } finally {
     delete globalThis.indexedDB
   }
