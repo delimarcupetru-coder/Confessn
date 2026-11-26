@@ -3,7 +3,7 @@ import { addMonths, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, 
 import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSquare, Pencil, Plus, Send, Share2, ShieldBan, Star, Trash2, Users, X } from 'lucide-react'
 import { supabase } from './supabase'
 import { SaleControls } from './Marketplace'
-import { downloadPublicImage } from './share-image'
+import { preparePublicImage, sharePublicImage } from './share-image'
 import './Community.css'
 
 type Member = { user_id: string; username: string }
@@ -33,6 +33,9 @@ const publicationUrl = (post: CommunityPost, platform?: 'facebook' | 'linkedin')
 function PublicationShare({ post }: { post: CommunityPost }) {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [shareImage, setShareImage] = useState<{ path: string; file: File } | null>(null)
+  const [imagePreparing, setImagePreparing] = useState(false)
+  const imageRequest = useRef(0)
   const url = publicationUrl(post)
   const author = post.community_members?.username ?? 'a Confessn member'
   const shareText = `${post.title} by ${author}`
@@ -56,12 +59,33 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       setError(errorText(issue))
     }
   }
-  const downloadForInstagram = async () => {
+  const prepareImage = async () => {
+    const request = ++imageRequest.current
     setNotice('')
     setError('')
+    setShareImage(null)
+    setImagePreparing(true)
     try {
-      await downloadPublicImage(imageUrl(post.image_path), post.title)
-      setNotice('Image downloaded. Open Instagram and choose it when creating a post.')
+      const file = await preparePublicImage(imageUrl(post.image_path), post.title)
+      if (request === imageRequest.current) setShareImage({ path: post.image_path, file })
+    } catch (issue) {
+      if (request === imageRequest.current) setError(errorText(issue))
+    } finally {
+      if (request === imageRequest.current) setImagePreparing(false)
+    }
+  }
+  const shareForInstagram = () => {
+    setNotice('')
+    setError('')
+    if (!shareImage || shareImage.path !== post.image_path) {
+      setError('The image is not ready. Close and reopen Share to try again.')
+      return
+    }
+    try {
+      void sharePublicImage(shareImage.file).catch(issue => {
+        if (issue instanceof DOMException && issue.name === 'AbortError') return
+        setError(errorText(issue))
+      })
     } catch (issue) {
       setError(errorText(issue))
     }
@@ -70,7 +94,14 @@ function PublicationShare({ post }: { post: CommunityPost }) {
   const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: publicationUrl(post, 'linkedin') })}`
   const threadsUrl = `https://www.threads.net/intent/post?${new URLSearchParams({ text: `${shareText} ${url}` })}`
   const emailUrl = `mailto:?${new URLSearchParams({ subject: post.title, body: `${shareText}\n${url}` })}`
-  return <details className="community-share">
+  return <details className="community-share" onToggle={event => {
+    if (event.currentTarget.open) {
+      if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') void prepareImage()
+    } else {
+      imageRequest.current++
+      setImagePreparing(false)
+    }
+  }}>
     <summary aria-label={`Share ${post.title}`}><Share2 size={15} /> Share</summary>
     <div className="community-share-menu" role="group" aria-label={`Share ${post.title}`}>
       {typeof navigator.share === 'function' && <button type="button" onClick={() => void shareWithApps()}>Share with apps</button>}
@@ -78,7 +109,14 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       <a href={facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
       <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href={threadsUrl} target="_blank" rel="noopener noreferrer">Threads</a>
-      <button type="button" onClick={() => void downloadForInstagram()}>Download image for Instagram</button>
+      <button type="button" disabled={imagePreparing} onClick={shareImage?.path === post.image_path ? shareForInstagram : () => {
+        if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') {
+          setError('Image sharing is not available in this browser. Try a supported mobile browser with Instagram installed.')
+        } else {
+          void prepareImage()
+        }
+      }}>{imagePreparing ? 'Preparing image…' : shareImage?.path === post.image_path ? 'Share image to Instagram' : 'Prepare image for Instagram'}</button>
+      <span>Choose Instagram in your device share sheet, if available.</span>
       <a href={emailUrl}>Email</a>
       <span>Image previews for new posts become available after the next website deployment.</span>
       {notice && <span role="status">{notice}</span>}

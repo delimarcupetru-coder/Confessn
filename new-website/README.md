@@ -2,7 +2,7 @@
 
 ## Public link previews
 
-For Instagram, the Share menu downloads the original public image for the user to upload in Instagram; Instagram does not create an image post from a copied link. Downloading does not modify the publication or saved project.
+For Instagram, the Share menu prepares the original public image and opens the device's image share sheet. Choose Instagram if it appears, then finish the post there. Availability depends on browser, operating system, and Instagram support; unsupported devices show an error. This does not save a file to the user's device or modify the publication or project.
 
 Facebook and LinkedIn use separate sharing-only copies: Facebook at 1200 x 630 and LinkedIn at 1200 x 675. The full image is proportionally fitted and centred on a neutral background, never cropped or stretched. Platform buttons use `/publication/<id>/facebook/` or `/publication/<id>/linkedin/`; generic links use the Facebook-sized copy. Generated JPEG filenames include a source fingerprint, and metadata declares the exact image dimensions. The original artwork, saved project, and on-site image are unchanged.
 
