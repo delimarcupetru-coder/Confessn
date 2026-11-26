@@ -2,19 +2,36 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'node:crypto'
+import sharp from 'sharp'
+
+const platformSizes = {
+  facebook: { width: 1200, height: 630 },
+  linkedin: { width: 1200, height: 675 },
+}
+
+export async function createShareImage(source, platform) {
+  const size = platformSizes[platform]
+  if (!size) throw new Error('Unsupported sharing platform.')
+  return sharp(source).rotate().resize({
+    ...size, fit: 'contain', position: 'centre', background: '#f7f4ed',
+  }).flatten({ background: '#f7f4ed' }).jpeg({ quality: 92 }).toBuffer()
+}
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character])
 
-export function renderSharePreview(post, siteUrl, storageUrl) {
+export function renderSharePreview(post, siteUrl, storageUrl, { platform = 'facebook', imageFilename = 'share-facebook.jpg', dedicated = false } = {}) {
+  const size = platformSizes[platform]
+  if (!size) throw new Error('Unsupported sharing platform.')
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id)) throw new Error('Invalid public publication ID.')
   if (typeof post.title !== 'string' || !post.title.trim()) throw new Error('Public publication has no title.')
   if (typeof post.image_path !== 'string' || post.image_path.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Public publication has an invalid image path.')
   const site = new URL(siteUrl)
   const storage = new URL(storageUrl)
   if (site.protocol !== 'https:' || storage.protocol !== 'https:') throw new Error('Preview URLs must use HTTPS.')
-  const previewUrl = new URL(`/publication/${post.id}/`, site.origin).href
+  const previewUrl = new URL(`/publication/${post.id}/${dedicated ? `${platform}/` : ''}`, site.origin).href
   const projectUrl = new URL(`/?publication=${post.id}`, site.origin).href
   const imageUrl = new URL(`/storage/v1/object/public/community-media/${post.image_path.split('/').map(encodeURIComponent).join('/')}`, storage.origin).href
   const author = post.community_members?.username ?? 'Member'
@@ -22,6 +39,7 @@ export function renderSharePreview(post, siteUrl, storageUrl) {
   const title = escapeHtml(post.title)
   const subtitle = escapeHtml(description)
   const image = escapeHtml(imageUrl)
+  const shareImage = escapeHtml(new URL(`/publication/${post.id}/${imageFilename}`, site.origin).href)
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -35,12 +53,15 @@ export function renderSharePreview(post, siteUrl, storageUrl) {
   <meta property="og:url" content="${escapeHtml(previewUrl)}">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${subtitle}">
-  <meta property="og:image" content="${image}">
+  <meta property="og:image" content="${shareImage}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="${size.width}">
+  <meta property="og:image:height" content="${size.height}">
   <meta property="og:image:alt" content="${title}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${subtitle}">
-  <meta name="twitter:image" content="${image}">
+  <meta name="twitter:image" content="${shareImage}">
   <meta name="twitter:image:alt" content="${title}">
   <style>
     * { box-sizing: border-box; }
@@ -72,7 +93,13 @@ export function renderSharePreview(post, siteUrl, storageUrl) {
 `
 }
 
-export async function generateSharePreviews(client, outputDirectory, siteUrl, storageUrl) {
+async function fetchPublicImage(url) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(15000) })
+  if (!response.ok) throw new Error(`Could not load public preview image: HTTP ${response.status}.`)
+  return Buffer.from(await response.arrayBuffer())
+}
+
+export async function generateSharePreviews(client, outputDirectory, siteUrl, storageUrl, loadImage = fetchPublicImage) {
   const posts = []
   const pageSize = 100
   for (let offset = 0; ; offset += pageSize) {
@@ -85,13 +112,36 @@ export async function generateSharePreviews(client, outputDirectory, siteUrl, st
     posts.push(...data)
     if (data.length < pageSize) break
   }
-  const previews = posts.map(post => ({ id: post.id, html: renderSharePreview(post, siteUrl, storageUrl) }))
-  for (const preview of previews) {
-    const directory = resolve(outputDirectory, 'publication', preview.id)
+  for (const post of posts) renderSharePreview(post, siteUrl, storageUrl)
+  const imageCache = new Map()
+  for (const post of posts) {
+    let images = imageCache.get(post.image_path)
+    if (!images) {
+      const imageUrl = new URL(`/storage/v1/object/public/community-media/${post.image_path.split('/').map(encodeURIComponent).join('/')}`, storageUrl).href
+      const source = await loadImage(imageUrl)
+      const fingerprint = createHash('sha256').update(source).digest('hex').slice(0, 12)
+      images = {}
+      for (const platform of Object.keys(platformSizes)) {
+        images[platform] = { filename: `share-${platform}-${fingerprint}.jpg`, buffer: await createShareImage(source, platform) }
+      }
+      imageCache.set(post.image_path, images)
+    }
+    const directory = resolve(outputDirectory, 'publication', post.id)
     await mkdir(directory, { recursive: true })
-    await writeFile(resolve(directory, 'index.html'), preview.html, 'utf8')
+    for (const platform of Object.keys(platformSizes)) {
+      const image = images[platform]
+      await writeFile(resolve(directory, image.filename), image.buffer)
+      const platformDirectory = resolve(directory, platform)
+      await mkdir(platformDirectory, { recursive: true })
+      await writeFile(resolve(platformDirectory, 'index.html'), renderSharePreview(post, siteUrl, storageUrl, {
+        platform, imageFilename: image.filename, dedicated: true,
+      }), 'utf8')
+    }
+    await writeFile(resolve(directory, 'index.html'), renderSharePreview(post, siteUrl, storageUrl, {
+      imageFilename: images.facebook.filename,
+    }), 'utf8')
   }
-  return previews.length
+  return posts.length
 }
 
 async function main() {

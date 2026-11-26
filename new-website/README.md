@@ -2,6 +2,10 @@
 
 ## Public link previews
 
+For Instagram, the Share menu downloads the original public image for the user to upload in Instagram; Instagram does not create an image post from a copied link. Downloading does not modify the publication or saved project.
+
+Facebook and LinkedIn use separate sharing-only copies: Facebook at 1200 x 630 and LinkedIn at 1200 x 675. The full image is proportionally fitted and centred on a neutral background, never cropped or stretched. Platform buttons use `/publication/<id>/facebook/` or `/publication/<id>/linkedin/`; generic links use the Facebook-sized copy. Generated JPEG filenames include a source fingerprint, and metadata declares the exact image dimensions. The original artwork, saved project, and on-site image are unchanged.
+
 Pages deployment runs `npm run build:share-previews` after the normal build. It anonymously reads only public publications and generates `/publication/<id>/index.html` with the artwork image, title, and `Virtually framed - by <creator>` Open Graph metadata (events use `Event - by <creator>`). Share controls use these URLs; people are redirected to the selected publication in the app. LinkedIn and other platforms supply their own profile header and editable posting message; neither is embedded in the image card.
 
 This is the approved template, not a per-post approval step. New or edited publications require redeployment before their link previews update. Redeploy also removes pages for unpublished posts. Platforms may cache old previews and control their final layout; test with the new publication URL rather than the old homepage/query-only link. Generation failures stop deployment instead of publishing missing previews. The generator accepts only a Supabase publishable key and never reads private profiles or changes account data.

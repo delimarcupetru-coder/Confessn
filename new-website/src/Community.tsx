@@ -3,6 +3,7 @@ import { addMonths, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, 
 import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSquare, Pencil, Plus, Send, Share2, ShieldBan, Star, Trash2, Users, X } from 'lucide-react'
 import { supabase } from './supabase'
 import { SaleControls } from './Marketplace'
+import { downloadPublicImage } from './share-image'
 import './Community.css'
 
 type Member = { user_id: string; username: string }
@@ -24,8 +25,8 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : '
 const safeUrl = (value: string) => { try { const url = new URL(value); return url.protocol === 'https:' ? url.href : '' } catch { return '' } }
 const dateTime = (value: string, timeZone?: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone })
 const occursOn = (event: CommunityPost, date: Date) => Boolean(event.starts_at && event.ends_at && new Date(event.starts_at) <= endOfDay(date) && new Date(event.ends_at) > startOfDay(date))
-const publicationUrl = (post: CommunityPost) => {
-  const url = new URL(`/publication/${encodeURIComponent(post.id)}/`, window.location.origin)
+const publicationUrl = (post: CommunityPost, platform?: 'facebook' | 'linkedin') => {
+  const url = new URL(`/publication/${encodeURIComponent(post.id)}/${platform ? `${platform}/` : ''}`, window.location.origin)
   return url.href
 }
 
@@ -40,7 +41,7 @@ function PublicationShare({ post }: { post: CommunityPost }) {
     setError('')
     try {
       await navigator.clipboard.writeText(url)
-      setNotice('Public link copied. Paste it into Instagram or anywhere else.')
+      setNotice('Public link copied.')
     } catch (issue) {
       setError(errorText(issue))
     }
@@ -55,8 +56,18 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       setError(errorText(issue))
     }
   }
-  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url })}`
-  const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url })}`
+  const downloadForInstagram = async () => {
+    setNotice('')
+    setError('')
+    try {
+      await downloadPublicImage(imageUrl(post.image_path), post.title)
+      setNotice('Image downloaded. Open Instagram and choose it when creating a post.')
+    } catch (issue) {
+      setError(errorText(issue))
+    }
+  }
+  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: publicationUrl(post, 'facebook') })}`
+  const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: publicationUrl(post, 'linkedin') })}`
   const threadsUrl = `https://www.threads.net/intent/post?${new URLSearchParams({ text: `${shareText} ${url}` })}`
   const emailUrl = `mailto:?${new URLSearchParams({ subject: post.title, body: `${shareText}\n${url}` })}`
   return <details className="community-share">
@@ -67,7 +78,7 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       <a href={facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
       <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href={threadsUrl} target="_blank" rel="noopener noreferrer">Threads</a>
-      <button type="button" onClick={() => void copyLink()}>Copy link for Instagram</button>
+      <button type="button" onClick={() => void downloadForInstagram()}>Download image for Instagram</button>
       <a href={emailUrl}>Email</a>
       <span>Image previews for new posts become available after the next website deployment.</span>
       {notice && <span role="status">{notice}</span>}
