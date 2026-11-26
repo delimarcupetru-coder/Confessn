@@ -1018,6 +1018,7 @@ function App() {
   const restoringProjectRef = useRef(2)
 
   const [account, setAccount] = useState<Account>(defaultAccount)
+  const [accountHeader, setAccountHeader] = useState<{ userId: string; name: string; avatar?: string } | null>(null)
   const [accountUserId, setAccountUserId] = useState<string | null>(null)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [showCommunity, setShowCommunity] = useState(false)
@@ -1103,6 +1104,11 @@ function App() {
         setPublishProject(null)
       }
       authenticatedUserRef.current = user
+      setAccountHeader(current => user ? {
+        userId: user.id,
+        name: profileFormIdentity(defaultAccount, user).name,
+        avatar: current?.userId === user.id ? current.avatar : undefined,
+      } : null)
       setAuthUserId(user?.id ?? null)
       setIsLoggedIn(Boolean(user))
       setAuthReady(true)
@@ -1143,12 +1149,18 @@ function App() {
       } catch {
         if (mounted) setSaveMessage('Browser project storage is unavailable.')
       }
+      if (mounted) setAccountHeader(current => current?.userId === authUserId
+        ? { ...current, avatar: current.avatar ?? browserAvatar ?? local?.avatar }
+        : current)
       try {
         const { data: profile, error } = await supabase.from('user_profiles').select('account').eq('user_id', authUserId).maybeSingle()
         if (error) throw error
         if (!mounted) return
         const remote = profile?.account as Account | undefined
         const loaded = local && remote ? mergeProfileAccount(local, remote) : local ?? remote ?? defaultAccount
+        setAccountHeader(current => current?.userId === authUserId
+          ? { ...current, avatar: current.avatar ?? browserAvatar ?? loaded.avatar }
+          : current)
         setAccount({
           ...loaded,
           name: authenticatedUserRef.current?.user_metadata.username ?? loaded.name,
@@ -1160,7 +1172,12 @@ function App() {
       } catch {
         if (mounted) {
           if (local) {
-            setAccount(local)
+            setAccount({
+              ...local,
+              name: authenticatedUserRef.current?.user_metadata.username ?? local.name,
+              email: authenticatedUserRef.current?.email ?? local.email,
+              avatar: browserAvatar ?? local.avatar,
+            })
             setAccountUserId(authUserId)
           }
           setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
@@ -1245,7 +1262,9 @@ function App() {
 
   const t = translations[language]
   const ui = interfaceCopy[language]
-  const accountDisplayName = accountUserId === authUserId && account.name && account.name !== 'Guest customer' ? account.name : ui.account
+  const headerIdentity = accountHeader?.userId === authUserId ? accountHeader : null
+  const accountDisplayName = headerIdentity?.name || (accountUserId === authUserId && account.name !== 'Guest customer' ? account.name : '') || ui.account
+  const accountDisplayAvatar = headerIdentity?.avatar ?? (accountUserId === authUserId ? account.avatar : undefined)
   const guideLesson = ui.lessons[guideLessonByControl[cunMessage.key]]
   const memberWallet = wallet?.user_id === authUserId ? wallet : null
   const memberSummary = walletSummary?.user_id === authUserId ? walletSummary : null
@@ -1671,6 +1690,9 @@ function App() {
     authenticatedUserRef.current = data.user
     const loaded = accountDialogProfileLoaded && accountUserId === authUserId
     const nextAccount = { ...(loaded ? account : defaultAccount), name: data.user.user_metadata.username ?? username, email: data.user.email ?? currentUser.email ?? '', avatar: savedAvatar }
+    setAccountHeader(current => current?.userId === authUserId
+      ? { userId: authUserId, name: profileFormIdentity(defaultAccount, data.user).name, avatar: savedAvatar }
+      : current)
     if (loaded) setAccount(nextAccount)
     let profileSyncUnavailable = !loaded || !profileReady
     if (loaded && profileReady) {
@@ -2692,7 +2714,7 @@ function App() {
               setShowMobileNav(false)
               setShowMobileAccountMenu((open) => !open)
             }}
-          >{ui.account} <span aria-hidden="true">{showMobileAccountMenu ? '−' : '+'}</span></button>
+          >{isLoggedIn && accountDisplayAvatar ? <img className="profile-avatar profile-avatar-image" src={accountDisplayAvatar} alt="" /> : null}<span className="mobile-account-name">{isLoggedIn ? accountDisplayName : ui.account}</span> <span aria-hidden="true">{showMobileAccountMenu ? '−' : '+'}</span></button>
           {showMobileAccountMenu && (
             <div id="mobile-account-dropdown" className="mobile-account-dropdown">
               {isLoggedIn ? (
@@ -2705,12 +2727,17 @@ function App() {
                   <button type="button" onClick={() => { setShowMobileAccountMenu(false); setSignupEmailPreferences(defaultEmailPreferences); setAuthMode('create'); setAuthMessage('') }}>{t.createAccount}</button>
                 </>
               )}
+              <label className="account-language">{t.languages}
+                <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
+                  <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option><option value="ro">Română</option><option value="ru">Русский</option>
+                </select>
+              </label>
             </div>
           )}
           {isLoggedIn ? (
             <>
               {authUserId && <button type="button" className="profile-badge" aria-label={`Open account for ${accountDisplayName}`} data-cun-title="Account profile" data-cun="Open your account to update your profile or sign out." onClick={openAccountDialog}>
-                {accountUserId === authUserId && account.avatar ? <img className="profile-avatar profile-avatar-image" src={account.avatar} alt="" /> : <span className="profile-avatar">{accountDisplayName.slice(0, 1).toUpperCase()}</span>}
+                {accountDisplayAvatar ? <img className="profile-avatar profile-avatar-image" src={accountDisplayAvatar} alt="" /> : <span className="profile-avatar">{accountDisplayName.slice(0, 1).toUpperCase()}</span>}
                 <span className="profile-name">{accountDisplayName}</span>
               </button>}
             </>
@@ -2724,9 +2751,9 @@ function App() {
               </button>
             </>
           )}
-          <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="lang-select">
+          {!isLoggedIn && <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="lang-select">
             <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option><option value="ro">Română</option><option value="ru">Русский</option>
-          </select>
+          </select>}
         </div>
       </header>
 
@@ -3758,6 +3785,11 @@ function App() {
               <button type="button" disabled={profileSaving} onClick={() => setShowAccountDialog(false)}>×</button>
             </div>
             <button type="button" className="menu-action" disabled={profileSaving || emailPreferencesSaving} onClick={logOut}>{ui.logOut}</button>
+            <label className="account-language">{t.languages}
+              <select aria-label={t.languages} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
+                <option value="en">EN</option><option value="fr">FR</option><option value="zh">中文</option><option value="de">DE</option><option value="it">IT</option><option value="es">ES</option><option value="ja">日本語</option><option value="ro">Română</option><option value="ru">Русский</option>
+              </select>
+            </label>
             {!accountDialogProfileLoaded && <p className="dialog-hint" role="status">Project sync is unavailable. You can edit your account; profile pictures will be saved in this browser only until cloud sync is restored. Saved projects will not be overwritten.</p>}
             <div className="account-photo-editor">
               <button type="button" className="account-photo-button" onClick={() => profileImageInputRef.current?.click()}>

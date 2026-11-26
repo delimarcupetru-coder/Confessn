@@ -342,6 +342,19 @@
   object-position: center center;
 }
 
+.account-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+}
+
+.account-language select {
+  min-width: 70px;
+  min-height: 36px;
+}
+
 .account-photo-editor {
   display: grid;
   place-items: center;
@@ -3200,7 +3213,8 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'brand brand'
-      'nav actions';
+      'nav nav'
+      'actions actions';
     align-items: center;
     justify-content: stretch;
     gap: 6px 8px;
@@ -3243,7 +3257,7 @@
     grid-area: nav;
     width: auto;
     min-width: 0;
-    justify-content: flex-start;
+    justify-content: center;
     padding-right: 0;
   }
 
@@ -3260,12 +3274,12 @@
     min-width: max-content;
     flex-direction: row;
     flex-wrap: nowrap;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 6px;
   }
 
   .topbar .header-actions .lang-select {
-    display: block;
+    display: none;
     width: auto;
     min-width: 54px;
     min-height: 34px;
@@ -3275,5 +3289,12 @@
     background: rgba(255, 255, 255, 0.06);
     color: #f3edff;
     font-size: 0.72rem;
+  }
+
+  .mobile-account-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

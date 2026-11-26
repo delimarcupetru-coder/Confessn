@@ -30,6 +30,12 @@ const publicationUrl = (post: CommunityPost, platform?: 'facebook' | 'linkedin')
   return url.href
 }
 
+function closeOtherShareMenus(current?: HTMLDetailsElement) {
+  document.querySelectorAll<HTMLDetailsElement>('details.community-share[open]').forEach(menu => {
+    if (menu !== current) menu.open = false
+  })
+}
+
 function PublicationShare({ post }: { post: CommunityPost }) {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -102,8 +108,15 @@ function PublicationShare({ post }: { post: CommunityPost }) {
       setImagePreparing(false)
     }
   }}>
-    <summary aria-label={`Share ${post.title}`}><Share2 size={15} /> Share</summary>
+    <summary aria-label={`Share ${post.title}`} onClick={event => {
+      const menu = event.currentTarget.parentElement
+      if (menu instanceof HTMLDetailsElement && !menu.open) closeOtherShareMenus(menu)
+    }}><Share2 size={15} /> Share</summary>
     <div className="community-share-menu" role="group" aria-label={`Share ${post.title}`}>
+      <div className="community-share-heading"><strong>Share {post.title}</strong><button type="button" className="community-share-close" aria-label="Close share menu" onClick={event => {
+        const menu = event.currentTarget.closest('details.community-share')
+        if (menu instanceof HTMLDetailsElement) menu.open = false
+      }}><X size={16} /></button></div>
       {typeof navigator.share === 'function' && <button type="button" onClick={() => void shareWithApps()}>Share with apps</button>}
       <button type="button" onClick={() => void copyLink()}>Copy public link</button>
       <a href={facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
@@ -548,6 +561,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  useEffect(() => { closeOtherShareMenus() }, [])
   const load = async () => {
     const responses = await supabase.from('community_comments').select('*,community_members:community_members!community_comments_author_id_fkey(username)').eq('post_id', post.id).order('created_at').limit(200)
     fail(responses.error); setComments(responses.data as Comment[] ?? [])
