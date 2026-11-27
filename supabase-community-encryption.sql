@@ -31,10 +31,8 @@ alter table public.community_conversation_keys enable row level security;
 
 revoke all on public.community_device_keys, public.community_conversation_keys from public, anon, authenticated;
 grant insert(conversation_id,sender_id,body,is_encrypted) on public.community_messages to authenticated;
-grant select on public.community_device_keys to authenticated;
-grant insert(user_id,device_id,public_key), update(public_key,updated_at) on public.community_device_keys to authenticated;
-grant select on public.community_conversation_keys to authenticated;
-grant insert(conversation_id,user_id,device_id,wrapped_key), update(wrapped_key) on public.community_conversation_keys to authenticated;
+grant select, insert, update on public.community_device_keys to authenticated;
+grant select, insert, update on public.community_conversation_keys to authenticated;
 
 drop policy if exists community_device_keys_read on public.community_device_keys;
 create policy community_device_keys_read on public.community_device_keys for select to authenticated using(true);
