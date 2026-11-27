@@ -18,6 +18,8 @@
 .community-directory { border-right: 1px solid #cfdbd6; overflow: auto; padding: 12px; }
 .community-directory > button { width: 100%; justify-content: start; margin-top: 5px; }
 .community-directory h3 { font-size: 13px; text-transform: uppercase; margin: 20px 0 8px; color: #5f766a; }
+.community-conversations { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.community-conversations button { width: 100%; justify-content: flex-start; text-align: left; }
 .community-members { margin-top: 20px; }
 .community-members summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: #385a49; }
 .community-members summary:focus-visible { outline: 2px solid #397851; outline-offset: 3px; }
