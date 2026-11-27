@@ -126,6 +126,8 @@
   .community-directory { max-height: none; border-right: 0; border-bottom: 1px solid #cfdbd6; }
   .community-mobile-directory-tabs { display: flex; gap: 6px; margin-top: 8px; }
   .community-mobile-directory-tabs button { flex: 1; }
+  .community-conversations { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .community-conversations button { width: 100%; justify-content: flex-start; text-align: left; }
   .community-chat.mobile-directory-members:not(.mobile-thread-open) .community-conversations,
   .community-chat.mobile-directory-conversations:not(.mobile-thread-open) .community-members,
   .community-chat:not(.mobile-thread-open) .community-thread { display: none; }
