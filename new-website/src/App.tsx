@@ -699,6 +699,16 @@ const frameTypeOptions: FrameOption[] = [
   { id: 'floral', label: 'Floral Ornament', description: 'Decorative floral details along each rail', icon: '❀' },
 ]
 
+function projectFrameStyle(project: ProjectRecord) {
+  const type = frameTypeOptions
+    .map((option) => option.id)
+    .sort((left, right) => right.length - left.length)
+    .find((id) => project.style.startsWith(`${id}::`) || project.style.startsWith(`${id}-`)) ?? 'modern'
+  const separator = project.style.startsWith(`${type}::`) ? '::' : '-'
+  const material = project.style.slice(type.length + separator.length)
+  return { type, material: materialOptions.some((option) => option.id === material) ? material : materialOptions[0].id }
+}
+
 const sizeOptions = [
   { id: 'standard', label: 'Standard', description: 'Standard mat opening', icon: '▭' },
   { id: 'letter', label: 'Letter', description: 'Letter-size mat opening', icon: '▮' },
@@ -1018,6 +1028,7 @@ function App() {
   const restoringProjectRef = useRef(2)
 
   const [account, setAccount] = useState<Account>(defaultAccount)
+  const unsavedFallbackAccountRef = useRef<Account | null>(null)
   const [accountHeader, setAccountHeader] = useState<{ userId: string; name: string; avatar?: string } | null>(null)
   const [accountUserId, setAccountUserId] = useState<string | null>(null)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
@@ -1143,8 +1154,10 @@ function App() {
     void (async () => {
       let local: Account | undefined
       let browserAvatar: string | undefined
+      let browserAccountRead = false
       try {
         local = await readStoredAccount<Account>(authUserId)
+        browserAccountRead = true
         browserAvatar = await readStoredRecord<string>(`profile-avatar:${authUserId}`)
       } catch {
         if (mounted) setSaveMessage('Browser project storage is unavailable.')
@@ -1158,6 +1171,7 @@ function App() {
         if (!mounted) return
         const remote = profile?.account as Account | undefined
         const loaded = local && remote ? mergeProfileAccount(local, remote) : local ?? remote ?? defaultAccount
+        unsavedFallbackAccountRef.current = null
         setAccountHeader(current => current?.userId === authUserId
           ? { ...current, avatar: current.avatar ?? browserAvatar ?? loaded.avatar }
           : current)
@@ -1171,16 +1185,21 @@ function App() {
         setProfileReady(true)
       } catch {
         if (mounted) {
-          if (local) {
-            setAccount({
-              ...local,
-              name: authenticatedUserRef.current?.user_metadata.username ?? local.name,
-              email: authenticatedUserRef.current?.email ?? local.email,
-              avatar: browserAvatar ?? local.avatar,
-            })
+          if (browserAccountRead) {
+            const loaded = local ?? defaultAccount
+            const fallbackAccount = {
+              ...loaded,
+              name: authenticatedUserRef.current?.user_metadata.username ?? loaded.name,
+              email: authenticatedUserRef.current?.email ?? loaded.email,
+              avatar: browserAvatar ?? loaded.avatar,
+            }
+            unsavedFallbackAccountRef.current = local ? null : fallbackAccount
+            setAccount(fallbackAccount)
             setAccountUserId(authUserId)
           }
-          setSaveMessage('Account sync is unavailable. Your browser projects have been kept.')
+          setSaveMessage(browserAccountRead
+            ? 'Account sync is unavailable. Projects saved now stay in this browser only; cloud projects may not be visible until sync returns.'
+            : 'Account sync and browser project storage are unavailable. Your projects have not been changed.')
         }
       }
     })()
@@ -1588,7 +1607,7 @@ function App() {
 
   const openAccountDialog = async () => {
     if (!authUserId || authenticatedUserRef.current?.id !== authUserId) return
-    const loaded = accountUserId === authUserId
+    const loaded = accountUserId === authUserId && account !== unsavedFallbackAccountRef.current
     setAccountDialogProfileLoaded(loaded)
     setProfileMessage('')
     let avatar = loaded ? account.avatar : undefined
@@ -1931,6 +1950,7 @@ function App() {
 
   useEffect(() => {
     if (!isLoggedIn || !authUserId || accountUserId !== authUserId) return
+    if (account === unsavedFallbackAccountRef.current) return
     void writeStoredAccount(authUserId, account).catch(() => setSaveMessage('Could not keep your projects in this browser.'))
     if (profileReady) {
       void supabase.from('user_profiles').upsert({ user_id: authUserId, account, updated_at: new Date().toISOString() }).then(({ error }) => {
@@ -2076,7 +2096,9 @@ function App() {
     if (authenticatedUserRef.current?.id !== authUserId) return
     setAccount(() => nextAccount)
     setShowSaveDialog(false)
-    setSaveMessage(`Saved in this browser: ${safeFileName}`)
+    setSaveMessage(profileReady
+      ? `Saved in this browser: ${safeFileName}`
+      : `Saved in this browser only: ${safeFileName}. Account sync is unavailable.`)
     if (filePromise) {
       const handle = await filePromise
       if (handle !== undefined) beginProjectDownload(nextProject, handle)
@@ -2135,12 +2157,7 @@ function App() {
   }
 
   const loadProject = (project: ProjectRecord, scrollToWorkspace = true) => {
-    const savedFrameType = frameTypeOptions
-      .map((option) => option.id)
-      .sort((left, right) => right.length - left.length)
-      .find((id) => project.style.startsWith(`${id}::`) || project.style.startsWith(`${id}-`)) ?? 'modern'
-    const separator = project.style.startsWith(`${savedFrameType}::`) ? '::' : '-'
-    const savedMaterial = project.style.slice(savedFrameType.length + separator.length)
+    const { type: savedFrameType, material: savedMaterial } = projectFrameStyle(project)
     const matchingColor = colorOptions.find((color) => color.name === project.color)
     setSelectedProjectId(project.id)
     setSelectedFrameType(frameTypeOptions.some((option) => option.id === savedFrameType) ? savedFrameType : 'modern')
@@ -3344,11 +3361,17 @@ function App() {
             <button type="button" className="menu-action" data-cun-title="Rename folder" data-cun="Rename the currently selected project folder." onClick={renameActiveFolder} disabled={account.activeFolderId === 'all'}>Rename</button>
             <button type="button" className="menu-action" data-cun-title="Delete folder" data-cun="Delete the selected folder." onClick={deleteActiveFolder} disabled={account.activeFolderId === 'all'}>Delete</button>
           </div>
+          {isLoggedIn && !profileReady && <p role="status">Account sync is unavailable. Only projects saved in this browser are shown; cloud projects may not be visible.</p>}
           {activeFolderProjects.length === 0 ? (
-            <p>{t.noProjects}</p>
+            <p>{isLoggedIn && !profileReady ? 'No projects found in this browser.' : t.noProjects}</p>
           ) : (
             <ul>
-              {activeFolderProjects.map((project) => (
+              {activeFolderProjects.map((project) => {
+                const { type, material } = projectFrameStyle(project)
+                const texture = frameTextures[material]
+                const mat = matColorOptions.find(color => color.id === project.matColorId) ?? matColorOptions[0]
+                const bottomMat = bottomMatColorOptions.find(color => color.id === project.bottomMatColorId) ?? bottomMatColorOptions[0]
+                return (
                 <li key={project.id} className={selectedProjectId === project.id ? 'selected' : ''}>
                   <button
                     type="button"
@@ -3357,7 +3380,27 @@ function App() {
                     data-cun="Select this saved project to restore its artwork, frame, and mat settings in the workspace."
                     onClick={() => loadProject(project)}
                   >
-                    {project.artwork && <img className="saved-project-thumb" src={project.artwork} alt="" />}
+                    {project.artwork && (
+                      <span className="saved-project-thumb" style={{ padding: project.frameEnabled !== false ? 4 : 0 }}>
+                        <span className="saved-project-thumb-mat" style={{ padding: project.matEnabled !== false ? 4 : 0, background: mat.hex }}>
+                          <span className="saved-project-thumb-mat" style={{ padding: project.bottomMatEnabled ? 2 : 0, background: bottomMat.hex }}>
+                            <img src={project.artwork} alt="" />
+                          </span>
+                        </span>
+                        {project.frameEnabled !== false && (
+                          <span className={`frame-shell${texture ? ' frame-textured' : ''} frame-${material} frame-${type}`} style={{
+                            '--frame-width': '4px',
+                            '--frame-texture-horizontal': texture ? `url("${texture.horizontal}")` : undefined,
+                            '--frame-texture-vertical': texture ? `url("${texture.vertical}")` : undefined,
+                          } as React.CSSProperties}>
+                            <span className="frame-side frame-side-top" />
+                            <span className="frame-side frame-side-right" />
+                            <span className="frame-side frame-side-bottom" />
+                            <span className="frame-side frame-side-left" />
+                          </span>
+                        )}
+                      </span>
+                    )}
                     <strong>{project.name}</strong>
                     <span className="project-audit-summary" title={`Saved ${new Date(project.createdAt).toLocaleString()}`}>
                       Artwork {project.artWidthInches !== undefined && project.artHeightInches !== undefined ? `${project.artWidthInches.toFixed(1)} × ${project.artHeightInches.toFixed(1)} in (${project.dimensionsConfirmed ? 'measured' : 'estimate'})` : 'size not recorded'} ·{' '}
@@ -3392,7 +3435,8 @@ function App() {
                     </button>
                   </div>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </div>}
@@ -3686,6 +3730,7 @@ function App() {
               <h4>{t.save}</h4>
               <button type="button" onClick={() => setShowSaveDialog(false)}>×</button>
             </div>
+            {!profileReady && <p className="dialog-hint" role="status">Account sync is unavailable. This project will be saved in this browser only; cloud projects may not be visible until sync returns.</p>}
             <div className="field-group">
               <label htmlFor="project-file-name">{ui.fileName}</label>
               <input

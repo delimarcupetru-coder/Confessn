@@ -1807,14 +1807,25 @@
 }
 
 .saved-project-thumb {
-  width: auto;
-  height: auto;
+  display: block;
+  position: relative;
   max-width: 64px;
-  max-height: 96px;
-  object-fit: contain;
+  box-sizing: border-box;
   float: left;
   margin-right: 10px;
-  border-radius: 4px;
+}
+
+.saved-project-thumb-mat {
+  display: block;
+}
+
+.saved-project-thumb img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 76px;
+  object-fit: contain;
 }
 
 .project-list span {
@@ -3208,7 +3219,17 @@
 }
 
 @media (max-width: 620px) {
+  .studio-shell {
+    --topbar-clearance: 0px;
+    padding-top: 6px;
+  }
+
   .topbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0 auto;
+    transform: none;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:

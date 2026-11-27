@@ -16,6 +16,10 @@ The signed-in Account editor remains available while project sync is loading or 
 
 On mobile, Confessn University remains visible in the header, and the account menu displays the signed-in username and saved photo. Language selection is in the account menu (and the signed-in profile editor). The photo is restored for the current account after refresh; when cloud sync is unavailable, its browser-only limitation still applies. Share menus stay within their post and opening another closes the previous one; each menu has an explicit close button.
 
+On mobile, the header scrolls with the page instead of covering the workspace. If account sync fails but browser storage is available, a signed-in user can still save projects in that browser. Cloud projects may not appear until sync returns; browser-only saves are merged with the loaded account when sync is restored. The app does not overwrite the unavailable cloud profile with an empty account.
+
+Saved-project thumbnails show the saved frame finish and mat colors around the complete artwork, including older projects. The miniature keeps the artwork's proportions and respects disabled frames and mats; it does not rewrite saved images or project settings.
+
 ## Password Recovery Redirects
 
 In Supabase, open **Authentication > URL Configuration** and set **Site URL** to `https://delimarcupetru-coder.github.io/Confessn/`. Add `https://delimarcupetru-coder.github.io/Confessn/?recovery=1` to **Redirect URLs** and save. If using the custom domain as the site URL, also allow `https://confessn.com/?recovery=1`.
