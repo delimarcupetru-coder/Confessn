@@ -1034,7 +1034,7 @@ function App() {
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [showCommunity, setShowCommunity] = useState(false)
   const [communityRecipient, setCommunityRecipient] = useState<string | null>(null)
-  const [communityInitialProject, setCommunityInitialProject] = useState<{ id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string } | null>(null)
+  const [communityInitialProject, setCommunityInitialProject] = useState<{ id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string; kind?: 'personal' | 'publication' } | null>(null)
   const [communityVersion, setCommunityVersion] = useState(0)
   const [publishProject, setPublishProject] = useState<ProjectRecord | null>(null)
   const [publishTitle, setPublishTitle] = useState('')
@@ -2382,7 +2382,7 @@ function App() {
     if (selection) beginProjectDownload(project, selection)
   }
 
-  const openCommunityChat = (memberId: string, project?: { id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string }) => {
+  const openCommunityChat = (memberId: string, project?: { id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string; kind?: 'personal' | 'publication' }) => {
     setCommunityRecipient(memberId)
     setCommunityInitialProject(project ?? null)
     setShowCommunity(true)

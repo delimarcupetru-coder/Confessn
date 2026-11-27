@@ -37,6 +37,7 @@ export type ChatProject = {
   size?: string
   style?: string
   color?: string
+  kind?: 'personal' | 'publication'
 }
 
 const imageUrl = (path: string) => supabase.storage.from('community-media').getPublicUrl(path).data.publicUrl
@@ -336,6 +337,8 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
   const [draft, setDraft] = useState('')
   const [pendingProject, setPendingProject] = useState<ChatProject | null>(null)
   const [projectPickerOpen, setProjectPickerOpen] = useState(false)
+  const [projectPickerSource, setProjectPickerSource] = useState<'personal' | 'published'>('personal')
+  const [publishedShareProjects, setPublishedShareProjects] = useState<ChatProject[]>([])
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
   const [attachmentMessages, setAttachmentMessages] = useState<Record<string, { path: string; name: string; mimeType: string; iv: string }>>({})
@@ -436,17 +439,19 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
 
   const load = async () => {
     if (!userId) return
-    const [directory, chats, blocked, planned, moderator] = await Promise.all([
+    const [directory, chats, blocked, planned, moderator, published] = await Promise.all([
       supabase.from('community_members').select('user_id,username').order('username'),
       supabase.rpc('community_conversations'),
       supabase.from('community_blocks').select('blocked_id').eq('blocker_id', userId),
       supabase.from('community_posts').select('*,community_members:community_members!community_posts_author_id_fkey(username)').eq('kind', 'event').gte('ends_at', startOfWeek(startOfMonth(month), { weekStartsOn: 1 }).toISOString()).lte('starts_at', endOfWeek(endOfMonth(month), { weekStartsOn: 1 }).toISOString()).order('starts_at').limit(1000),
       supabase.rpc('community_is_admin'),
+      supabase.from('community_posts').select('id,title,description,image_path').order('created_at', { ascending: false }).limit(100),
     ])
-    for (const result of [directory, chats, blocked, planned]) fail(result.error)
+    for (const result of [directory, chats, blocked, planned, published]) fail(result.error)
     if (identity.current !== userId) return
     const uniqueChats = Array.from(new Map((chats.data ?? []).map((chat: Conversation) => [chat.id, chat])).values()) as Conversation[]
     setMembers(directory.data ?? []); setConversations(uniqueChats); setBlocks((blocked.data ?? []).map(item => item.blocked_id)); setEvents(planned.data as CommunityPost[] ?? [])
+    setPublishedShareProjects(((published.data ?? []) as Array<{ id: string; title: string; description: string; image_path: string }>).map(post => ({ id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description, kind: 'publication' })))
     setCommunityAdmin(!moderator.error && moderator.data === true)
   }
 
@@ -638,13 +643,13 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
         {messages.some(message => message.sender_id === userId) && <p className="community-delete-hint">Select your message to delete it for everyone.</p>}
         <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => {
           const own = message.sender_id === userId
-            const projectCard = projectCards[message.id]
-            const attachmentUrl = attachmentUrls[message.id]
-            const content = <><strong>{username(message.sender_id)}</strong>
-              {projectCard ? <div className="community-project-share"><strong>Shared project: {projectCard.name}</strong>{projectCard.imageUrl && <img src={projectCard.imageUrl} alt="" />}<small>{[projectCard.size, projectCard.style, projectCard.color].filter(Boolean).join(' · ')}</small>{projectCard.description && <p>{projectCard.description}</p>}<button type="button" onClick={() => window.open(publicationUrl({ id: projectCard.id } as CommunityPost), '_blank', 'noopener,noreferrer')}>View original artwork</button></div> :
-                attachmentUrl ? <img className="community-chat-image" src={attachmentUrl} alt={attachmentMessages[message.id]?.name ?? 'Chat attachment'} /> :
-                <p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p>}
-              <time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
+          const projectCard = projectCards[message.id]
+          const attachmentUrl = attachmentUrls[message.id]
+          const content = <><strong>{username(message.sender_id)}</strong>
+            {projectCard ? <div className="community-project-share"><strong>Shared project: {projectCard.name}</strong>{projectCard.imageUrl && <img src={projectCard.imageUrl} alt="" />}<small>{[projectCard.size, projectCard.style, projectCard.color].filter(Boolean).join(' · ')}</small>{projectCard.description && <p>{projectCard.description}</p>}{projectCard.kind === 'publication' && <button type="button" onClick={() => window.open(publicationUrl({ id: projectCard.id } as CommunityPost), '_blank', 'noopener,noreferrer')}>View original artwork</button>}</div> :
+              attachmentUrl ? <img className="community-chat-image" src={attachmentUrl} alt={attachmentMessages[message.id]?.name ?? 'Chat attachment'} /> :
+              <p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p>}
+            <time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
           return <article key={message.id} className={own ? 'own' : ''}>{own ? <button type="button" className="community-message" disabled={busy} title="Delete your message for everyone" aria-label={`Delete your message for everyone: ${message.body}`} onClick={() => {
             if (!window.confirm('Delete this message for everyone?')) return
             void run(async () => {
@@ -683,10 +688,21 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
             <input ref={attachmentInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event => setAttachmentFile(event.target.files?.[0] ?? null)} />
           </div>
           {projectPickerOpen && <div className="community-project-picker">
-            {projects.length ? projects.map(project => <button type="button" key={project.id} onClick={() => {
-              setPendingProject({ id: project.id, name: project.name, size: project.size, style: project.style, color: project.color, description: project.notes })
-              setProjectPickerOpen(false)
-            }}>{project.name}</button>) : <p>No saved projects available.</p>}
+            <div className="community-project-picker-tabs" role="tablist" aria-label="Project source">
+              <button type="button" role="tab" aria-selected={projectPickerSource === 'personal'} onClick={() => setProjectPickerSource('personal')}>My projects</button>
+              <button type="button" role="tab" aria-selected={projectPickerSource === 'published'} onClick={() => setProjectPickerSource('published')}>Published artwork</button>
+            </div>
+            {projectPickerSource === 'personal' ? (
+              projects.length ? projects.map(project => <button type="button" key={project.id} onClick={() => {
+                setPendingProject({ id: project.id, name: project.name, imageUrl: project.artwork ?? undefined, size: project.size, style: project.style, color: project.color, description: project.notes, kind: 'personal' })
+                setProjectPickerOpen(false)
+              }}>{project.artwork && <img src={project.artwork} alt="" />}<span>{project.name}</span></button>) : <p>No saved projects available.</p>
+            ) : (
+              publishedShareProjects.length ? publishedShareProjects.map(project => <button type="button" key={project.id} onClick={() => {
+                setPendingProject(project)
+                setProjectPickerOpen(false)
+              }}>{project.imageUrl && <img src={project.imageUrl} alt="" />}<span>{project.name}</span></button>) : <p>No published artwork available.</p>
+            )}
           </div>}
           {pendingProject && <div className="community-pending-project"><strong>Shared project: {pendingProject.name}</strong>{pendingProject.imageUrl && <img src={pendingProject.imageUrl} alt="" />}<small>{[pendingProject.size, pendingProject.style, pendingProject.color].filter(Boolean).join(' · ')}</small><button type="button" onClick={() => setPendingProject(null)}>Remove</button></div>}
           {attachmentFile && <div className="community-pending-project"><strong>{attachmentFile.name}</strong><button type="button" onClick={() => setAttachmentFile(null)}>Remove</button></div>}
@@ -772,7 +788,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: s
       <div className="community-card-actions">
         {post.kind === 'art' && <PostRating post={post} userId={userId} compact version={ratingVersion} />}
         <PublicationShare post={post} />
-        <button type="button" className="community-small-message" title={`Message ${post.community_members?.username ?? 'publisher'}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description }) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
+        <button type="button" className="community-small-message" title={`Message ${post.author_id === userId ? 'publisher' : `publisher ${post.community_members?.username ?? ''}`}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description, kind: 'publication' }) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
       </div>
       <QuickComment post={post} userId={userId} onSignIn={onSignIn} />
       <SaleControls postId={post.id} authorId={post.author_id} kind={post.kind} compact onOpen={() => setSelected(post)} />
@@ -795,7 +811,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
     fail(responses.error); setComments(responses.data as Comment[] ?? [])
   }
   useEffect(() => { void load().catch(issue => setError(errorText(issue))) }, [post.id, userId])
-  const connect = () => { onClose(); if (userId) onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description }); else onSignIn?.() }
+  const connect = () => { onClose(); if (userId) onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description, kind: 'publication' }); else onSignIn?.() }
   const act = async (action: () => Promise<void>) => { setBusy(true); setError(''); try { await action() } catch (issue) { setError(errorText(issue)) } finally { setBusy(false) } }
   return <div className="community-detail-overlay"><section className="community-detail" role="dialog" aria-modal="true" aria-label={post.title}><header><h2>{post.title}</h2><button type="button" className="community-icon" onClick={onClose} title="Close publication" aria-label="Close publication"><X /></button></header><img className="community-detail-image" src={imageUrl(post.image_path)} alt={post.title} /><p><strong>{post.community_members?.username ?? 'Member'}</strong> · {dateTime(post.created_at)}</p><p className="community-description">{post.description}</p>
     {post.kind === 'event' && <div className="community-event-details"><p>{post.starts_at && dateTime(post.starts_at, post.timezone)} – {post.ends_at && dateTime(post.ends_at, post.timezone)} ({post.timezone})</p>{post.location && <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.location)}`}>{post.location} · Google Maps</a>}{safeUrl(post.online_url) && <a href={safeUrl(post.online_url)} target="_blank" rel="noreferrer">Open event</a>}</div>}

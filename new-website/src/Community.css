@@ -53,6 +53,10 @@
 .community-project-picker, .community-pending-project { flex: 0 0 100%; }
 .community-project-picker { display: grid; gap: 5px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid #bccbc3; border-radius: 6px; background: #eef4f0; }
 .community-project-picker button { width: 100%; justify-content: flex-start; }
+.community-project-picker-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; position: sticky; top: 0; background: #eef4f0; z-index: 1; }
+.community-project-picker-tabs button { justify-content: center; }
+.community-project-picker > button { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 8px; text-align: left; }
+.community-project-picker > button img { width: 48px; height: 48px; object-fit: contain; background: #e3ebe5; border-radius: 4px; }
 .community-pending-project { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; align-items: center; padding: 8px; border: 1px solid #bccbc3; border-radius: 6px; background: #eef4f0; }
 .community-pending-project img { grid-row: span 2; width: 54px; height: 54px; object-fit: cover; border-radius: 4px; }
 .community-pending-project small { color: #607469; }
