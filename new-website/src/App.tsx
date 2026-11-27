@@ -23,7 +23,7 @@ type Folder = {
   name: string
 }
 
-type ProjectRecord = {
+export type ProjectRecord = {
   id: string
   name: string
   size: string
@@ -1034,6 +1034,7 @@ function App() {
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [showCommunity, setShowCommunity] = useState(false)
   const [communityRecipient, setCommunityRecipient] = useState<string | null>(null)
+  const [communityInitialProject, setCommunityInitialProject] = useState<{ id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string } | null>(null)
   const [communityVersion, setCommunityVersion] = useState(0)
   const [publishProject, setPublishProject] = useState<ProjectRecord | null>(null)
   const [publishTitle, setPublishTitle] = useState('')
@@ -2381,8 +2382,9 @@ function App() {
     if (selection) beginProjectDownload(project, selection)
   }
 
-  const openCommunityChat = (memberId: string) => {
+  const openCommunityChat = (memberId: string, project?: { id: string; name: string; imageUrl?: string; description?: string; size?: string; style?: string; color?: string }) => {
     setCommunityRecipient(memberId)
+    setCommunityInitialProject(project ?? null)
     setShowCommunity(true)
   }
 
@@ -3460,7 +3462,7 @@ function App() {
         </div>
       </section>
 
-      <Community userId={isLoggedIn ? authUserId : null} open={showCommunity} onClose={() => setShowCommunity(false)} onConnect={() => { setShowCommunity(false); setAuthMode('login') }} initialUser={communityRecipient} onPublished={() => setCommunityVersion(current => current + 1)} isAdmin={isConfessnAdmin} />
+      <Community userId={isLoggedIn ? authUserId : null} open={showCommunity} onClose={() => { setShowCommunity(false); setCommunityInitialProject(null) }} onConnect={() => { setShowCommunity(false); setAuthMode('login') }} initialUser={communityRecipient} initialProject={communityInitialProject} projects={account.projects} onPublished={() => setCommunityVersion(current => current + 1)} isAdmin={isConfessnAdmin} />
       {publishProject && <div className="community-detail-overlay"><form className="community-detail" role="dialog" aria-modal="true" aria-label="Publish framed artwork" onSubmit={event => { event.preventDefault(); void publishSavedProject() }}><header><h2>Publish framed artwork</h2></header><p>{publishProject.name} · {account.name}</p><label>Public title<input required maxLength={120} value={publishTitle} onChange={event => setPublishTitle(event.target.value)} /></label><p id="publish-description-hint">Suggested from your saved framing settings. Edit it or add details about the artwork before publishing. Private project notes are not copied.</p><label>Public description<textarea maxLength={5000} aria-describedby="publish-description-hint" value={publishDescription} onChange={event => setPublishDescription(event.target.value)} /></label><label className="community-check" data-cun-title="Publish artwork" data-cun="Your public framed image is displayed under your username. Private project notes remain private."><input type="checkbox" required />Make this framed image public.</label>{publishError && <p role="alert" className="community-error">{publishError}</p>}<div className="community-detail-actions"><button type="submit" disabled={publishing}>{publishing ? 'Publishing...' : 'Publish'}</button><button type="button" disabled={publishing} onClick={() => setPublishProject(null)}>Cancel</button></div></form></div>}
 
       <section id="contact" className="contact-section panel-block">

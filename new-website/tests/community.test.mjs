@@ -37,6 +37,7 @@ test('community migration and access policies', async context => {
   await db.exec(await readFile(new URL('../../supabase-community-editing.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-ratings.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-encryption.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../supabase-community-chat-attachments.sql', import.meta.url), 'utf8'))
   const messageDeletionMigration = await readFile(new URL('../../supabase-community-message-deletion.sql', import.meta.url), 'utf8')
   await db.exec(messageDeletionMigration)
   await db.exec(messageDeletionMigration)

@@ -4,9 +4,12 @@ import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSq
 import { supabase } from './supabase'
 import { SaleControls } from './Marketplace'
 import { prepareInstagramImage, sharePublicImage } from './share-image'
+import type { ProjectRecord } from './App'
 import {
   decryptChatMessage,
+  decryptChatAttachment,
   encryptChatMessage,
+  encryptChatAttachment,
   ensureConversationKey,
   ensureDeviceIdentity,
   unwrapConversationKey,
@@ -26,6 +29,15 @@ export type CommunityPost = {
 type Comment = { id: string; author_id: string; body: string; created_at: string; community_members: { username: string } | null }
 type RatingSummary = { vote_count: string; average: number | null; my_score: number | null }
 type Report = { id: string; target_user_id: string; post_id: string | null; reason: string; created_at: string }
+export type ChatProject = {
+  id: string
+  name: string
+  imageUrl?: string
+  description?: string
+  size?: string
+  style?: string
+  color?: string
+}
 
 const imageUrl = (path: string) => supabase.storage.from('community-media').getPublicUrl(path).data.publicUrl
 const fail = (error: { message: string } | null) => { if (error) throw new Error(error.message) }
@@ -304,9 +316,9 @@ function PostEditor({ post, userId, onSaved, onCancel }: { post: CommunityPost; 
   </form>
 }
 
-export function Community({ userId, open, onClose, onConnect, initialUser, onPublished, isAdmin = false }: {
+export function Community({ userId, open, onClose, onConnect, initialUser, initialProject, projects = [], onPublished, isAdmin = false }: {
   userId: string | null; open: boolean; onClose: () => void; onConnect: () => void;
-  initialUser: string | null; onPublished: () => void; isAdmin?: boolean
+  initialUser: string | null; initialProject?: ChatProject | null; projects?: ProjectRecord[]; onPublished: () => void; isAdmin?: boolean
 }) {
   const [tab, setTab] = useState<'chat' | 'planning'>('chat')
   const [members, setMembers] = useState<Member[]>([])
@@ -322,6 +334,13 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const [blocks, setBlocks] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
+  const [pendingProject, setPendingProject] = useState<ChatProject | null>(null)
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false)
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
+  const [attachmentMessages, setAttachmentMessages] = useState<Record<string, { path: string; name: string; mimeType: string; iv: string }>>({})
+  const [projectCards, setProjectCards] = useState<Record<string, ChatProject>>({})
+  const attachmentInput = useRef<HTMLInputElement>(null)
   const [groupTitle, setGroupTitle] = useState('')
   const [groupMembers, setGroupMembers] = useState<string[]>([])
   const [groupOpen, setGroupOpen] = useState(false)
@@ -359,6 +378,58 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       const active = unique.find(chat => chat.id === conversationId)
       return active ? [active, ...unique.filter(chat => chat.id !== conversationId)] : unique
     })
+  }
+  const prepareConversationEncryption = async (conversationId: string) => {
+    if (!userId) throw new Error('Sign in to send encrypted chat messages.')
+    const identity = await ensureDeviceIdentity(supabase, userId)
+    let participantIds = participants
+    if (participantIds.length < 2) {
+      const participantResult = await supabase.from('community_participants').select('user_id').eq('conversation_id', conversationId)
+      if (participantResult.error) throw new Error(participantResult.error.message)
+      participantIds = (participantResult.data ?? []).map(item => item.user_id)
+    }
+    const key = await ensureConversationKey(supabase, conversationId, userId, participantIds, identity)
+    conversationKeys.current.set(conversationId, key)
+    return key
+  }
+  const sendEncryptedEnvelope = async (conversationId: string, envelope: object) => {
+    if (!userId) return
+    const key = await prepareConversationEncryption(conversationId)
+    const encryptedBody = await encryptChatMessage(key, JSON.stringify(envelope))
+    const result = await supabase.from('community_messages').insert({ conversation_id: conversationId, sender_id: userId, body: encryptedBody, is_encrypted: true }).select('id,sender_id,body,is_encrypted,created_at').single()
+    fail(result.error)
+    const sent = result.data as Message | null
+    if (!sent) throw new Error('Message was not returned by the server.')
+    setMessages(current => [...current.filter(message => message.id !== sent.id), sent])
+    moveConversationToTop(conversationId)
+    void load()
+    return sent
+  }
+  const sendProjectShare = async (project: ChatProject) => {
+    if (!selected) return
+    const sent = await sendEncryptedEnvelope(selected, { type: 'project', project })
+    if (sent) setProjectCards(current => ({ ...current, [sent.id]: project }))
+    setPendingProject(null)
+    setProjectPickerOpen(false)
+  }
+  const sendImageAttachment = async (file: File) => {
+    if (!selected) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Choose a JPG, PNG, or WebP image.')
+    if (file.size > 5 * 1024 * 1024) throw new Error('Choose an image smaller than 5 MB.')
+    const key = await prepareConversationEncryption(selected)
+    const encrypted = await encryptChatAttachment(key, file)
+    const path = `${selected}/${crypto.randomUUID()}.enc`
+    const upload = await supabase.storage.from('community-chat-media').upload(path, encrypted.ciphertext, { contentType: 'application/octet-stream', upsert: false })
+    if (upload.error) throw new Error(upload.error.message)
+    try {
+      const sent = await sendEncryptedEnvelope(selected, { type: 'image', path, name: file.name, mimeType: file.type, iv: encrypted.iv })
+      if (sent) setAttachmentMessages(current => ({ ...current, [sent.id]: { path, name: file.name, mimeType: file.type, iv: encrypted.iv } }))
+      setAttachmentFile(null)
+      if (attachmentInput.current) attachmentInput.current.value = ''
+    } catch (issue) {
+      await supabase.storage.from('community-chat-media').remove([path])
+      throw issue
+    }
   }
   const run = async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action() } catch (issue) { setError(errorText(issue)) } finally { setBusy(false) } }
 
@@ -421,7 +492,24 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
           if (conversationKey) conversationKeys.current.set(selected, conversationKey)
           if (conversationKey) {
             const decrypted = await Promise.all(encryptedMessages.map(async message => {
-              try { return [message.id, await decryptChatMessage(conversationKey as CryptoKey, message.body)] as const }
+              try {
+                const plaintext = await decryptChatMessage(conversationKey as CryptoKey, message.body)
+                try {
+                  const envelope = JSON.parse(plaintext) as { type?: string; text?: string; project?: ChatProject; path?: string; name?: string; mimeType?: string; iv?: string }
+                  if (envelope.type === 'project' && envelope.project) {
+                    setProjectCards(current => ({ ...current, [message.id]: envelope.project as ChatProject }))
+                    return [message.id, ''] as const
+                  }
+                  if (envelope.type === 'image' && envelope.path && envelope.iv) {
+                    setAttachmentMessages(current => ({ ...current, [message.id]: { path: envelope.path as string, name: envelope.name ?? 'Image', mimeType: envelope.mimeType ?? 'image/jpeg', iv: envelope.iv as string } }))
+                    return [message.id, ''] as const
+                  }
+                  if (envelope.type === 'text' && envelope.text) return [message.id, envelope.text] as const
+                } catch {
+                  return [message.id, plaintext] as const
+                }
+                return [message.id, plaintext] as const
+              }
               catch (issue) { return [message.id, `Encrypted message unavailable: ${getConversationKeyError(issue)}`] as const }
             }))
             setDecryptedBodies(current => ({ ...current, ...Object.fromEntries(decrypted) }))
@@ -450,6 +538,32 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     })
     return () => { active = false }
   }, [open, userId, initialUser])
+
+  useEffect(() => {
+    if (!open) { setPendingProject(null); setAttachmentFile(null); setProjectPickerOpen(false); return }
+    if (selected && initialProject) setPendingProject(initialProject)
+  }, [open, selected, initialProject])
+
+  useEffect(() => {
+    if (!selected || !userId) return
+    let active = true
+    void (async () => {
+      const identity = await ensureDeviceIdentity(supabase, userId)
+      const conversationKey = conversationKeys.current.get(selected) ?? await unwrapConversationKey(supabase, selected, userId, identity)
+      if (!conversationKey) return
+      conversationKeys.current.set(selected, conversationKey)
+      await Promise.all(Object.entries(attachmentMessages).map(async ([messageId, attachment]) => {
+        if (attachmentUrls[messageId]) return
+        const downloaded = await supabase.storage.from('community-chat-media').download(attachment.path)
+        if (!active || downloaded.error) return
+        const ciphertext = await downloaded.data.arrayBuffer()
+        const plaintext = await decryptChatAttachment(conversationKey, ciphertext, attachment.iv)
+        const url = URL.createObjectURL(new Blob([plaintext], { type: attachment.mimeType }))
+        setAttachmentUrls(current => ({ ...current, [messageId]: url }))
+      }))
+    })().catch((issue: unknown) => setError(errorText(issue)))
+    return () => { active = false }
+  }, [attachmentMessages, selected, userId])
 
   useEffect(() => {
     if (!open) return
@@ -512,7 +626,13 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         {messages.some(message => message.sender_id === userId) && <p className="community-delete-hint">Select your message to delete it for everyone.</p>}
         <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => {
           const own = message.sender_id === userId
-          const content = <><strong>{username(message.sender_id)}</strong><p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
+            const projectCard = projectCards[message.id]
+            const attachmentUrl = attachmentUrls[message.id]
+            const content = <><strong>{username(message.sender_id)}</strong>
+              {projectCard ? <div className="community-project-share"><strong>Shared project: {projectCard.name}</strong>{projectCard.imageUrl && <img src={projectCard.imageUrl} alt="" />}<small>{[projectCard.size, projectCard.style, projectCard.color].filter(Boolean).join(' · ')}</small>{projectCard.description && <p>{projectCard.description}</p>}</div> :
+                attachmentUrl ? <img className="community-chat-image" src={attachmentUrl} alt={attachmentMessages[message.id]?.name ?? 'Chat attachment'} /> :
+                <p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p>}
+              <time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
           return <article key={message.id} className={own ? 'own' : ''}>{own ? <button type="button" className="community-message" disabled={busy} title="Delete your message for everyone" aria-label={`Delete your message for everyone: ${message.body}`} onClick={() => {
             if (!window.confirm('Delete this message for everyone?')) return
             void run(async () => {
@@ -525,25 +645,39 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
             })
           }}>{content}</button> : content}</article>
         })}{selected && !messages.length && <p>No messages yet.</p>}</div>
-        <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; const conversationId = selected; void run(async () => {
-          const identity = await ensureDeviceIdentity(supabase, userId)
-          let participantIds = participants
-          if (participantIds.length < 2) {
-            const participantResult = await supabase.from('community_participants').select('user_id').eq('conversation_id', conversationId)
-            if (participantResult.error) throw new Error(participantResult.error.message)
-            participantIds = (participantResult.data ?? []).map(item => item.user_id)
-          }
-          const conversationKey = await ensureConversationKey(supabase, conversationId, userId, participantIds, identity)
-          conversationKeys.current.set(conversationId, conversationKey)
-          const encryptedBody = await encryptChatMessage(conversationKey, text)
-          const result = await supabase.from('community_messages').insert({ conversation_id: conversationId, sender_id: userId, body: encryptedBody, is_encrypted: true }).select('id,sender_id,body,is_encrypted,created_at').single()
-          fail(result.error)
-          const sent = result.data as Message | null
-          if (!sent) throw new Error('Message was not returned by the server.')
-          setMessages(current => [...current.filter(message => message.id !== sent.id), sent])
-          setDecryptedBodies(current => ({ ...current, [sent.id]: text }))
-          moveConversationToTop(conversationId); void load(); setDraft('')
-        }) }}>
+        <form className="community-composer" onSubmit={event => {
+          event.preventDefault()
+          if (!selected) return
+          void run(async () => {
+            if (attachmentFile) {
+              await sendImageAttachment(attachmentFile)
+            } else if (pendingProject) {
+              await sendProjectShare(pendingProject)
+            } else if (draft.trim()) {
+              const sent = await sendEncryptedEnvelope(selected, { type: 'text', text: draft.trim() })
+              if (sent) setDecryptedBodies(current => ({ ...current, [sent.id]: draft.trim() }))
+              setDraft('')
+            }
+            if (draft.trim() && pendingProject) {
+              const sent = await sendEncryptedEnvelope(selected, { type: 'text', text: draft.trim() })
+              if (sent) setDecryptedBodies(current => ({ ...current, [sent.id]: draft.trim() }))
+              setDraft('')
+            }
+          })
+        }}>
+          <div className="community-composer-actions">
+            <button type="button" onClick={() => setProjectPickerOpen(!projectPickerOpen)} disabled={!selected || busy}>Share saved project</button>
+            <button type="button" onClick={() => attachmentInput.current?.click()} disabled={!selected || busy}>Attach picture</button>
+            <input ref={attachmentInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event => setAttachmentFile(event.target.files?.[0] ?? null)} />
+          </div>
+          {projectPickerOpen && <div className="community-project-picker">
+            {projects.length ? projects.map(project => <button type="button" key={project.id} onClick={() => {
+              setPendingProject({ id: project.id, name: project.name, size: project.size, style: project.style, color: project.color, description: project.notes })
+              setProjectPickerOpen(false)
+            }}>{project.name}</button>) : <p>No saved projects available.</p>}
+          </div>}
+          {pendingProject && <div className="community-pending-project"><strong>Shared project: {pendingProject.name}</strong>{pendingProject.imageUrl && <img src={pendingProject.imageUrl} alt="" />}<small>{[pendingProject.size, pendingProject.style, pendingProject.color].filter(Boolean).join(' · ')}</small><button type="button" onClick={() => setPendingProject(null)}>Remove</button></div>}
+          {attachmentFile && <div className="community-pending-project"><strong>{attachmentFile.name}</strong><button type="button" onClick={() => setAttachmentFile(null)}>Remove</button></div>}
           <textarea aria-label="Message" placeholder="Write an encrypted message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
             event.preventDefault()
@@ -580,7 +714,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   </div></div>
 }
 
-export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: string | null; version: number; onChat: (id: string) => void; onSignIn: () => void }) {
+export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: string | null; version: number; onChat: (id: string, project?: ChatProject) => void; onSignIn: () => void }) {
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [selected, setSelected] = useState<CommunityPost | null>(null)
   const [error, setError] = useState('')
@@ -626,7 +760,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: s
       <div className="community-card-actions">
         {post.kind === 'art' && <PostRating post={post} userId={userId} compact version={ratingVersion} />}
         <PublicationShare post={post} />
-        <button type="button" className="community-small-message" title={`Message ${post.community_members?.username ?? 'publisher'}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
+        <button type="button" className="community-small-message" title={`Message ${post.community_members?.username ?? 'publisher'}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description }) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
       </div>
       <QuickComment post={post} userId={userId} onSignIn={onSignIn} />
       <SaleControls postId={post.id} authorId={post.author_id} kind={post.kind} compact onOpen={() => setSelected(post)} />
@@ -634,7 +768,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: s
   </article>)}</div>{posts.length === pageSize && <button type="button" onClick={() => setPageSize(current => current + 12)}>Load more</button>}{selected && <PublicationDetails post={selected} userId={userId} onClose={closeSelected} onChat={onChat} onSignIn={onSignIn} onChanged={() => { closeSelected(); setRefresh(current => current + 1) }} onEdited={updated => { setSelected(updated); setPosts(current => current.map(item => item.id === updated.id ? updated : item)) }} onRated={() => setRatingVersion(current => current + 1)} />}</div>
 }
 
-function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged, onEdited, onRated }: { post: CommunityPost; userId: string | null; onClose: () => void; onChat: (id: string) => void; onSignIn?: () => void; onChanged: () => void; onEdited: (post: CommunityPost) => void; onRated?: () => void }) {
+function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged, onEdited, onRated }: { post: CommunityPost; userId: string | null; onClose: () => void; onChat: (id: string, project?: ChatProject) => void; onSignIn?: () => void; onChanged: () => void; onEdited: (post: CommunityPost) => void; onRated?: () => void }) {
   const [comments, setComments] = useState<Comment[]>([])
   const [editing, setEditing] = useState(false)
   const [comment, setComment] = useState('')
@@ -649,7 +783,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
     fail(responses.error); setComments(responses.data as Comment[] ?? [])
   }
   useEffect(() => { void load().catch(issue => setError(errorText(issue))) }, [post.id, userId])
-  const connect = () => { onClose(); if (userId) onChat(post.author_id); else onSignIn?.() }
+  const connect = () => { onClose(); if (userId) onChat(post.author_id, { id: post.id, name: post.title, imageUrl: imageUrl(post.image_path), description: post.description }); else onSignIn?.() }
   const act = async (action: () => Promise<void>) => { setBusy(true); setError(''); try { await action() } catch (issue) { setError(errorText(issue)) } finally { setBusy(false) } }
   return <div className="community-detail-overlay"><section className="community-detail" role="dialog" aria-modal="true" aria-label={post.title}><header><h2>{post.title}</h2><button type="button" className="community-icon" onClick={onClose} title="Close publication" aria-label="Close publication"><X /></button></header><img className="community-detail-image" src={imageUrl(post.image_path)} alt={post.title} /><p><strong>{post.community_members?.username ?? 'Member'}</strong> · {dateTime(post.created_at)}</p><p className="community-description">{post.description}</p>
     {post.kind === 'event' && <div className="community-event-details"><p>{post.starts_at && dateTime(post.starts_at, post.timezone)} – {post.ends_at && dateTime(post.ends_at, post.timezone)} ({post.timezone})</p>{post.location && <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.location)}`}>{post.location} · Google Maps</a>}{safeUrl(post.online_url) && <a href={safeUrl(post.online_url)} target="_blank" rel="noreferrer">Open event</a>}</div>}

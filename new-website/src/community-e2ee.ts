@@ -149,6 +149,23 @@ export async function encryptChatMessage(conversationKey: CryptoKey, text: strin
   return `${bytesToBase64(iv)}.${bytesToBase64(ciphertext)}`
 }
 
+export async function encryptChatAttachment(conversationKey: CryptoKey, file: File) {
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const ivBuffer = iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer
+  const plaintext = await file.arrayBuffer()
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: ivBuffer }, conversationKey, plaintext)
+  return {
+    iv: bytesToBase64(iv),
+    ciphertext: new Blob([ciphertext], { type: 'application/octet-stream' }),
+  }
+}
+
+export async function decryptChatAttachment(conversationKey: CryptoKey, ciphertext: ArrayBuffer, ivBase64: string) {
+  const iv = base64ToBytes(ivBase64)
+  const ivBuffer = iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer
+  return crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuffer }, conversationKey, ciphertext)
+}
+
 export async function decryptChatMessage(conversationKey: CryptoKey, body: string) {
   const separator = body.indexOf('.')
   if (separator < 1) throw new Error('This message has an invalid encrypted format.')
