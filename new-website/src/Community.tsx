@@ -545,7 +545,6 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
       setPendingProject(null)
       setAttachmentFile(null)
       setProjectPickerOpen(false)
-      initialProjectSent.current = null
       return
     }
     if (!selected || !initialUser || !initialProject) return
@@ -642,7 +641,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
             const projectCard = projectCards[message.id]
             const attachmentUrl = attachmentUrls[message.id]
             const content = <><strong>{username(message.sender_id)}</strong>
-              {projectCard ? <div className="community-project-share"><strong>Shared project: {projectCard.name}</strong>{projectCard.imageUrl && <img src={projectCard.imageUrl} alt="" />}<small>{[projectCard.size, projectCard.style, projectCard.color].filter(Boolean).join(' · ')}</small>{projectCard.description && <p>{projectCard.description}</p>}</div> :
+              {projectCard ? <div className="community-project-share"><strong>Shared project: {projectCard.name}</strong>{projectCard.imageUrl && <img src={projectCard.imageUrl} alt="" />}<small>{[projectCard.size, projectCard.style, projectCard.color].filter(Boolean).join(' · ')}</small>{projectCard.description && <p>{projectCard.description}</p>}<button type="button" onClick={() => window.open(publicationUrl({ id: projectCard.id } as CommunityPost), '_blank', 'noopener,noreferrer')}>View original artwork</button></div> :
                 attachmentUrl ? <img className="community-chat-image" src={attachmentUrl} alt={attachmentMessages[message.id]?.name ?? 'Chat attachment'} /> :
                 <p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p>}
               <time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
