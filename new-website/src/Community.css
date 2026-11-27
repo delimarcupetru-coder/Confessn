@@ -22,6 +22,7 @@
 .community-members summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: #385a49; }
 .community-members summary:focus-visible { outline: 2px solid #397851; outline-offset: 3px; }
 .community-members input[type="search"] { margin: 4px 0 8px; }
+.community-members { display: none; }
 .community-member-search { margin: 12px 0 4px; }
 .community-mobile-back { display: none; }
 .community-mobile-directory-tabs { display: none; }
