@@ -22,6 +22,9 @@
 .community-members summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: #385a49; }
 .community-members summary:focus-visible { outline: 2px solid #397851; outline-offset: 3px; }
 .community-members input[type="search"] { margin: 4px 0 8px; }
+.community-member-search { margin: 12px 0 4px; }
+.community-mobile-back { display: none; }
+.community-mobile-directory-tabs { display: none; }
 .community-group-badge { display: inline-block; margin-left: auto; padding: 2px 6px; border-radius: 4px; background: #dcebe2; color: #254333; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .community-thread h3 .community-group-badge { margin-left: 8px; vertical-align: middle; }
 .community-person { display: flex; align-items: center; gap: 2px; margin: 3px 0; }
@@ -119,7 +122,16 @@
   .community-overlay, .community-detail-overlay { padding: 5px; }
   .community-panel { max-height: calc(100dvh - 10px); height: calc(100dvh - 10px); }
   .community-chat { grid-template-columns: minmax(0, 1fr); overflow: auto; }
-  .community-directory { max-height: 220px; border-bottom: 1px solid #cfdbd6; }
+  .community-directory { max-height: none; border-right: 0; border-bottom: 1px solid #cfdbd6; }
+  .community-mobile-directory-tabs { display: flex; gap: 6px; margin-top: 8px; }
+  .community-mobile-directory-tabs button { flex: 1; }
+  .community-chat.mobile-directory-members:not(.mobile-thread-open) .community-conversations,
+  .community-chat.mobile-directory-conversations:not(.mobile-thread-open) .community-members,
+  .community-chat:not(.mobile-thread-open) .community-thread { display: none; }
+  .community-chat.mobile-thread-open .community-directory { display: none; }
+  .community-chat.mobile-thread-open .community-thread { display: flex; }
+  .community-mobile-back { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; }
+  .community-members { display: none; }
   .community-thread { min-height: 430px; overflow: visible; }
   .community-history { max-height: 300px; }
   .community-calendar button { height: 48px; font-size: 12px; }

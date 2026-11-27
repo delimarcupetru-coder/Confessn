@@ -304,6 +304,9 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const [members, setMembers] = useState<Member[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selected, setSelected] = useState<string | null>(null)
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false)
+  const [mobileDirectory, setMobileDirectory] = useState<'members' | 'conversations'>('members')
+  const [membersOpen, setMembersOpen] = useState(false)
   const [participants, setParticipants] = useState<string[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [blocks, setBlocks] = useState<string[]>([])
@@ -358,7 +361,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   }
 
   useEffect(() => {
-    setMembers([]); setConversations([]); setMessages([]); setBlocks([]); setSelected(null); setDraft(''); setReports([]); setParticipants([]); setCommunityAdmin(false)
+    setMembers([]); setConversations([]); setMessages([]); setBlocks([]); setSelected(null); setMobileThreadOpen(false); setMobileDirectory('members'); setMembersOpen(false); setDraft(''); setReports([]); setParticipants([]); setCommunityAdmin(false)
   }, [userId])
 
   useEffect(() => {
@@ -403,7 +406,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     void supabase.rpc('community_start_chat', { p_members: [initialUser], p_title: '' }).then(({ data, error: issue }) => {
       if (!active) return
       if (issue) setError(issue.message)
-      else { setSelected(data); setTab('chat'); void load().catch(problem => setError(errorText(problem))) }
+      else { setSelected(data); setMobileThreadOpen(true); setTab('chat'); void load().catch(problem => setError(errorText(problem))) }
     })
     return () => { active = false }
   }, [open, userId, initialUser])
@@ -437,25 +440,33 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     </div>
     {error && <p role="alert" className="community-error">{error} <button type="button" onClick={() => void run(load)}>Retry</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className="community-chat" role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and press Enter or select Send. Use Shift+Enter for a new line. Select your own message to delete it for everyone after confirmation. Groups are text-only; blocking prevents direct and shared-chat access.">
+    {!userId ? <div className="community-empty"><button type="button" onClick={onConnect}>Sign in</button></div> : tab === 'chat' ? <div className={`community-chat${mobileThreadOpen ? ' mobile-thread-open' : ''} mobile-directory-${mobileDirectory}`} role="tabpanel" aria-label="Chat" data-cun-title="Chat" data-cun="Choose a conversation, write a message, and press Enter or select Send. Use Shift+Enter for a new line. Select your own message to delete it for everyone after confirmation. Groups are text-only; blocking prevents direct and shared-chat access.">
       <aside className="community-directory">
         <button type="button" onClick={() => setGroupOpen(!groupOpen)}><Users size={16} /> New group</button>
-        {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
+        <div className="community-mobile-directory-tabs" role="tablist" aria-label="Chat directory">
+          <button type="button" role="tab" aria-selected={mobileDirectory === 'members'} onClick={() => setMobileDirectory('members')}>Members</button>
+          <button type="button" role="tab" aria-selected={mobileDirectory === 'conversations'} onClick={() => setMobileDirectory('conversations')}>Conversations</button>
+        </div>
+        {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setMobileThreadOpen(true); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
           <label>Group name<input required maxLength={100} value={groupTitle} onChange={event => setGroupTitle(event.target.value)} /></label>
           {members.filter(member => member.user_id !== userId && !blocks.includes(member.user_id)).map(member => <label className="community-check" key={member.user_id}><input type="checkbox" checked={groupMembers.includes(member.user_id)} onChange={event => setGroupMembers(event.target.checked ? [...groupMembers, member.user_id] : groupMembers.filter(id => id !== member.user_id))} />{member.username}</label>)}
           <button disabled={busy || groupMembers.length < 2} type="submit">Create group</button>
         </form>}
-        <h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}{chat.is_group && <span className="community-group-badge">Group</span>}</button>)}
-        <details className="community-members"><summary>Members</summary>
-          <input type="search" aria-label="Search for members" placeholder="Search for members" value={search} onChange={event => setSearch(event.target.value)} />
+        <div className="community-conversations"><h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); setMobileThreadOpen(true); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}{chat.is_group && <span className="community-group-badge">Group</span>}</button>)}</div>
+        <input type="search" className="community-member-search" aria-label="Search for members" placeholder="Search for members" value={search} onChange={event => {
+          setSearch(event.target.value)
+          setMembersOpen(Boolean(event.target.value.trim()))
+        }} />
+        <details className="community-members" open={membersOpen} onToggle={event => setMembersOpen(event.currentTarget.open)}>
+          <summary>Members</summary>
           {members.filter(member => member.user_id !== userId && member.username.toLowerCase().includes(search.trim().toLowerCase())).map(member => <div className="community-person" key={member.user_id}>
-          <button type="button" disabled={blocks.includes(member.user_id) || busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [member.user_id], p_title: '' }); fail(result.error); setSelected(result.data); await load() })}>{member.username}</button>
+          <button type="button" disabled={blocks.includes(member.user_id) || busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [member.user_id], p_title: '' }); fail(result.error); setSelected(result.data); setMobileThreadOpen(true); await load() })}>{member.username}</button>
           <button type="button" className="community-icon" title={blocks.includes(member.user_id) ? 'Unblock user' : 'Block user'} aria-label={`${blocks.includes(member.user_id) ? 'Unblock' : 'Block'} ${member.username}`} disabled={busy} onClick={() => void run(async () => { const result = blocks.includes(member.user_id) ? await supabase.from('community_blocks').delete().eq('blocker_id', userId).eq('blocked_id', member.user_id) : await supabase.from('community_blocks').insert({ blocker_id: userId, blocked_id: member.user_id }); fail(result.error); await load(); setNotice('Block settings updated.') })}><ShieldBan size={15} /></button>
           <button type="button" className="community-icon" title="Report user" aria-label={`Report ${member.username}`} onClick={() => setReportTarget(member.user_id)}><Flag size={15} /></button>
           </div>)}
         </details>
       </aside>
-      <section className="community-thread"><header><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); await load() })}>Leave chat</button>}</header>
+      <section className="community-thread"><header><button type="button" className="community-mobile-back" onClick={() => { setMobileThreadOpen(false); setSelected(null); setMobileDirectory('members'); setMembersOpen(true) }}><ChevronLeft size={16} /> Members</button><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); setMobileThreadOpen(false); setMobileDirectory('members'); setMembersOpen(true); await load() })}>Leave chat</button>}</header>
         <p className="community-privacy-notice">Messages are not end-to-end encrypted. The service can access message contents and conversation details.</p>
         {conversation && <p className="community-participants">{participants.map(username).join(', ')}</p>}
         {messages.some(message => message.sender_id === userId) && <p className="community-delete-hint">Select your message to delete it for everyone.</p>}
