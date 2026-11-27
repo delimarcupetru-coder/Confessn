@@ -3,7 +3,7 @@ import { addMonths, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, 
 import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSquare, Pencil, Plus, Send, Share2, ShieldBan, Star, Trash2, Users, X } from 'lucide-react'
 import { supabase } from './supabase'
 import { SaleControls } from './Marketplace'
-import { preparePublicImage, sharePublicImage } from './share-image'
+import { prepareInstagramImage, sharePublicImage } from './share-image'
 import './Community.css'
 
 type Member = { user_id: string; username: string }
@@ -22,6 +22,18 @@ type Report = { id: string; target_user_id: string; post_id: string | null; reas
 const imageUrl = (path: string) => supabase.storage.from('community-media').getPublicUrl(path).data.publicUrl
 const fail = (error: { message: string } | null) => { if (error) throw new Error(error.message) }
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request could not be completed.'
+const guestRatingId = () => {
+  const storageKey = 'confessn-community-guest-rating-id'
+  try {
+    const saved = window.localStorage.getItem(storageKey)
+    if (saved) return saved
+    const created = crypto.randomUUID()
+    window.localStorage.setItem(storageKey, created)
+    return created
+  } catch {
+    return crypto.randomUUID()
+  }
+}
 const safeUrl = (value: string) => { try { const url = new URL(value); return url.protocol === 'https:' ? url.href : '' } catch { return '' } }
 const dateTime = (value: string, timeZone?: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone })
 const occursOn = (event: CommunityPost, date: Date) => Boolean(event.starts_at && event.ends_at && new Date(event.starts_at) <= endOfDay(date) && new Date(event.ends_at) > startOfDay(date))
@@ -72,7 +84,7 @@ function PublicationShare({ post }: { post: CommunityPost }) {
     setShareImage(null)
     setImagePreparing(true)
     try {
-      const file = await preparePublicImage(imageUrl(post.image_path), post.title)
+      const file = await prepareInstagramImage(imageUrl(post.image_path), post.title)
       if (request === imageRequest.current) setShareImage({ path: post.image_path, file })
     } catch (issue) {
       if (request === imageRequest.current) setError(errorText(issue))
@@ -146,8 +158,9 @@ export async function uploadCommunityImage(blob: Blob, userId: string) {
   return path
 }
 
-function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRated }: { post: CommunityPost; userId: string | null; compact?: boolean; onSignIn?: () => void; version?: number; onRated?: () => void }) {
-  const key = `${post.id}:${userId ?? 'guest'}`
+function PostRating({ post, userId, compact = false, version = 0, onRated }: { post: CommunityPost; userId: string | null; compact?: boolean; version?: number; onRated?: () => void }) {
+  const guestId = useRef(userId ? null : guestRatingId())
+  const key = `${post.id}:${userId ?? guestId.current ?? 'guest'}`
   const [snapshot, setSnapshot] = useState<{ key: string; summary: RatingSummary } | null>(null)
   const [pendingVote, setPendingVote] = useState<{ key: string; score: number } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -172,7 +185,7 @@ function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRa
       if (saving.current || document.visibilityState === 'hidden') return
       const request = ++requestId.current
       try {
-        const result = await supabase.rpc('community_rating_summary', { p_post_id: post.id })
+        const result = await supabase.rpc('community_rating_summary', { p_post_id: post.id, p_guest_id: userId ? null : guestId.current })
         fail(result.error)
         if (!active || identity.current !== key || request !== requestId.current || saving.current) return
         setSnapshot({ key, summary: readSummary(result.data) })
@@ -194,7 +207,7 @@ function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRa
   const count = summary ? BigInt(summary.vote_count).toLocaleString('en-US') : '...'
   return <div className={compact ? 'community-rating community-rating-compact' : 'community-rating'} data-cun-title="Artwork ratings" data-cun="Select one score from 1 to 10 on another member's artwork. Your saved score remains selected as the average and voter count update.">
     <span className="community-rating-average" title={summary ? `${count} ratings` : 'Loading ratings'} aria-live="polite" aria-atomic="true"><Star size={15} /><strong>{average}</strong><small>({count})</small></span>
-    {userId ? <select aria-label={compact ? `Rate ${post.title}` : 'Your rating'} title={post.author_id === userId ? 'You cannot rate your own post' : 'Rate from 1 to 10'} value={selectedScore} disabled={busy || post.author_id === userId} onChange={event => {
+    <select aria-label={compact ? `Rate ${post.title}` : 'Your rating'} title={post.author_id === userId ? 'You cannot rate your own post' : 'Rate from 1 to 10'} value={selectedScore} disabled={busy || post.author_id === userId} onChange={event => {
       if (saving.current) return
       const score = Number(event.target.value)
       saving.current = true
@@ -203,7 +216,7 @@ function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRa
       setBusy(true); setError('')
       void (async () => {
         try {
-          const result = await supabase.rpc('community_rate_post', { p_post_id: post.id, p_score: score })
+          const result = await supabase.rpc('community_rate_post', { p_post_id: post.id, p_score: score, p_guest_id: userId ? null : guestId.current })
           fail(result.error)
           if (identity.current !== key) return
           setSnapshot({ key, summary: readSummary(result.data) })
@@ -211,7 +224,7 @@ function PostRating({ post, userId, compact = false, onSignIn, version = 0, onRa
         } catch (issue) { if (identity.current === key) setError(errorText(issue)) }
         finally { saving.current = false; setPendingVote(null); setBusy(false) }
       })()
-    }}><option value="" disabled>Rate</option>{Array.from({ length: 10 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}</select> : <button type="button" onClick={onSignIn}>Rate</button>}
+    }}><option value="" disabled>Rate</option>{Array.from({ length: 10 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}</select>
     {error && <span role="alert" className="community-inline-error">{error}</span>}
   </div>
 }
@@ -542,7 +555,7 @@ export function CommunityFeed({ userId, version, onChat, onSignIn }: { userId: s
       <button type="button" className="community-post-title" onClick={() => setSelected(post)}>{post.title}</button>
       <div className="community-post-byline"><strong>{post.community_members?.username ?? 'Member'}</strong><time dateTime={post.created_at}>{new Date(post.created_at).toLocaleDateString()}</time></div>
       <div className="community-card-actions">
-        {post.kind === 'art' && <PostRating post={post} userId={userId} compact onSignIn={onSignIn} version={ratingVersion} />}
+        {post.kind === 'art' && <PostRating post={post} userId={userId} compact version={ratingVersion} />}
         <PublicationShare post={post} />
         <button type="button" className="community-small-message" title={`Message ${post.community_members?.username ?? 'publisher'}`} aria-label={`Message publisher of ${post.title}`} onClick={() => userId ? onChat(post.author_id) : onSignIn()} disabled={post.author_id === userId}><MessageCircle size={15} /> Message</button>
       </div>
@@ -577,7 +590,7 @@ function PublicationDetails({ post, userId, onClose, onChat, onSignIn, onChanged
     <SaleControls postId={post.id} authorId={post.author_id} kind={post.kind} onClose={onClose} />
     <div className="community-detail-actions"><PublicationShare post={post} /><button type="button" disabled={post.author_id === userId} onClick={connect}><MessageCircle size={16} /> Message {post.community_members?.username}</button>{userId && userId !== post.author_id && <><button type="button" disabled={busy} onClick={() => void act(async () => { const result = await supabase.from('community_blocks').upsert({ blocker_id: userId, blocked_id: post.author_id }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }); fail(result.error); onChanged() })}><ShieldBan size={16} /> Block</button><button type="button" onClick={() => setReport(!report)}><Flag size={16} /> Report</button></>}{userId === post.author_id && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove this publication from the public feed?')) void act(async () => { const result = await supabase.from('community_posts').delete().eq('id', post.id); fail(result.error); await supabase.storage.from('community-media').remove([post.image_path]); onChanged() }) }}><Trash2 size={16} /> Unpublish</button>}</div>
     {report && <form onSubmit={event => { event.preventDefault(); void act(async () => { const result = await supabase.from('community_reports').insert({ reporter_id: userId, target_user_id: post.author_id, post_id: post.id, reason: reason.trim() }); fail(result.error); setReport(false); setNotice('Report sent to administrators.') }) }}><label>Report reason<textarea required minLength={5} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label><button type="submit" disabled={busy}>Submit report</button></form>}
-    {post.kind === 'art' && <PostRating post={post} userId={userId} compact onSignIn={connect} onRated={onRated} />}
+    {post.kind === 'art' && <PostRating post={post} userId={userId} compact onRated={onRated} />}
     <h3>Comments</h3><div className="community-comments">{comments.map(item => <article key={item.id}><strong>{item.community_members?.username ?? 'Member'}</strong><p>{item.body}</p><time>{dateTime(item.created_at)}</time>{item.author_id === userId && <button type="button" className="community-icon" title="Delete comment" aria-label="Delete comment" onClick={() => void act(async () => { const result = await supabase.from('community_comments').delete().eq('id', item.id); fail(result.error); await load() })}><Trash2 size={14} /></button>}</article>)}</div>
     {userId ? <form onSubmit={event => { event.preventDefault(); void act(async () => { const result = await supabase.from('community_comments').insert({ post_id: post.id, author_id: userId, body: comment.trim() }); fail(result.error); setComment(''); await load() }) }}><label>Comment<textarea required maxLength={2000} value={comment} onChange={event => setComment(event.target.value)} /></label><button type="submit" disabled={busy || !comment.trim()}>Post comment</button></form> : <button type="button" onClick={connect}>Sign in to rate or comment</button>}
   </section></div>

@@ -103,10 +103,13 @@ create table if not exists public.community_comments (
 create index if not exists community_post_comments on public.community_comments(post_id, created_at);
 create table if not exists public.community_ratings (
   post_id uuid not null references public.community_posts(id) on delete cascade,
-  user_id uuid not null references public.community_members(user_id) on delete cascade,
+  user_id uuid references public.community_members(user_id) on delete cascade,
+  guest_id uuid,
   score integer not null check(score between 1 and 10),
-  primary key(post_id, user_id)
+  constraint community_rating_identity check((user_id is not null) <> (guest_id is not null))
 );
+create unique index if not exists community_rating_member_vote on public.community_ratings(post_id, user_id) where user_id is not null;
+create unique index if not exists community_rating_guest_vote on public.community_ratings(post_id, guest_id) where guest_id is not null;
 create table if not exists public.community_reports (
   id uuid primary key default gen_random_uuid(),
   reporter_id uuid not null references public.community_members(user_id) on delete cascade,
