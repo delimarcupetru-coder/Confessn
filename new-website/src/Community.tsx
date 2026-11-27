@@ -343,6 +343,13 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const conversation = conversations.find(item => item.id === selected)
   const username = (id: string) => members.find(member => member.user_id === id)?.username ?? 'Member'
   const label = (item: Conversation) => item.is_group ? item.title : item.title || 'Direct chat'
+  const moveConversationToTop = (conversationId: string) => {
+    setConversations(current => {
+      const unique = Array.from(new Map(current.map(chat => [chat.id, chat])).values())
+      const active = unique.find(chat => chat.id === conversationId)
+      return active ? [active, ...unique.filter(chat => chat.id !== conversationId)] : unique
+    })
+  }
   const run = async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action() } catch (issue) { setError(errorText(issue)) } finally { setBusy(false) } }
 
   const load = async () => {
@@ -356,7 +363,8 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     ])
     for (const result of [directory, chats, blocked, planned]) fail(result.error)
     if (identity.current !== userId) return
-    setMembers(directory.data ?? []); setConversations(chats.data ?? []); setBlocks((blocked.data ?? []).map(item => item.blocked_id)); setEvents(planned.data as CommunityPost[] ?? [])
+    const uniqueChats = Array.from(new Map((chats.data ?? []).map((chat: Conversation) => [chat.id, chat])).values()) as Conversation[]
+    setMembers(directory.data ?? []); setConversations(uniqueChats); setBlocks((blocked.data ?? []).map(item => item.blocked_id)); setEvents(planned.data as CommunityPost[] ?? [])
     setCommunityAdmin(!moderator.error && moderator.data === true)
   }
 
@@ -393,6 +401,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
       if (!active || version !== messageRefreshVersion.current) return
       fail(history.error); fail(people.error)
       setMessages((history.data ?? []).reverse()); setParticipants((people.data ?? []).map(item => item.user_id))
+      if (history.data?.length) moveConversationToTop(selected)
     }
     const update = () => { void refresh().catch(issue => { if (active) setError(errorText(issue)) }) }
     update()
@@ -406,7 +415,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     void supabase.rpc('community_start_chat', { p_members: [initialUser], p_title: '' }).then(({ data, error: issue }) => {
       if (!active) return
       if (issue) setError(issue.message)
-      else { setSelected(data); setMobileThreadOpen(true); setTab('chat'); void load().catch(problem => setError(errorText(problem))) }
+      else { setSelected(data); moveConversationToTop(data); setMobileThreadOpen(true); setTab('chat'); void load().catch(problem => setError(errorText(problem))) }
     })
     return () => { active = false }
   }, [open, userId, initialUser])
@@ -447,12 +456,12 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
           <button type="button" role="tab" aria-selected={mobileDirectory === 'members'} onClick={() => setMobileDirectory('members')}>Members</button>
           <button type="button" role="tab" aria-selected={mobileDirectory === 'conversations'} onClick={() => setMobileDirectory('conversations')}>Conversations</button>
         </div>
-        {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); setMobileThreadOpen(true); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
+        {groupOpen && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: groupMembers, p_title: groupTitle.trim() }); fail(result.error); setSelected(result.data); moveConversationToTop(result.data); setMobileThreadOpen(true); setGroupOpen(false); setGroupMembers([]); setGroupTitle(''); await load() }) }}>
           <label>Group name<input required maxLength={100} value={groupTitle} onChange={event => setGroupTitle(event.target.value)} /></label>
           {members.filter(member => member.user_id !== userId && !blocks.includes(member.user_id)).map(member => <label className="community-check" key={member.user_id}><input type="checkbox" checked={groupMembers.includes(member.user_id)} onChange={event => setGroupMembers(event.target.checked ? [...groupMembers, member.user_id] : groupMembers.filter(id => id !== member.user_id))} />{member.username}</label>)}
           <button disabled={busy || groupMembers.length < 2} type="submit">Create group</button>
         </form>}
-        <div className="community-conversations"><h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); setMobileThreadOpen(true); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}{chat.is_group && <span className="community-group-badge">Group</span>}</button>)}</div>
+        <div className="community-conversations"><h3>Conversations</h3>{conversations.map(chat => <button type="button" key={chat.id} className={selected === chat.id ? 'selected' : ''} onClick={() => { setSelected(chat.id); moveConversationToTop(chat.id); setMobileThreadOpen(true); setDraft('') }}>{chat.is_group ? <Users size={16} /> : <MessageCircle size={16} />}{label(chat)}{chat.is_group && <span className="community-group-badge">Group</span>}</button>)}</div>
         <input type="search" className="community-member-search" aria-label="Search for members" placeholder="Search for members" value={search} onChange={event => {
           setSearch(event.target.value)
           setMembersOpen(Boolean(event.target.value.trim()))
@@ -460,7 +469,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         <details className="community-members" open={membersOpen} onToggle={event => setMembersOpen(event.currentTarget.open)}>
           <summary>Members</summary>
           {members.filter(member => member.user_id !== userId && member.username.toLowerCase().includes(search.trim().toLowerCase())).map(member => <div className="community-person" key={member.user_id}>
-          <button type="button" disabled={blocks.includes(member.user_id) || busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [member.user_id], p_title: '' }); fail(result.error); setSelected(result.data); setMobileThreadOpen(true); await load() })}>{member.username}</button>
+          <button type="button" disabled={blocks.includes(member.user_id) || busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_start_chat', { p_members: [member.user_id], p_title: '' }); fail(result.error); setSelected(result.data); moveConversationToTop(result.data); setMobileThreadOpen(true); await load() })}>{member.username}</button>
           <button type="button" className="community-icon" title={blocks.includes(member.user_id) ? 'Unblock user' : 'Block user'} aria-label={`${blocks.includes(member.user_id) ? 'Unblock' : 'Block'} ${member.username}`} disabled={busy} onClick={() => void run(async () => { const result = blocks.includes(member.user_id) ? await supabase.from('community_blocks').delete().eq('blocker_id', userId).eq('blocked_id', member.user_id) : await supabase.from('community_blocks').insert({ blocker_id: userId, blocked_id: member.user_id }); fail(result.error); await load(); setNotice('Block settings updated.') })}><ShieldBan size={15} /></button>
           <button type="button" className="community-icon" title="Report user" aria-label={`Report ${member.username}`} onClick={() => setReportTarget(member.user_id)}><Flag size={15} /></button>
           </div>)}
@@ -485,7 +494,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
             })
           }}>{content}</button> : content}</article>
         })}{selected && !messages.length && <p>No messages yet.</p>}</div>
-        <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: selected, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); setDraft('') }) }}>
+        <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; const conversationId = selected; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: conversationId, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); moveConversationToTop(conversationId); void load(); setDraft('') }) }}>
           <textarea aria-label="Message" placeholder="End-to-end encryption not yet available" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
             event.preventDefault()
