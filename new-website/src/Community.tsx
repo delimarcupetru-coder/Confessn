@@ -341,6 +341,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
   const [attachmentMessages, setAttachmentMessages] = useState<Record<string, { path: string; name: string; mimeType: string; iv: string }>>({})
   const [projectCards, setProjectCards] = useState<Record<string, ChatProject>>({})
   const attachmentInput = useRef<HTMLInputElement>(null)
+  const initialProjectSent = useRef<{ recipient: string; project: string } | null>(null)
   const [groupTitle, setGroupTitle] = useState('')
   const [groupMembers, setGroupMembers] = useState<string[]>([])
   const [groupOpen, setGroupOpen] = useState(false)
@@ -540,9 +541,21 @@ export function Community({ userId, open, onClose, onConnect, initialUser, initi
   }, [open, userId, initialUser])
 
   useEffect(() => {
-    if (!open) { setPendingProject(null); setAttachmentFile(null); setProjectPickerOpen(false); return }
-    if (selected && initialProject) setPendingProject(initialProject)
-  }, [open, selected, initialProject])
+    if (!open) {
+      setPendingProject(null)
+      setAttachmentFile(null)
+      setProjectPickerOpen(false)
+      initialProjectSent.current = null
+      return
+    }
+    if (!selected || !initialUser || !initialProject) return
+    if (initialProjectSent.current?.recipient === initialUser && initialProjectSent.current.project === initialProject.id) return
+    initialProjectSent.current = { recipient: initialUser, project: initialProject.id }
+    setPendingProject(initialProject)
+    void run(async () => {
+      await sendProjectShare(initialProject)
+    })
+  }, [open, selected, initialUser, initialProject])
 
   useEffect(() => {
     if (!selected || !userId) return
