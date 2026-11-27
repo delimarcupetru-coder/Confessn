@@ -4,11 +4,19 @@ import { CalendarDays, ChevronLeft, ChevronRight, Flag, MessageCircle, MessageSq
 import { supabase } from './supabase'
 import { SaleControls } from './Marketplace'
 import { prepareInstagramImage, sharePublicImage } from './share-image'
+import {
+  decryptChatMessage,
+  encryptChatMessage,
+  ensureConversationKey,
+  ensureDeviceIdentity,
+  unwrapConversationKey,
+  getConversationKeyError,
+} from './community-e2ee'
 import './Community.css'
 
 type Member = { user_id: string; username: string }
 type Conversation = { id: string; title: string; is_group: boolean; owner_id: string }
-type Message = { id: string; sender_id: string; body: string; created_at: string }
+type Message = { id: string; sender_id: string; body: string; is_encrypted: boolean; created_at: string }
 export type CommunityPost = {
   id: string; author_id: string; kind: 'art' | 'event'; title: string; description: string;
   image_path: string; created_at: string; starts_at: string | null; ends_at: string | null;
@@ -309,6 +317,8 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   const [membersOpen, setMembersOpen] = useState(false)
   const [participants, setParticipants] = useState<string[]>([])
   const [messages, setMessages] = useState<Message[]>([])
+  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({})
+  const conversationKeys = useRef(new Map<string, CryptoKey>())
   const [blocks, setBlocks] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
@@ -369,7 +379,7 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
   }
 
   useEffect(() => {
-    setMembers([]); setConversations([]); setMessages([]); setBlocks([]); setSelected(null); setMobileThreadOpen(false); setMobileDirectory('members'); setMembersOpen(false); setDraft(''); setReports([]); setParticipants([]); setCommunityAdmin(false)
+    setMembers([]); setConversations([]); setMessages([]); setDecryptedBodies({}); setBlocks([]); setSelected(null); setMobileThreadOpen(false); setMobileDirectory('members'); setMembersOpen(false); setDraft(''); setReports([]); setParticipants([]); setCommunityAdmin(false)
   }, [userId])
 
   useEffect(() => {
@@ -395,12 +405,33 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
     const refresh = async () => {
       const version = messageRefreshVersion.current
       const [history, people] = await Promise.all([
-        supabase.from('community_messages').select('id,sender_id,body,created_at').eq('conversation_id', selected).order('created_at', { ascending: false }).limit(200),
+        supabase.from('community_messages').select('id,sender_id,body,is_encrypted,created_at').eq('conversation_id', selected).order('created_at', { ascending: false }).limit(200),
         supabase.from('community_participants').select('user_id').eq('conversation_id', selected),
       ])
       if (!active || version !== messageRefreshVersion.current) return
       fail(history.error); fail(people.error)
-      setMessages((history.data ?? []).reverse()); setParticipants((people.data ?? []).map(item => item.user_id))
+      const participantIds = (people.data ?? []).map(item => item.user_id)
+      const loadedMessages = (history.data ?? []).reverse() as Message[]
+      setMessages(loadedMessages); setParticipants(participantIds)
+      const encryptedMessages = loadedMessages.filter(message => message.is_encrypted)
+      if (encryptedMessages.length) {
+        try {
+          const identity = await ensureDeviceIdentity(supabase, userId)
+          let conversationKey = conversationKeys.current.get(selected) ?? await unwrapConversationKey(supabase, selected, userId, identity)
+          if (conversationKey) conversationKeys.current.set(selected, conversationKey)
+          if (conversationKey) {
+            const decrypted = await Promise.all(encryptedMessages.map(async message => {
+              try { return [message.id, await decryptChatMessage(conversationKey as CryptoKey, message.body)] as const }
+              catch (issue) { return [message.id, `Encrypted message unavailable: ${getConversationKeyError(issue)}`] as const }
+            }))
+            setDecryptedBodies(current => ({ ...current, ...Object.fromEntries(decrypted) }))
+          } else {
+            setDecryptedBodies(current => ({ ...current, ...Object.fromEntries(encryptedMessages.map(message => [message.id, 'Encrypted message: this browser needs a key backup or the key has not been delivered.'])) }))
+          }
+        } catch (issue) {
+          setDecryptedBodies(current => ({ ...current, ...Object.fromEntries(encryptedMessages.map(message => [message.id, `Encrypted message unavailable: ${getConversationKeyError(issue)}`])) }))
+        }
+      }
       if (history.data?.length) moveConversationToTop(selected)
     }
     const update = () => { void refresh().catch(issue => { if (active) setError(errorText(issue)) }) }
@@ -476,12 +507,12 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
         </details>
       </aside>
       <section className="community-thread"><header><button type="button" className="community-mobile-back" onClick={() => { setMobileThreadOpen(false); setSelected(null); setMobileDirectory('members'); setMembersOpen(true) }}><ChevronLeft size={16} /> Members</button><h3>{conversation ? label(conversation) : 'Conversations'}{conversation?.is_group && <span className="community-group-badge">Group chat</span>}</h3>{conversation && <button type="button" disabled={busy} onClick={() => void run(async () => { const result = await supabase.rpc('community_leave_chat', { p_conversation: selected }); fail(result.error); setSelected(null); setMobileThreadOpen(false); setMobileDirectory('members'); setMembersOpen(true); await load() })}>Leave chat</button>}</header>
-        <p className="community-privacy-notice">Messages are not end-to-end encrypted. The service can access message contents and conversation details.</p>
+        <p className="community-privacy-notice">Messages are end-to-end encrypted for participating devices. Supabase stores ciphertext and conversation metadata.</p>
         {conversation && <p className="community-participants">{participants.map(username).join(', ')}</p>}
         {messages.some(message => message.sender_id === userId) && <p className="community-delete-hint">Select your message to delete it for everyone.</p>}
         <div className="community-history" role="log" aria-label="Conversation messages" aria-live="polite">{messages.map(message => {
           const own = message.sender_id === userId
-          const content = <><strong>{username(message.sender_id)}</strong><p>{message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
+          const content = <><strong>{username(message.sender_id)}</strong><p>{message.is_encrypted ? decryptedBodies[message.id] ?? 'Decrypting...' : message.body}</p><time dateTime={message.created_at}>{dateTime(message.created_at)}</time></>
           return <article key={message.id} className={own ? 'own' : ''}>{own ? <button type="button" className="community-message" disabled={busy} title="Delete your message for everyone" aria-label={`Delete your message for everyone: ${message.body}`} onClick={() => {
             if (!window.confirm('Delete this message for everyone?')) return
             void run(async () => {
@@ -494,8 +525,26 @@ export function Community({ userId, open, onClose, onConnect, initialUser, onPub
             })
           }}>{content}</button> : content}</article>
         })}{selected && !messages.length && <p>No messages yet.</p>}</div>
-        <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; const conversationId = selected; void run(async () => { const result = await supabase.from('community_messages').insert({ conversation_id: conversationId, sender_id: userId, body: text }).select('id,sender_id,body,created_at').single(); fail(result.error); const sent = result.data; if (!sent) throw new Error('Message was not returned by the server.'); setMessages(current => [...current.filter(message => message.id !== sent.id), sent]); moveConversationToTop(conversationId); void load(); setDraft('') }) }}>
-          <textarea aria-label="Message" placeholder="End-to-end encryption not yet available" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+        <form className="community-composer" onSubmit={event => { event.preventDefault(); const text = draft.trim(); if (!text || !selected) return; const conversationId = selected; void run(async () => {
+          const identity = await ensureDeviceIdentity(supabase, userId)
+          let participantIds = participants
+          if (participantIds.length < 2) {
+            const participantResult = await supabase.from('community_participants').select('user_id').eq('conversation_id', conversationId)
+            if (participantResult.error) throw new Error(participantResult.error.message)
+            participantIds = (participantResult.data ?? []).map(item => item.user_id)
+          }
+          const conversationKey = await ensureConversationKey(supabase, conversationId, userId, participantIds, identity)
+          conversationKeys.current.set(conversationId, conversationKey)
+          const encryptedBody = await encryptChatMessage(conversationKey, text)
+          const result = await supabase.from('community_messages').insert({ conversation_id: conversationId, sender_id: userId, body: encryptedBody, is_encrypted: true }).select('id,sender_id,body,is_encrypted,created_at').single()
+          fail(result.error)
+          const sent = result.data as Message | null
+          if (!sent) throw new Error('Message was not returned by the server.')
+          setMessages(current => [...current.filter(message => message.id !== sent.id), sent])
+          setDecryptedBodies(current => ({ ...current, [sent.id]: text }))
+          moveConversationToTop(conversationId); void load(); setDraft('')
+        }) }}>
+          <textarea aria-label="Message" placeholder="Write an encrypted message" maxLength={4000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
             event.preventDefault()
             if (!event.repeat && !busy && selected && draft.trim()) event.currentTarget.form?.requestSubmit()

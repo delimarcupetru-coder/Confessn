@@ -36,6 +36,7 @@ test('community migration and access policies', async context => {
   await db.exec(await readFile(new URL('../../supabase-community.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-editing.sql', import.meta.url), 'utf8'))
   await db.exec(await readFile(new URL('../../supabase-community-ratings.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../supabase-community-encryption.sql', import.meta.url), 'utf8'))
   const messageDeletionMigration = await readFile(new URL('../../supabase-community-message-deletion.sql', import.meta.url), 'utf8')
   await db.exec(messageDeletionMigration)
   await db.exec(messageDeletionMigration)
@@ -67,6 +68,20 @@ test('community migration and access policies', async context => {
     assert.equal((await db.query('select * from public.community_participants')).rows.length, 0)
     await assert.rejects(db.query('insert into public.community_messages(conversation_id,sender_id,body) values($1,$2,$3)', [chat, outsider, 'Intrusion']))
     await assert.rejects(db.query('insert into public.community_participants(conversation_id,user_id) values($1,$2)', [chat, outsider]))
+  })
+
+  await context.test('encrypted chat keys are device-scoped and private to participants', async () => {
+    await asUser(alice)
+    await db.query('insert into public.community_device_keys(user_id,device_id,public_key) values($1,gen_random_uuid(),$2)', [alice, '{"kty":"RSA"}'])
+    await db.query("insert into public.community_messages(conversation_id,sender_id,body,is_encrypted) values($1,$2,'ciphertext-placeholder',true)", [chat, alice])
+    await asUser(bob)
+    await db.query('insert into public.community_device_keys(user_id,device_id,public_key) values($1,gen_random_uuid(),$2)', [bob, '{"kty":"RSA"}'])
+    const bobDevice = (await db.query('select device_id from public.community_device_keys where user_id=$1', [bob])).rows[0].device_id
+    await asUser(alice)
+    await db.query('insert into public.community_conversation_keys(conversation_id,user_id,device_id,wrapped_key) values($1,$2,$3,$4)', [chat, bob, bobDevice, 'wrapped'])
+    await asUser(outsider)
+    assert.equal((await db.query('select * from public.community_device_keys')).rows.length, 2)
+    assert.equal((await db.query('select * from public.community_conversation_keys')).rows.length, 0)
   })
 
   await context.test('only a sender can delete their own message for everyone', async () => {
